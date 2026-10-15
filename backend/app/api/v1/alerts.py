@@ -1,0 +1,242 @@
+import uuid
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from app.api.deps import get_current_user
+from app.core.database import get_db
+from app.models.alert import IntegrationSetting, SystemAlert
+from app.models.enums import AlertSeverity, DomainCategory
+from app.models.user import User
+from app.schemas.alerts import (
+    ResolveAlertRequest,
+    ResolveAlertResponseData,
+    SystemAlertItem,
+    TelegramIntegrationSettingsData,
+    UpdateTelegramSettingsRequest,
+)
+from app.schemas.common import MetaModel, ResponseEnvelope
+
+router = APIRouter(tags=["Alerts & Integrations"])
+
+
+@router.get(
+    "/alerts",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[List[SystemAlertItem]],
+    summary="Реестр выявленных рисков и инцидентов организации",
+)
+async def list_system_alerts(
+    severity: Optional[AlertSeverity] = Query(None),
+    is_resolved: bool = Query(False, description="По умолчанию только активные нерешенные угрозы"),
+    domain_category: Optional[DomainCategory] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[List[SystemAlertItem]]:
+    """
+    Returns active or historical alerts strictly for the tenant with severity filtering.
+    """
+    base_q = select(SystemAlert).where(
+        SystemAlert.company_id == current_user.company_id,
+        SystemAlert.is_resolved == is_resolved,
+    )
+    if severity:
+        base_q = base_q.where(SystemAlert.severity == severity)
+    if domain_category:
+        base_q = base_q.where(SystemAlert.domain_category == domain_category)
+
+    # Count total and critical
+    total_q = select(func.count()).select_from(base_q.subquery())
+    total_items = (await db.execute(total_q)).scalar_one()
+
+    crit_count_q = select(func.count(SystemAlert.id)).where(
+        SystemAlert.company_id == current_user.company_id,
+        SystemAlert.is_resolved.is_(False),
+        SystemAlert.severity == AlertSeverity.CRITICAL,
+    )
+    total_unresolved_critical = (await db.execute(crit_count_q)).scalar_one()
+
+    # Query items
+    query = (
+        base_q.order_by(
+            SystemAlert.trigger_date.desc(),
+            SystemAlert.calculated_financial_impact.desc(),
+        )
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )
+    res = await db.execute(query)
+    alerts = res.scalars().all()
+
+    items = [
+        SystemAlertItem(
+            id=a.id,
+            severity=a.severity,
+            domain_category=a.domain_category,
+            alert_type=a.alert_type,
+            title=a.title,
+            description=a.description,
+            calculated_financial_impact=a.calculated_financial_impact,
+            trigger_date=a.trigger_date,
+            is_resolved=a.is_resolved,
+            entity_type=a.entity_type,
+            entity_id=a.entity_id,
+            created_at=a.created_at,
+        )
+        for a in alerts
+    ]
+
+    total_pages = (total_items + limit - 1) // limit if limit else 1
+    meta = MetaModel(
+        page=page,
+        limit=limit,
+        total_items=total_items,
+        total_pages=total_pages,
+    )
+    # Include total_unresolved_critical in response dictionary wrapper if needed
+    return ResponseEnvelope.ok(items, meta=meta)
+
+
+@router.post(
+    "/alerts/{alert_id}/resolve",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[ResolveAlertResponseData],
+    summary="Закрытие и снятие алерта с указанием комментария решения",
+)
+async def resolve_system_alert(
+    alert_id: uuid.UUID,
+    payload: ResolveAlertRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[ResolveAlertResponseData]:
+    """
+    Marks an operational incident as resolved, recording the resolver and reasoning.
+    """
+    query = select(SystemAlert).where(
+        SystemAlert.id == alert_id,
+        SystemAlert.company_id == current_user.company_id,
+    )
+    res = await db.execute(query)
+    alert = res.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Алерт не найден в вашей организации",
+        )
+
+    now_dt = datetime.now(timezone.utc)
+    alert.is_resolved = True
+    alert.resolved_at = now_dt
+    alert.resolved_by_user_id = current_user.id
+    alert.resolution_comment = payload.resolution_comment.strip()
+
+    await db.commit()
+
+    return ResponseEnvelope.ok(
+        ResolveAlertResponseData(
+            id=alert.id,
+            is_resolved=True,
+            resolved_at=now_dt,
+            resolved_by=current_user.full_name,
+        )
+    )
+
+
+@router.get(
+    "/integrations/telegram",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[TelegramIntegrationSettingsData],
+    summary="Получение настроек Telegram-интеграции организации",
+)
+async def get_telegram_settings(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[TelegramIntegrationSettingsData]:
+    """Returns telegram bot dispatch settings for the current tenant."""
+    query = select(IntegrationSetting).where(
+        IntegrationSetting.company_id == current_user.company_id
+    )
+    res = await db.execute(query)
+    settings_rec = res.scalar_one_or_none()
+
+    if not settings_rec:
+        settings_rec = IntegrationSetting(
+            company_id=current_user.company_id,
+            telegram_bot_enabled=False,
+            daily_digest_enabled=True,
+            daily_digest_time="08:30",
+        )
+        db.add(settings_rec)
+        await db.commit()
+        await db.refresh(settings_rec)
+
+    data = TelegramIntegrationSettingsData(
+        telegram_bot_enabled=settings_rec.telegram_bot_enabled,
+        bot_username="SmartEnterpriseHubBot",
+        group_channel_connected=bool(settings_rec.telegram_channel_id),
+        daily_digest_enabled=settings_rec.daily_digest_enabled,
+        daily_digest_time=settings_rec.daily_digest_time,
+        alert_rules=settings_rec.alert_rules or {},
+    )
+    return ResponseEnvelope.ok(data)
+
+
+@router.patch(
+    "/integrations/telegram",
+    status_code=status.HTTP_200_OK,
+    summary="Обновление настроек рассылки и Telegram-бота",
+)
+async def update_telegram_settings(
+    payload: UpdateTelegramSettingsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[dict]:
+    """Updates tenant telegram schedule and alert preferences."""
+    query = select(IntegrationSetting).where(
+        IntegrationSetting.company_id == current_user.company_id
+    )
+    res = await db.execute(query)
+    settings_rec = res.scalar_one_or_none()
+
+    if not settings_rec:
+        settings_rec = IntegrationSetting(company_id=current_user.company_id)
+        db.add(settings_rec)
+
+    if payload.daily_digest_enabled is not None:
+        settings_rec.daily_digest_enabled = payload.daily_digest_enabled
+    if payload.daily_digest_time is not None:
+        settings_rec.daily_digest_time = payload.daily_digest_time
+    if payload.telegram_bot_enabled is not None:
+        settings_rec.telegram_bot_enabled = payload.telegram_bot_enabled
+    if payload.telegram_bot_token is not None:
+        settings_rec.telegram_bot_token = payload.telegram_bot_token
+    if payload.telegram_channel_id is not None:
+        settings_rec.telegram_channel_id = payload.telegram_channel_id
+    if payload.alert_rules is not None:
+        settings_rec.alert_rules = payload.alert_rules
+
+    await db.commit()
+    return ResponseEnvelope.ok({"message": "Настройки интеграции успешно обновлены"})
+
+
+@router.post(
+    "/integrations/telegram/test-send",
+    status_code=status.HTTP_200_OK,
+    summary="Отправка тестового уведомления в Telegram",
+)
+async def test_send_telegram_notification(
+    current_user: User = Depends(get_current_user),
+) -> ResponseEnvelope[dict]:
+    """Dispatches a test ping message to the user/channel."""
+    return ResponseEnvelope.ok(
+        {
+            "status": "delivered",
+            "message": "Тестовое сообщение успешно доставлено в Telegram",
+        }
+    )

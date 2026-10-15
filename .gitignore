@@ -1,0 +1,42 @@
+# Documentation, tasks and agent instructions
+docs/
+tasks/
+agents/
+
+# Markdown files
+*.md
+
+# Local storage & uploads
+storage/
+
+# Environment files
+.env
+*.env
+!.env.example
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+env/
+*.log
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
