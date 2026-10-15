@@ -7,7 +7,6 @@ import {
   Clock,
   Shield,
   Save,
-  RefreshCw,
 } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';

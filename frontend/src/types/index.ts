@@ -250,3 +250,21 @@ export interface TelegramSettings {
   alert_rules: AlertRules;
 }
 
+// --- Google Drive Sync ---
+export interface DriveSyncResult {
+  status: 'success' | 'idle' | 'syncing' | 'error';
+  synced_files_count: number;
+  new_alerts_count: number;
+  last_synced_at: string;
+  message?: string;
+}
+
+export interface DriveSyncStatus {
+  last_synced_at: string;
+  synced_files_count: number;
+  status: 'idle' | 'syncing' | 'error';
+  target_folders_count?: number;
+}
+
+export * from './roles';
+

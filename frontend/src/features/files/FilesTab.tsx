@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Upload, FileSpreadsheet, Clock, CheckCircle2 } from 'lucide-react';
+import { Upload, FileSpreadsheet } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';

@@ -2,24 +2,27 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { Header } from '@/components/Header';
-import { TabNav } from '@/components/TabNav';
+import { TabNav, type TabItem } from '@/components/TabNav';
 import { DashboardTab } from '@/features/dashboard/DashboardTab';
 import { FinanceTab } from '@/features/dashboard/FinanceTab';
 import { ProjectsTab } from '@/features/dashboard/ProjectsTab';
-import { PayrollTab } from '@/features/dashboard/PayrollTab';
+import { ProcurementTab } from '@/features/procurement/ProcurementTab';
+import { DispatchTab } from '@/features/dispatch/DispatchTab';
+import { TasksTab } from '@/features/tasks/TasksTab';
 import { FilesTab } from '@/features/files/FilesTab';
 import { SettingsTab } from '@/features/settings/SettingsTab';
 import { FileUploadModal } from '@/features/files/FileUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
 import { AlertsDrawer } from '@/features/alerts/AlertsDrawer';
 
-const TABS = [
-  { id: 'summary', label: 'Сводка' },
-  { id: 'finance', label: 'Финансы' },
-  { id: 'projects', label: 'Тендеры и объекты' },
-  { id: 'payroll', label: 'ФОТ' },
-  { id: 'files', label: 'Файлы' },
-  { id: 'settings', label: 'Настройки' },
+const TABS: TabItem[] = [
+  { id: 'summary', label: 'Сводка', shortLabel: 'Сводка' },
+  { id: 'tenders', label: 'Тендеры и объекты', shortLabel: 'Тендеры' },
+  { id: 'finance', label: 'Финансы и касса', shortLabel: 'Финансы' },
+  { id: 'procurement', label: 'Снабжение и закупки', shortLabel: 'Снабжение' },
+  { id: 'dispatch', label: 'Диспетчерская', shortLabel: 'Диспетчер' },
+  { id: 'tasks', label: 'Смарт-реестр задач', shortLabel: 'Задачи' },
+  { id: 'files', label: 'Файлы и Google Диск', shortLabel: 'Файлы' },
 ];
 
 export default function App() {
@@ -48,12 +51,16 @@ export default function App() {
     switch (activeTab) {
       case 'summary':
         return <DashboardTab />;
+      case 'tenders':
+        return <ProjectsTab />;
       case 'finance':
         return <FinanceTab />;
-      case 'projects':
-        return <ProjectsTab />;
-      case 'payroll':
-        return <PayrollTab />;
+      case 'procurement':
+        return <ProcurementTab />;
+      case 'dispatch':
+        return <DispatchTab />;
+      case 'tasks':
+        return <TasksTab />;
       case 'files':
         return (
           <FilesTab
@@ -76,10 +83,11 @@ export default function App() {
         alertsCount={6}
         onAlertsClick={() => setShowAlerts(true)}
         onOpenSettings={() => setActiveTab('settings')}
+        onNavigateTab={(tab) => setActiveTab(tab)}
       />
       <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 md:pb-6">
         {renderTab()}
       </main>
 

@@ -10,6 +10,8 @@ import type {
   Project,
   Alert,
   PayrollData,
+  DriveSyncStatus,
+  DriveSyncResult,
 } from '@/types';
 
 export const mockData = {
@@ -396,5 +398,21 @@ export const mockData = {
       notify_on_critical_instant: true,
     },
   },
+
+  driveSyncStatus: {
+    last_synced_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 mins ago
+    synced_files_count: 14,
+    status: 'idle',
+    target_folders_count: 5,
+  } satisfies DriveSyncStatus,
+
+  driveSyncResult: {
+    status: 'success',
+    synced_files_count: 3,
+    new_alerts_count: 0,
+    last_synced_at: new Date().toISOString(),
+    message: 'Синхронизация с Google Диском завершена: обновлено 3 файла, алертов: 0',
+  } satisfies DriveSyncResult,
 };
+
 

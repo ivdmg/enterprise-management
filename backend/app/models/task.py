@@ -10,6 +10,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -38,7 +39,8 @@ class OperationalTask(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin
         nullable=True,
     )
     task_title: Mapped[str] = mapped_column(String(500), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_contract: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    responsible_role: Mapped[str | None] = mapped_column(String(100), nullable=True)
     responsible_person: Mapped[str | None] = mapped_column(String(255), nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[TaskStatus] = mapped_column(
@@ -55,6 +57,11 @@ class OperationalTask(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin
     estimated_penalty_amount: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), default=Decimal("0.00"), nullable=False
     )
+    penalty_amount: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2), default=Decimal("0.00"), nullable=False
+    )
+    google_drive_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     company: Mapped["Company"] = relationship("Company", back_populates="operational_tasks")
@@ -66,6 +73,12 @@ class OperationalTask(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin
             "company_id",
             "due_date",
             "status",
-            postgresql_where=(SoftDeleteMixin.deleted_at == None),  # noqa: E711
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "idx_tasks_company_role",
+            "company_id",
+            "responsible_role",
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )

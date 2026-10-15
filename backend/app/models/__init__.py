@@ -19,6 +19,8 @@ from app.models.project import TenderProject
 from app.models.finance import CashflowOperation
 from app.models.payroll import PayrollRecord
 from app.models.task import OperationalTask
+from app.models.procurement import ProcurementItem
+from app.models.dispatch import FleetDispatchRecord
 from app.models.alert import SystemAlert, NotificationLog, IntegrationSetting
 
 __all__ = [
@@ -45,6 +47,8 @@ __all__ = [
     "TenderProject",
     "CashflowOperation",
     "PayrollRecord",
+    "ProcurementItem",
+    "FleetDispatchRecord",
     "OperationalTask",
     "SystemAlert",
     "NotificationLog",

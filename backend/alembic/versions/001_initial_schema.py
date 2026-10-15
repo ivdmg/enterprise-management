@@ -380,8 +380,11 @@ def upgrade() -> None:
         """
         INSERT INTO companies (id, name, inn, timezone)
         VALUES ('a0000000-0000-0000-0000-000000000001', 'ООО "ГлавСтройМонтаж"', '7701234567', 'Europe/Moscow')
-        ON CONFLICT DO NOTHING;
-
+        ON CONFLICT DO NOTHING
+        """
+    )
+    op.execute(
+        """
         INSERT INTO users (id, company_id, email, password_hash, full_name, role)
         VALUES (
             'b0000000-0000-0000-0000-000000000001',
@@ -391,11 +394,14 @@ def upgrade() -> None:
             'Алексей Викторович (Генеральный)',
             'admin'
         )
-        ON CONFLICT DO NOTHING;
-
+        ON CONFLICT DO NOTHING
+        """
+    )
+    op.execute(
+        """
         INSERT INTO integration_settings (company_id, telegram_bot_enabled, daily_digest_time)
         VALUES ('a0000000-0000-0000-0000-000000000001', false, '08:30')
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT DO NOTHING
         """
     )
 

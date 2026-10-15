@@ -10,6 +10,8 @@ if TYPE_CHECKING:
     from app.models.finance import CashflowOperation
     from app.models.payroll import PayrollRecord
     from app.models.task import OperationalTask
+    from app.models.procurement import ProcurementItem
+    from app.models.dispatch import FleetDispatchRecord
     from app.models.alert import SystemAlert, IntegrationSetting
 
 
@@ -43,6 +45,12 @@ class Company(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     payroll_records: Mapped[List["PayrollRecord"]] = relationship(
         "PayrollRecord", back_populates="company", cascade="all, delete-orphan"
+    )
+    procurement_items: Mapped[List["ProcurementItem"]] = relationship(
+        "ProcurementItem", back_populates="company", cascade="all, delete-orphan"
+    )
+    fleet_dispatch_records: Mapped[List["FleetDispatchRecord"]] = relationship(
+        "FleetDispatchRecord", back_populates="company", cascade="all, delete-orphan"
     )
     operational_tasks: Mapped[List["OperationalTask"]] = relationship(
         "OperationalTask", back_populates="company", cascade="all, delete-orphan"

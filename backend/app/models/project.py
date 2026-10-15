@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -37,10 +38,14 @@ class TenderProject(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
     project_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    purchase_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     project_name: Mapped[str] = mapped_column(String(500), nullable=False)
     customer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     curator_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contract_sum: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2), default=Decimal("0.00"), nullable=False
+    )
+    application_guarantee_sum: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), default=Decimal("0.00"), nullable=False
     )
     completed_sum: Mapped[Decimal] = mapped_column(
@@ -52,9 +57,12 @@ class TenderProject(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     debt_sum: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), default=Decimal("0.00"), nullable=False
     )
+    submission_deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     deadline_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    work_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     actual_completion_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    bank_guarantee_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="in_progress", nullable=False)
     risk_level: Mapped[ProjectRisk] = mapped_column(
         Enum(ProjectRisk, name="project_risk_enum", values_callable=lambda x: [e.value for e in x]),
@@ -78,12 +86,17 @@ class TenderProject(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
             "company_id",
             "status",
             "deadline_date",
-            postgresql_where=(SoftDeleteMixin.deleted_at == None),  # noqa: E711
+            postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
             "idx_tender_risk",
             "company_id",
             "risk_level",
-            postgresql_where=(risk_level != "normal"),
+            postgresql_where=text("risk_level != 'normal'"),
+        ),
+        Index(
+            "idx_tender_bg_expiry",
+            "company_id",
+            "bank_guarantee_expiry",
         ),
     )

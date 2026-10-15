@@ -58,3 +58,25 @@ export function formatFileSize(bytes: number): string {
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
+
+export function formatRelativeTime(dateInput: string | Date | null | undefined): string {
+  if (!dateInput) return 'никогда';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+
+  if (diffSec < 60) {
+    return 'только что';
+  }
+  if (diffMin < 60) {
+    return `${diffMin} мин назад`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} ч назад`;
+  }
+  return formatDate(date.toISOString());
+}
+

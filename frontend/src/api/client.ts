@@ -15,6 +15,8 @@ import type {
   Alert,
   PayrollData,
   TelegramSettings,
+  DriveSyncResult,
+  DriveSyncStatus,
 } from '@/types';
 import { mockData } from '@/mocks';
 
@@ -240,5 +242,32 @@ export const apiClient = {
       method: 'POST',
     });
   },
+
+  // --- Google Drive Sync ---
+  async syncDriveNow(): Promise<DriveSyncResult> {
+    if (USE_MOCKS) {
+      await delay(1200);
+      const updatedTimestamp = new Date().toISOString();
+      mockData.driveSyncStatus.last_synced_at = updatedTimestamp;
+      mockData.driveSyncStatus.status = 'idle';
+      mockData.driveSyncResult.last_synced_at = updatedTimestamp;
+      return {
+        ...mockData.driveSyncResult,
+        last_synced_at: updatedTimestamp,
+      };
+    }
+    return request<DriveSyncResult>('/sync/drive-now', {
+      method: 'POST',
+    });
+  },
+
+  async getDriveSyncStatus(): Promise<DriveSyncStatus> {
+    if (USE_MOCKS) {
+      await delay(200);
+      return mockData.driveSyncStatus;
+    }
+    return request<DriveSyncStatus>('/sync/status');
+  },
 };
+
 

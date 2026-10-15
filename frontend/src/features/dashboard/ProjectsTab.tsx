@@ -38,7 +38,8 @@ export function ProjectsTab() {
   return (
     <div className="space-y-4">
       <Card padding="none">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View (>= 768px) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm" id="projects-table">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50">
@@ -122,6 +123,73 @@ export function ProjectsTab() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View (< 768px) */}
+        <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800" id="projects-mobile-cards">
+          {projects.map((project) => (
+            <div key={project.id} className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                    {project.project_name}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {project.project_code} {project.curator_name ? `· ${project.curator_name}` : ''}
+                  </p>
+                </div>
+                <div>{getRiskBadge(project.risk_level)}</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-medium text-slate-400">Сумма договора</span>
+                  <p className="text-sm font-semibold font-mono text-slate-900 dark:text-slate-100 mt-0.5">
+                    {formatCurrency(project.contract_sum)}
+                  </p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-medium text-slate-400">Срок сдачи</span>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-0.5">
+                    {project.deadline_date ? formatDate(project.deadline_date) : '—'}
+                  </p>
+                  {project.days_overdue > 0 && (
+                    <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 block mt-0.5">
+                      +{project.days_overdue} дн. просрочка
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                  <span>Выполнение</span>
+                  <span className="font-mono font-medium">{formatPercent(project.completion_percent || 0)}</span>
+                </div>
+                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      project.risk_level === 'critical'
+                        ? 'bg-rose-500'
+                        : project.risk_level === 'warning'
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${project.completion_percent || 0}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Penalty */}
+              {project.penalty_amount_calculated && project.penalty_amount_calculated > 0 ? (
+                <div className="flex items-center justify-between text-xs bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300">
+                  <span>Расчетный штраф (44-ФЗ):</span>
+                  <span className="font-mono font-bold">{formatCurrency(project.penalty_amount_calculated)}</span>
+                </div>
+              ) : null}
+            </div>
+          ))}
         </div>
       </Card>
     </div>

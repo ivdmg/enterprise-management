@@ -11,6 +11,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -45,16 +46,24 @@ class CashflowOperation(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMix
         nullable=False,
     )
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    dds_article: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(
+        Numeric(15, 2), default=Decimal("0.00"), nullable=False
+    )
     planned_amount: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), default=Decimal("0.00"), nullable=False
     )
     actual_amount: Mapped[Decimal] = mapped_column(
         Numeric(15, 2), default=Decimal("0.00"), nullable=False
     )
+    payment_status: Mapped[str] = mapped_column(
+        String(50), default="Факт_Исполнено", nullable=False
+    )
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     account_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     payment_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     document_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    payment_purpose: Mapped[str | None] = mapped_column(String(500), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
@@ -67,12 +76,17 @@ class CashflowOperation(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMix
             "company_id",
             "operation_date",
             "direction",
-            postgresql_where=(SoftDeleteMixin.deleted_at == None),  # noqa: E711
+            postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
             "idx_cashflow_due_unpaid",
             "company_id",
             "payment_due_date",
-            postgresql_where=(is_paid == False),  # noqa: E712
+            postgresql_where=text("is_paid = false"),
+        ),
+        Index(
+            "idx_cashflow_payment_status",
+            "company_id",
+            "payment_status",
         ),
     )

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -65,12 +66,12 @@ class PayrollRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
             "idx_payroll_company_period",
             "company_id",
             "payroll_period",
-            postgresql_where=(SoftDeleteMixin.deleted_at == None),  # noqa: E711
+            postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
             "idx_payroll_debt",
             "company_id",
             "status",
-            postgresql_where=(status == "overdue"),
+            postgresql_where=text("status = 'overdue'"),
         ),
     )

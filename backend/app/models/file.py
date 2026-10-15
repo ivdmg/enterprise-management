@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from app.models.finance import CashflowOperation
     from app.models.payroll import PayrollRecord
     from app.models.task import OperationalTask
+    from app.models.procurement import ProcurementItem
+    from app.models.dispatch import FleetDispatchRecord
 
 
 class UploadedFile(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
@@ -74,6 +76,12 @@ class UploadedFile(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
     operational_tasks: Mapped[List["OperationalTask"]] = relationship(
         "OperationalTask", back_populates="file"
+    )
+    procurement_items: Mapped[List["ProcurementItem"]] = relationship(
+        "ProcurementItem", back_populates="file"
+    )
+    fleet_dispatch_records: Mapped[List["FleetDispatchRecord"]] = relationship(
+        "FleetDispatchRecord", back_populates="file"
     )
 
     __table_args__ = (

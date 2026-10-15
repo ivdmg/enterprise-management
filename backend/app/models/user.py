@@ -10,6 +10,7 @@ from sqlalchemy import (
     Index,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -60,6 +61,6 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index(
             "idx_users_telegram",
             "telegram_chat_id",
-            postgresql_where=(telegram_chat_id != None),  # noqa: E711
+            postgresql_where=text("telegram_chat_id IS NOT NULL"),
         ),
     )
