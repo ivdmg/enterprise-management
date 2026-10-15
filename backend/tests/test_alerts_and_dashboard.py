@@ -2,19 +2,44 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 import pytest
+from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 
+from app.main import app
+from app.api.deps import get_current_user
+from app.core.database import get_db
 from app.models.alert import SystemAlert
-from app.models.enums import AlertSeverity, DomainCategory, ProjectRisk
+from app.models.company import Company
+from app.models.enums import AlertSeverity, DomainCategory, ProjectRisk, TaskPriority, TaskStatus, UserRole
 from app.models.finance import CashflowOperation
+from app.models.procurement import ProcurementItem
 from app.models.project import TenderProject
+from app.models.task import OperationalTask
+from app.models.user import User
 from app.services.alerts_engine import AlertsEngine
+
+
+@pytest.fixture
+def test_user():
+    company_id = uuid.uuid4()
+    company = Company(id=company_id, name="АО Мосинжстрой", is_active=True)
+    user = User(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        email="chief@mosinzh.ru",
+        password_hash="hash",
+        full_name="Смирнов А.В.",
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+    user.company = company
+    return user
 
 
 @pytest.mark.asyncio
 async def test_44fz_statutory_penalty_calculation():
     """
-    Validates Russian 44-FZ statutory penalty formula:
+    Validates Russian 44-FZ statutory penalty formula (BE-4.2):
     Penalty = Unfulfilled_Sum * Days_Overdue * (1/300 * KeyRate).
     """
     company_id = uuid.uuid4()
@@ -33,6 +58,7 @@ async def test_44fz_statutory_penalty_calculation():
     )
 
     db_mock = AsyncMock()
+    db_mock.add = MagicMock()
     # Mock project query
     proj_res_mock = MagicMock()
     proj_res_mock.scalars.return_value.all.return_value = [project]
@@ -54,19 +80,150 @@ async def test_44fz_statutory_penalty_calculation():
     assert len(alerts) == 1
     assert alerts[0].alert_type == "DEADLINE_BREACH"
     assert alerts[0].calculated_financial_impact == expected_penalty
-    assert alerts[0].severity == AlertSeverity.CRITICAL  # 4 days overdue >= 3 days threshold
+    assert alerts[0].severity == AlertSeverity.CRITICAL
+
+
+@pytest.mark.asyncio
+async def test_5_day_rule_and_bank_guarantee_expiry():
+    """
+    Validates BE-4.1:
+    - 5-day rule for approaching СМР deadline
+    - 5-day rule for expiring / expired bank guarantee
+    """
+    company_id = uuid.uuid4()
+    today = datetime.now(timezone.utc).date()
+
+    # Project with deadline in 3 days (approaching) and BG expiring in 2 days
+    project = TenderProject(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        project_name="Реконструкция ВНС №4",
+        curator_name="Петров В.С.",
+        contract_sum=Decimal("5000000.00"),
+        completed_sum=Decimal("1000000.00"),  # unclosed = 4,000,000
+        deadline_date=today + timedelta(days=3),
+        bank_guarantee_expiry=today + timedelta(days=2),
+        application_guarantee_sum=Decimal("250000.00"),
+        status="in_progress",
+    )
+
+    db_mock = AsyncMock()
+    db_mock.add = MagicMock()
+
+    proj_res = MagicMock()
+    proj_res.scalars.return_value.all.return_value = [project]
+
+    alert_res1 = MagicMock()
+    alert_res1.scalar_one_or_none.return_value = None
+
+    alert_res2 = MagicMock()
+    alert_res2.scalar_one_or_none.return_value = None
+
+    db_mock.execute.side_effect = [proj_res, alert_res1, alert_res2]
+
+    alerts = await AlertsEngine.evaluate_tender_penalties(company_id, db_mock)
+    assert len(alerts) == 2
+
+    # Check KS2 alert
+    ks2_alert = next(a for a in alerts if a.alert_type == "KS2_DEADLINE_APPROACHING")
+    assert ks2_alert.severity == AlertSeverity.WARNING
+    assert ks2_alert.calculated_financial_impact == Decimal("4000000.00")
+    assert "Петров В.С." in ks2_alert.description
+
+    # Check BG alert (2 days left -> CRITICAL)
+    bg_alert = next(a for a in alerts if a.alert_type == "BANK_GUARANTEE_EXPIRING")
+    assert bg_alert.severity == AlertSeverity.CRITICAL
+    assert bg_alert.calculated_financial_impact == Decimal("250000.00")
+
+
+@pytest.mark.asyncio
+async def test_procurement_materials_delay_evaluation():
+    """
+    Validates BE-4.1 (3): Procurement materials delivery delay & approaching deadline.
+    """
+    company_id = uuid.uuid4()
+    today = datetime.now(timezone.utc).date()
+
+    item_overdue = ProcurementItem(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        project_name="Объект А",
+        item_name="Трубы стальные 159мм",
+        supplier="ООО ТрубПром",
+        invoice_amount=Decimal("450000.00"),
+        delivery_deadline=today - timedelta(days=2),
+        status="В пути",
+    )
+
+    db_mock = AsyncMock()
+    db_mock.add = MagicMock()
+
+    items_res = MagicMock()
+    items_res.scalars.return_value.all.return_value = [item_overdue]
+
+    alert_res = MagicMock()
+    alert_res.scalar_one_or_none.return_value = None
+
+    db_mock.execute.side_effect = [items_res, alert_res]
+
+    alerts = await AlertsEngine.evaluate_procurement_risks(company_id, db_mock)
+    assert len(alerts) == 1
+    assert alerts[0].alert_type == "PROCUREMENT_DELAY"
+    assert alerts[0].severity == AlertSeverity.CRITICAL
+    assert alerts[0].calculated_financial_impact == Decimal("450000.00")
+
+
+@pytest.mark.asyncio
+async def test_operational_tasks_critical_penalty_evaluation():
+    """
+    Validates BE-4.1 (4): Operational tasks with URGENT priority or disagreement protocol risks.
+    """
+    company_id = uuid.uuid4()
+    today = datetime.now(timezone.utc).date()
+
+    urgent_task = OperationalTask(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        task_title="Подача протокола разногласий по объекту ВНС",
+        related_contract="К-2026/01",
+        responsible_role="lawyer",
+        responsible_person="Ковалев И.А.",
+        priority=TaskPriority.URGENT,
+        penalty_risk_desc="Критический штраф по ГК РФ",
+        estimated_penalty_amount=Decimal("300000.00"),
+        due_date=today + timedelta(days=1),
+        status=TaskStatus.PENDING,
+    )
+
+    db_mock = AsyncMock()
+    db_mock.add = MagicMock()
+
+    tasks_res = MagicMock()
+    tasks_res.scalars.return_value.all.return_value = [urgent_task]
+
+    alert_res = MagicMock()
+    alert_res.scalar_one_or_none.return_value = None
+
+    db_mock.execute.side_effect = [tasks_res, alert_res]
+
+    alerts = await AlertsEngine.evaluate_operational_tasks_risks(company_id, db_mock)
+    assert len(alerts) == 1
+    assert alerts[0].severity == AlertSeverity.CRITICAL
+    assert alerts[0].calculated_financial_impact == Decimal("300000.00")
+    assert "Ковалев И.А." in alerts[0].description
 
 
 @pytest.mark.asyncio
 async def test_cash_gap_prediction_simulation():
     """
-    Validates 14-day cash gap simulation:
+    Validates 14-day cash gap simulation (BE-4.3):
     Detects when planned outflows exceed current balance + planned inflows.
     """
     company_id = uuid.uuid4()
     today = datetime.now(timezone.utc).date()
 
     db_mock = AsyncMock()
+    db_mock.add = MagicMock()
 
     # Total in = 1,000,000; Total out = 200,000 -> Current Balance = 800,000
     mock_tot_in = MagicMock()
@@ -119,3 +276,143 @@ async def test_cash_gap_prediction_simulation():
     assert is_gap is True
     assert deficit == Decimal("1200000.00")
     assert gap_day == due_date
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_and_critical_alerts_api(test_user):
+    """
+    Validates BE-4.4:
+    - GET /api/v1/dashboard/summary returning free_cash, active_portfolio_sum, receivables_sum,
+      payables_sum, critical_alerts_count, and nested data structures.
+    - GET /api/v1/alerts/critical returning actionable cards.
+    """
+    db_mock = AsyncMock()
+
+    # Mock evaluate_cash_gap return
+    today = datetime.now(timezone.utc).date()
+    mock_project = TenderProject(
+        id=uuid.uuid4(),
+        company_id=test_user.company_id,
+        project_name="Строительство школы на 1100 мест",
+        curator_name="Иванов И.И.",
+        contract_sum=Decimal("15000000.00"),
+        completed_sum=Decimal("5000000.00"),
+        paid_sum=Decimal("3000000.00"),  # receivable = 2,000,000
+        deadline_date=today + timedelta(days=2),
+        status="in_progress",
+        risk_level=ProjectRisk.CRITICAL,
+        penalty_amount_calculated=Decimal("50000.00"),
+    )
+
+    mock_alert = SystemAlert(
+        id=uuid.uuid4(),
+        company_id=test_user.company_id,
+        domain_category=DomainCategory.PRODUCTION_TENDERS,
+        severity=AlertSeverity.CRITICAL,
+        alert_type="DEADLINE_BREACH",
+        entity_type="tender_projects",
+        entity_id=mock_project.id,
+        title="Срыв срока СМР: Школа 1100 мест",
+        description="Отставание 4 дн. Неустойка: 50,000.00 ₽. Куратор: Иванов И.И.",
+        calculated_financial_impact=Decimal("50000.00"),
+        trigger_date=today - timedelta(days=4),
+        is_resolved=False,
+    )
+
+    async def override_get_db():
+        yield db_mock
+
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Setup mocks for GET /api/v1/dashboard/summary
+    # 1. cash gap (inflow, outflow, plan_in, plan_out, ops, alert)
+    mock_tot_in = MagicMock()
+    mock_tot_in.scalar_one.return_value = Decimal("5000000.00")
+    mock_tot_out = MagicMock()
+    mock_tot_out.scalar_one.return_value = Decimal("2000000.00")
+    mock_plan_in = MagicMock()
+    mock_plan_in.scalar_one.return_value = Decimal("1000000.00")
+    mock_plan_out = MagicMock()
+    mock_plan_out.scalar_one.return_value = Decimal("500000.00")
+    mock_ops = MagicMock()
+    mock_ops.scalars.return_value.all.return_value = []
+    mock_gap_alert = MagicMock()
+    mock_gap_alert.scalar_one_or_none.return_value = None
+
+    # 2. projects query
+    mock_proj_res = MagicMock()
+    mock_proj_res.scalars.return_value.all.return_value = [mock_project]
+
+    # 3. payables proc & payables cf
+    mock_proc_pay = MagicMock()
+    mock_proc_pay.scalar_one.return_value = Decimal("850000.00")
+    mock_cf_pay = MagicMock()
+    mock_cf_pay.scalar_one.return_value = Decimal("0.00")
+
+    # 4. alert counts (crit, warn, info)
+    mock_crit_c = MagicMock()
+    mock_crit_c.scalar_one.return_value = 1
+    mock_warn_c = MagicMock()
+    mock_warn_c.scalar_one.return_value = 0
+    mock_info_c = MagicMock()
+    mock_info_c.scalar_one.return_value = 0
+
+    # 5. top fire items
+    mock_fire_res = MagicMock()
+    mock_fire_res.scalars.return_value.all.return_value = [mock_alert]
+
+    db_mock.execute.side_effect = [
+        mock_tot_in,
+        mock_tot_out,
+        mock_plan_in,
+        mock_plan_out,
+        mock_ops,
+        mock_gap_alert,
+        mock_proj_res,
+        mock_proc_pay,
+        mock_cf_pay,
+        mock_crit_c,
+        mock_warn_c,
+        mock_info_c,
+        mock_fire_res,
+    ]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Test /dashboard/summary
+        resp = await client.get("/api/v1/dashboard/summary")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        data = body["data"]
+
+        # BE-4.4 direct metrics validation
+        assert Decimal(str(data["free_cash"])) == Decimal("3000000.00")  # 5,000,000 - 2,000,000
+        assert Decimal(str(data["active_portfolio_sum"])) == Decimal("15000000.00")
+        assert Decimal(str(data["receivables_sum"])) == Decimal("2000000.00")  # 5,000,000 - 3,000,000
+        assert Decimal(str(data["payables_sum"])) == Decimal("850000.00")
+        assert data["critical_alerts_count"] == 1
+        assert len(data["top_fire_items"]) == 1
+        assert data["top_fire_items"][0]["responsible"] == "Иванов И.И."
+        assert data["top_fire_items"][0]["category"] == "ks2_delay"
+
+        # Test /alerts/critical
+        # Reset side_effect for second call
+        mock_proj_res2 = MagicMock()
+        mock_proj_res2.scalars.return_value.all.return_value = [mock_project]
+        mock_crit_res2 = MagicMock()
+        mock_crit_res2.scalars.return_value.all.return_value = [mock_alert]
+        db_mock.execute.side_effect = [mock_proj_res2, mock_crit_res2]
+
+        crit_resp = await client.get("/api/v1/alerts/critical")
+        assert crit_resp.status_code == 200
+        crit_body = crit_resp.json()
+        assert crit_body["success"] is True
+        crit_cards = crit_body["data"]
+        assert len(crit_cards) == 1
+        assert crit_cards[0]["severity"] == "CRITICAL"
+        assert Decimal(str(crit_cards[0]["financial_impact"])) == Decimal("50000.00")
+        assert crit_cards[0]["responsible"] == "Иванов И.И."
+
+    app.dependency_overrides.clear()

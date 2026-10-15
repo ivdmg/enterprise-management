@@ -37,9 +37,23 @@ class TopFireItem(BaseModel):
     financial_impact: Decimal
     due_date: Optional[date] = None
     responsible: Optional[str] = None
+    project_id: Optional[uuid.UUID] = None
+    project_name: Optional[str] = None
+    penalty_amount: Optional[Decimal] = None
+    days_overdue: Optional[int] = None
+    days_remaining: Optional[int] = None
+    category: Optional[str] = None
 
 
 class DashboardSummaryData(BaseModel):
+    # Direct summary indicators (BE-4.4)
+    free_cash: Decimal = Decimal("0.00")
+    active_portfolio_sum: Decimal = Decimal("0.00")
+    receivables_sum: Decimal = Decimal("0.00")
+    payables_sum: Decimal = Decimal("0.00")
+    critical_alerts_count: int = 0
+
+    # Executive panel modules (Frontend & Detailed analytics)
     financial_health: FinancialHealth
     production_health: ProductionHealth
     alerts_overview: AlertsOverview

@@ -13,6 +13,7 @@ from app.models.alert import SystemAlert
 from app.models.enums import AlertSeverity, ProjectRisk
 from app.models.finance import CashflowOperation
 from app.models.payroll import PayrollRecord
+from app.models.procurement import ProcurementItem
 from app.models.project import TenderProject
 from app.models.user import User
 from app.schemas.common import MetaModel, ResponseEnvelope
@@ -35,6 +36,67 @@ from app.services.alerts_engine import alerts_engine
 router = APIRouter(prefix="/dashboard", tags=["Dashboard & Executive Analytics"])
 
 
+def build_fire_item(
+    a: SystemAlert,
+    projects_map: dict[uuid.UUID, TenderProject],
+    today: date,
+) -> TopFireItem:
+    """Helper to convert SystemAlert into rich TopFireItem with 44-FZ risk indicators."""
+    proj = projects_map.get(a.entity_id) if a.entity_id and a.entity_type == "tender_projects" else None
+    project_id = proj.id if proj else (a.entity_id if a.entity_type == "tender_projects" else None)
+    project_name = proj.project_name if proj else None
+
+    responsible = proj.curator_name if proj else None
+    if not responsible:
+        if "Ответственный: " in a.description:
+            part = a.description.split("Ответственный: ")[1].split(".")[0].strip()
+            if part != "Не назначен":
+                responsible = part
+        elif "Куратор: " in a.description:
+            part = a.description.split("Куратор: ")[1].split(".")[0].strip()
+            if part != "Не назначен":
+                responsible = part
+
+    cat: str = "ks2_delay"
+    if "KS2" in a.alert_type or "DEADLINE_BREACH" in a.alert_type:
+        cat = "ks2_delay"
+    elif "BANK_GUARANTEE" in a.alert_type:
+        cat = "bank_guarantee"
+    elif "PROCUREMENT" in a.alert_type:
+        cat = "procurement"
+    elif "TASK" in a.alert_type:
+        cat = "disagreement_protocol"
+    elif "CASH_GAP" in a.alert_type:
+        cat = "receivable_debt"
+
+    days_overdue: Optional[int] = None
+    days_remaining: Optional[int] = None
+    if a.trigger_date:
+        diff = (a.trigger_date - today).days
+        if diff < 0:
+            days_overdue = abs(diff)
+            days_remaining = 0
+        else:
+            days_overdue = 0
+            days_remaining = diff
+
+    return TopFireItem(
+        id=a.id,
+        severity=a.severity.value,
+        title=a.title,
+        description=a.description,
+        financial_impact=a.calculated_financial_impact,
+        due_date=a.trigger_date,
+        responsible=responsible,
+        project_id=project_id,
+        project_name=project_name,
+        penalty_amount=a.calculated_financial_impact,
+        days_overdue=days_overdue,
+        days_remaining=days_remaining,
+        category=cat,
+    )
+
+
 @router.get(
     "/summary",
     status_code=status.HTTP_200_OK,
@@ -47,10 +109,17 @@ async def get_dashboard_summary(
 ) -> ResponseEnvelope[DashboardSummaryData]:
     """
     Returns high-level Executive Fire-Panel metrics:
+    - free_cash: текущий свободный остаток ДДС
+    - active_portfolio_sum: суммарный объем активных контрактов в работе
+    - receivables_sum: нам должны (подписано КС, но не оплачено заказчиком)
+    - payables_sum: мы должны (неоплаченные счета поставщиков ТМЦ и кредиторы)
+    - critical_alerts_count: количество горящих событий
     - Financial health and 14-day cash gap predictions
     - Production portfolio health and penalty exposures
     - Critical alerts overview and Top-Fire actionable items
     """
+    today = datetime.now(timezone.utc).date()
+
     # 1. Evaluate cash health & gap
     (
         current_balance,
@@ -70,18 +139,43 @@ async def get_dashboard_summary(
         gap_date=gap_date,
     )
 
-    # 2. Production portfolio health
+    # 2. Production portfolio health & receivables
     proj_q = select(TenderProject).where(
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
     )
     proj_res = await db.execute(proj_q)
     projects = proj_res.scalars().all()
+    projects_map = {p.id: p for p in projects}
 
-    total_active_projects = len(projects)
-    total_portfolio_sum = sum((p.contract_sum for p in projects), Decimal("0.00"))
+    active_projects = [p for p in projects if p.status != "completed"]
+    total_active_projects = len(active_projects)
+    active_portfolio_sum = sum((p.contract_sum for p in active_projects), Decimal("0.00"))
     total_penalties = sum((p.penalty_amount_calculated for p in projects), Decimal("0.00"))
     projects_at_risk_count = sum(1 for p in projects if p.risk_level != ProjectRisk.NORMAL)
+
+    # receivables_sum: нам должны (подписано КС, но не оплачено заказчиком)
+    receivables_sum = sum(
+        (max(Decimal("0.00"), p.completed_sum - p.paid_sum) for p in projects),
+        Decimal("0.00"),
+    )
+
+    # payables_sum: мы должны (неоплаченные счета поставщиков ТМЦ и плановые списания)
+    payables_proc_q = select(func.coalesce(func.sum(ProcurementItem.invoice_amount), Decimal("0.00"))).where(
+        ProcurementItem.company_id == current_user.company_id,
+        ProcurementItem.deleted_at.is_(None),
+        func.lower(ProcurementItem.status).not_in(["на складе", "доставлено", "отменено", "оплачено"]),
+    )
+    proc_payables = (await db.execute(payables_proc_q)).scalar_one()
+
+    payables_cf_q = select(func.coalesce(func.sum(CashflowOperation.planned_amount), Decimal("0.00"))).where(
+        CashflowOperation.company_id == current_user.company_id,
+        CashflowOperation.deleted_at.is_(None),
+        CashflowOperation.direction == "outgoing",
+        CashflowOperation.is_paid.is_(False),
+    )
+    cf_payables = (await db.execute(payables_cf_q)).scalar_one()
+    payables_sum = proc_payables if proc_payables > Decimal("0.00") else cf_payables
 
     if projects:
         comp_ratios = [
@@ -95,7 +189,7 @@ async def get_dashboard_summary(
 
     production_health = ProductionHealth(
         total_active_projects=total_active_projects,
-        total_portfolio_sum=total_portfolio_sum,
+        total_portfolio_sum=active_portfolio_sum,
         average_completion_percent=round(avg_completion, 1),
         projects_at_risk_count=projects_at_risk_count,
         total_calculated_penalties=total_penalties,
@@ -138,31 +232,66 @@ async def get_dashboard_summary(
             desc(SystemAlert.severity == AlertSeverity.CRITICAL),
             SystemAlert.calculated_financial_impact.desc(),
         )
-        .limit(5)
+        .limit(10)
     )
     fire_res = await db.execute(fire_q)
     fire_alerts = fire_res.scalars().all()
 
     top_fire_items = [
-        TopFireItem(
-            id=a.id,
-            severity=a.severity.value,
-            title=a.title,
-            description=a.description,
-            financial_impact=a.calculated_financial_impact,
-            due_date=a.trigger_date,
-            responsible=None,
-        )
+        build_fire_item(a, projects_map, today)
         for a in fire_alerts
     ]
 
     summary_data = DashboardSummaryData(
+        free_cash=current_balance,
+        active_portfolio_sum=active_portfolio_sum,
+        receivables_sum=receivables_sum,
+        payables_sum=payables_sum,
+        critical_alerts_count=crit_count,
         financial_health=financial_health,
         production_health=production_health,
         alerts_overview=alerts_overview,
         top_fire_items=top_fire_items,
     )
     return ResponseEnvelope.ok(summary_data)
+
+
+@router.get(
+    "/alerts/critical",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[list[TopFireItem]],
+    summary="Список карточек «Где горит?» (критические алерты с неустойками и ответственными)",
+)
+async def get_dashboard_critical_alerts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[list[TopFireItem]]:
+    """
+    Returns critical actionable alert cards for 'Where is it burning?' widget:
+    Includes calculated 44-FZ penalty, responsible person, deadline date and days remaining/overdue.
+    """
+    today = datetime.now(timezone.utc).date()
+
+    proj_q = select(TenderProject).where(
+        TenderProject.company_id == current_user.company_id,
+        TenderProject.deleted_at.is_(None),
+    )
+    projects = (await db.execute(proj_q)).scalars().all()
+    projects_map = {p.id: p for p in projects}
+
+    crit_q = (
+        select(SystemAlert)
+        .where(
+            SystemAlert.company_id == current_user.company_id,
+            SystemAlert.is_resolved.is_(False),
+            SystemAlert.severity == AlertSeverity.CRITICAL,
+        )
+        .order_by(SystemAlert.calculated_financial_impact.desc())
+    )
+    crit_alerts = (await db.execute(crit_q)).scalars().all()
+
+    items = [build_fire_item(a, projects_map, today) for a in crit_alerts]
+    return ResponseEnvelope.ok(items)
 
 
 @router.get(

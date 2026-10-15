@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.models.alert import IntegrationSetting, SystemAlert
 from app.models.enums import AlertSeverity, DomainCategory
 from app.models.user import User
+from app.models.project import TenderProject
 from app.schemas.alerts import (
     ResolveAlertRequest,
     ResolveAlertResponseData,
@@ -20,8 +21,45 @@ from app.schemas.alerts import (
     UpdateTelegramSettingsRequest,
 )
 from app.schemas.common import MetaModel, ResponseEnvelope
+from app.schemas.dashboard import TopFireItem
 
 router = APIRouter(tags=["Alerts & Integrations"])
+
+
+@router.get(
+    "/alerts/critical",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[List[TopFireItem]],
+    summary="Карточки «Где горит?» (критические алерты с неустойками и ответственными)",
+)
+async def list_critical_alerts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[List[TopFireItem]]:
+    """Returns all active critical alerts sorted by calculated financial impact."""
+    from app.api.v1.dashboard import build_fire_item
+
+    today = datetime.now(timezone.utc).date()
+    proj_q = select(TenderProject).where(
+        TenderProject.company_id == current_user.company_id,
+        TenderProject.deleted_at.is_(None),
+    )
+    projects = (await db.execute(proj_q)).scalars().all()
+    projects_map = {p.id: p for p in projects}
+
+    crit_q = (
+        select(SystemAlert)
+        .where(
+            SystemAlert.company_id == current_user.company_id,
+            SystemAlert.is_resolved.is_(False),
+            SystemAlert.severity == AlertSeverity.CRITICAL,
+        )
+        .order_by(SystemAlert.calculated_financial_impact.desc())
+    )
+    crit_alerts = (await db.execute(crit_q)).scalars().all()
+
+    items = [build_fire_item(a, projects_map, today) for a in crit_alerts]
+    return ResponseEnvelope.ok(items)
 
 
 @router.get(
