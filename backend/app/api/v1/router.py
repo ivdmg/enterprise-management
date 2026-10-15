@@ -4,6 +4,7 @@ from app.api.v1.company import router as company_router
 from app.api.v1.files import router as files_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.alerts import router as alerts_router
+from app.api.v1.sync import router as sync_router
 
 api_router = APIRouter()
 
@@ -12,3 +13,4 @@ api_router.include_router(company_router)
 api_router.include_router(files_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(alerts_router)
+api_router.include_router(sync_router)

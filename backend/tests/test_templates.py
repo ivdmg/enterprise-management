@@ -194,3 +194,37 @@ def test_tasks_template_spec(templates_dir):
 def test_verifier_function(templates_dir):
     """Ensures verify_generated_templates returns True for valid directory."""
     assert verify_generated_templates(templates_dir) is True
+
+
+@pytest.fixture(scope="module")
+def mock_drive_dir(tmp_path_factory):
+    temp_dir = tmp_path_factory.mktemp("mock_drive")
+    from scripts.generate_standard_templates import generate_mock_drive
+    generate_mock_drive(temp_dir)
+    return temp_dir
+
+
+def test_mock_drive_generation_and_triggers(mock_drive_dir):
+    """Verifies that the Mock Google Drive is generated with correct folders, rows and triggers."""
+    from scripts.generate_standard_templates import verify_mock_drive
+    assert verify_mock_drive(mock_drive_dir) is True
+
+
+def test_mock_drive_all_five_files_exist_in_subfolders(mock_drive_dir):
+    """Verifies each template exists in its designated Google Drive subfolder."""
+    for key, spec in TEMPLATES.items():
+        file_path = mock_drive_dir / spec.relative_drive_dir / spec.file_name
+        assert file_path.exists(), f"Missing file: {file_path}"
+        assert file_path.stat().st_size > 0
+
+
+def test_mock_drive_row_counts_at_least_20(mock_drive_dir):
+    """Ensures each table on the mock drive contains at least 20 rows of realistic data."""
+    for key, spec in TEMPLATES.items():
+        file_path = mock_drive_dir / spec.relative_drive_dir / spec.file_name
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        ws = wb.active
+        data_rows = ws.max_row - 1
+        assert data_rows >= 20, f"{spec.file_name} has only {data_rows} rows, expected at least 20"
+        wb.close()
+

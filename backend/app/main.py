@@ -21,7 +21,17 @@ logger = logging.getLogger("enterprise_hub")
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown routines."""
     logger.info("Starting Smart Enterprise Hub Backend...")
+    try:
+        from app.core.scheduler import start_scheduler, shutdown_scheduler
+        start_scheduler()
+    except Exception as e:
+        logger.error("Failed to initialize background scheduler: %s", e)
     yield
+    try:
+        from app.core.scheduler import shutdown_scheduler
+        shutdown_scheduler()
+    except Exception as e:
+        logger.error("Error shutting down background scheduler: %s", e)
     logger.info("Stopping Smart Enterprise Hub Backend...")
 
 

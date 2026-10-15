@@ -83,5 +83,11 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str | None = None
     TELEGRAM_BOT_TOKEN: str | None = None
 
+    # Google Drive Bridge & Mock Settings
+    GOOGLE_DRIVE_MOCK: bool = True
+    GOOGLE_DRIVE_CREDENTIALS_PATH: Path = Path("credentials.json")
+    GOOGLE_DRIVE_MOCK_DIR: Path = Path("storage/mock_drive")
+    GOOGLE_DRIVE_SYNC_INTERVAL_HOURS: int = 4
+
 
 settings = Settings()

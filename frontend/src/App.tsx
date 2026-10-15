@@ -50,7 +50,7 @@ export default function App() {
   const renderTab = () => {
     switch (activeTab) {
       case 'summary':
-        return <DashboardTab />;
+        return <DashboardTab onNavigateTab={(tab) => setActiveTab(tab)} />;
       case 'tenders':
         return <ProjectsTab />;
       case 'finance':

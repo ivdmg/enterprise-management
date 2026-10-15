@@ -129,6 +129,8 @@ export interface FinancialHealth {
   is_cash_gap_predicted: boolean;
   gap_deficit_amount?: number;
   gap_date?: string | null;
+  total_debtors_sum?: number;
+  total_creditors_sum?: number;
 }
 
 export interface ProductionHealth {
@@ -153,6 +155,12 @@ export interface FireItem {
   financial_impact: number;
   due_date: string;
   responsible: string;
+  project_id?: string;
+  project_name?: string;
+  penalty_amount?: number;
+  days_overdue?: number;
+  days_remaining?: number;
+  category?: 'ks2_delay' | 'bank_guarantee' | 'disagreement_protocol' | 'receivable_debt' | 'procurement';
 }
 
 export interface DashboardSummary {
