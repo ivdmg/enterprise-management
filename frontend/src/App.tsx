@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { Header } from '@/components/Header';
@@ -12,18 +12,10 @@ import { TasksTab } from '@/features/tasks/TasksTab';
 import { FilesTab } from '@/features/files/FilesTab';
 import { SettingsTab } from '@/features/settings/SettingsTab';
 import { FileUploadModal } from '@/features/files/FileUploadModal';
+import { AccountantUploadModal } from '@/features/files/AccountantUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
 import { AlertsDrawer } from '@/features/alerts/AlertsDrawer';
-
-const TABS: TabItem[] = [
-  { id: 'summary', label: 'Сводка', shortLabel: 'Сводка' },
-  { id: 'tenders', label: 'Тендеры и объекты', shortLabel: 'Тендеры' },
-  { id: 'finance', label: 'Финансы и касса', shortLabel: 'Финансы' },
-  { id: 'procurement', label: 'Снабжение и закупки', shortLabel: 'Снабжение' },
-  { id: 'dispatch', label: 'Диспетчерская', shortLabel: 'Диспетчер' },
-  { id: 'tasks', label: 'Смарт-реестр задач', shortLabel: 'Задачи' },
-  { id: 'files', label: 'Файлы и Google Диск', shortLabel: 'Файлы' },
-];
+import { apiClient } from '@/api/client';
 
 export default function App() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -31,7 +23,39 @@ export default function App() {
   const [period, setPeriod] = useState('month');
   const [showAlerts, setShowAlerts] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showAccountantUpload, setShowAccountantUpload] = useState(false);
   const [mappingFile, setMappingFile] = useState<{ id: string; name: string } | null>(null);
+  const [pendingAccountingCount, setPendingAccountingCount] = useState(2);
+
+  // Poll/fetch pending accounting tasks count
+  useEffect(() => {
+    let mounted = true;
+    apiClient
+      .getTasks({ source: 'accounting', status: 'transferred_to_manager' })
+      .then((items) => {
+        if (mounted) setPendingAccountingCount(items.length);
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab]);
+
+  const tabs: TabItem[] = [
+    { id: 'summary', label: 'Сводка', shortLabel: 'Сводка' },
+    { id: 'tenders', label: 'Тендеры и объекты', shortLabel: 'Тендеры' },
+    { id: 'finance', label: 'Финансы и касса', shortLabel: 'Финансы' },
+    { id: 'procurement', label: 'Снабжение и закупки', shortLabel: 'Снабжение' },
+    { id: 'dispatch', label: 'Диспетчерская', shortLabel: 'Диспетчер' },
+    {
+      id: 'tasks',
+      label: 'Смарт-реестр задач',
+      shortLabel: 'Задачи',
+      badge: pendingAccountingCount > 0 ? pendingAccountingCount : undefined,
+    },
+    { id: 'files', label: 'Файлы и Google Диск', shortLabel: 'Файлы' },
+  ];
 
   // Loading state
   if (isLoading) {
@@ -65,13 +89,14 @@ export default function App() {
         return (
           <FilesTab
             onUploadClick={() => setShowUpload(true)}
+            onAccountantUploadClick={() => setShowAccountantUpload(true)}
             onFileSelect={(id, name) => setMappingFile({ id, name })}
           />
         );
       case 'settings':
         return <SettingsTab />;
       default:
-        return <DashboardTab />;
+        return <DashboardTab onNavigateTab={(tab) => setActiveTab(tab)} />;
     }
   };
 
@@ -85,7 +110,7 @@ export default function App() {
         onOpenSettings={() => setActiveTab('settings')}
         onNavigateTab={(tab) => setActiveTab(tab)}
       />
-      <TabNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+      <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 md:pb-6">
         {renderTab()}
@@ -98,6 +123,16 @@ export default function App() {
         onUploadComplete={(data) => {
           setShowUpload(false);
           setMappingFile({ id: data.file_id, name: data.original_name });
+        }}
+      />
+
+      <AccountantUploadModal
+        isOpen={showAccountantUpload}
+        onClose={() => setShowAccountantUpload(false)}
+        onUploadSuccess={() => {
+          setShowAccountantUpload(false);
+          setPendingAccountingCount((c) => c + 1);
+          setActiveTab('tasks');
         }}
       />
 

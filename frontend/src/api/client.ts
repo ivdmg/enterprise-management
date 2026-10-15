@@ -19,6 +19,8 @@ import type {
   DriveSyncStatus,
   TaskItem,
   TaskWorkflowStatus,
+  UploadAndAssignPayload,
+  UploadAndAssignResult,
 } from '@/types';
 import { mockData } from '@/mocks';
 
@@ -115,6 +117,71 @@ export const apiClient = {
     const formData = new FormData();
     formData.append('file', file);
     return request<FileUploadData>('/files/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  async uploadAndAssignFile(payload: UploadAndAssignPayload): Promise<UploadAndAssignResult> {
+    if (USE_MOCKS) {
+      await delay(1200);
+      const fileId = `c1000000-0000-0000-0000-${Date.now().toString().slice(-12)}`;
+      const taskId = `t0000000-0000-0000-0000-${Date.now().toString().slice(-12)}`;
+      const driveLink = `https://docs.google.com/spreadsheets/d/mock-accounting-${Date.now()}/edit`;
+
+      const newFile: FileListItem = {
+        id: fileId,
+        original_name: payload.file.name,
+        file_size_bytes: payload.file.size,
+        status: 'processed',
+        uploaded_by: 'Сидоров А.П. (Бухгалтер)',
+        created_at: new Date().toISOString(),
+      };
+      mockData.filesList.unshift(newFile);
+
+      const newTask: TaskItem = {
+        id: taskId,
+        task_title: `Согласование с заказчиком: ${payload.file.name}`,
+        description:
+          payload.comment ||
+          'Отчет по взаиморасчетам от бухгалтерии для согласования с заказчиком.',
+        related_contract: payload.contract_id_or_name || 'ТЭП-101 / Кислородный цех №101',
+        responsible_role: payload.assignee_role || 'manager',
+        responsible_person: 'Иванов И.И. (Менеджер проектов)',
+        due_date: new Date(Date.now() + 3 * 86400 * 1000).toISOString().split('T')[0],
+        days_remaining: 3,
+        is_urgent: true,
+        source: 'accounting',
+        source_label: 'От бухгалтерии',
+        status: 'transferred_to_manager',
+        priority: 'high',
+        document_name: payload.file.name,
+        google_drive_link: driveLink,
+        created_at: new Date().toISOString(),
+      };
+      mockData.tasks.unshift(newTask);
+
+      return {
+        file_id: fileId,
+        task_id: taskId,
+        file_name: payload.file.name,
+        google_drive_folder: payload.target_folder,
+        google_drive_link: driveLink,
+        assigned_to_role: payload.assignee_role || 'manager',
+        status: 'transferred_to_manager',
+        message: 'Файл успешно загружен на Google Диск и передан менеджеру проектов',
+      };
+    }
+
+    const formData = new FormData();
+    formData.append('file', payload.file);
+    formData.append('target_folder', payload.target_folder);
+    formData.append('comment', payload.comment);
+    if (payload.assignee_role) formData.append('assignee_role', payload.assignee_role);
+    if (payload.contract_id_or_name)
+      formData.append('contract_id_or_name', payload.contract_id_or_name);
+
+    return request<UploadAndAssignResult>('/files/upload-and-assign', {
       method: 'POST',
       body: formData,
     });

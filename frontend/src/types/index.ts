@@ -74,6 +74,25 @@ export interface FileListItem {
   created_at: string;
 }
 
+export interface UploadAndAssignPayload {
+  file: File;
+  target_folder: string;
+  comment: string;
+  assignee_role?: string;
+  contract_id_or_name?: string;
+}
+
+export interface UploadAndAssignResult {
+  file_id: string;
+  task_id: string;
+  file_name: string;
+  google_drive_folder: string;
+  google_drive_link: string;
+  assigned_to_role: string;
+  status: string;
+  message: string;
+}
+
 // --- Mapping ---
 export interface ColumnMapping {
   source_column: string;

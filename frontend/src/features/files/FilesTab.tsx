@@ -10,6 +10,7 @@ import type { FileListItem } from '@/types';
 interface FilesTabProps {
   onUploadClick: () => void;
   onFileSelect: (fileId: string, fileName: string) => void;
+  onAccountantUploadClick?: () => void;
 }
 
 function getStatusBadge(status: string) {
@@ -25,7 +26,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function FilesTab({ onUploadClick, onFileSelect }: FilesTabProps) {
+export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick }: FilesTabProps) {
   const [files, setFiles] = useState<FileListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,12 +47,36 @@ export function FilesTab({ onUploadClick, onFileSelect }: FilesTabProps) {
 
   return (
     <div className="space-y-4">
-      {/* Upload button */}
-      <div className="flex justify-end">
-        <Button onClick={onUploadClick} id="upload-file-btn">
-          <Upload className="h-4 w-4" />
-          Загрузить файл
-        </Button>
+      {/* Header & Upload buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            Файлы и Google Диск
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Корпоративный реестр выгрузок 1С, актов КС-2 и проектной документации
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {onAccountantUploadClick && (
+            <button
+              type="button"
+              onClick={onAccountantUploadClick}
+              className="min-h-[44px] px-3.5 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              id="accountant-upload-btn"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Передать отчет 1С менеджеру</span>
+            </button>
+          )}
+
+          <Button onClick={onUploadClick} id="upload-file-btn">
+            <Upload className="h-4 w-4" />
+            Загрузить файл
+          </Button>
+        </div>
       </div>
 
       {/* Files list */}

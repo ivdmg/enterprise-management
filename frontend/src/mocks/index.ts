@@ -66,7 +66,7 @@ export const mockData = {
       uploaded_by: 'Сидоров Алексей Петрович',
       created_at: '2026-10-09T16:45:00Z',
     },
-  ] satisfies FileListItem[],
+  ] as FileListItem[],
 
   mappingPreview: {
     file_id: 'c1000000-0000-0000-0000-000000000001',
@@ -592,7 +592,7 @@ export const mockData = {
       google_drive_link: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
       created_at: '2026-10-15T09:00:00Z',
     },
-  ] satisfies TaskItem[],
+  ] as TaskItem[],
 };
 
 
