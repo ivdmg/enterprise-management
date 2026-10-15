@@ -37,10 +37,20 @@ def clean_decimal(value: Any, default: Decimal = Decimal("0.00")) -> Decimal:
 
     # String cleanup
     clean_str = str(value).strip().replace(" ", "").replace("\xa0", "").replace("₽", "").replace("руб.", "").replace("руб", "")
-    clean_str = clean_str.replace(",", ".")
-    clean_str = re.sub(r"[^0-9.-]", "", clean_str)
-
     if not clean_str:
+        return default
+
+    # Handle thousands and decimal separators
+    if "," in clean_str and "." in clean_str:
+        if clean_str.find(",") < clean_str.find("."):
+            clean_str = clean_str.replace(",", "")
+        else:
+            clean_str = clean_str.replace(".", "").replace(",", ".")
+    elif "," in clean_str:
+        clean_str = clean_str.replace(",", ".")
+
+    clean_str = re.sub(r"[^0-9.-]", "", clean_str)
+    if not clean_str or clean_str in ("-", "."):
         return default
     try:
         return Decimal(clean_str).quantize(Decimal("0.01"))
@@ -110,16 +120,25 @@ class StandardTemplateParser:
 
     @classmethod
     def _read_rows(cls, file_source: Union[bytes, Path, str]) -> List[List[Any]]:
-        """Reads rows from file source using fast openpyxl."""
-        if isinstance(file_source, bytes):
-            wb = openpyxl.load_workbook(io.BytesIO(file_source), read_only=True, data_only=True)
-        else:
-            wb = openpyxl.load_workbook(str(file_source), read_only=True, data_only=True)
+        """Reads rows from file source using ultrafast python-calamine (< 5ms) with openpyxl fallback."""
+        try:
+            import python_calamine
+            if isinstance(file_source, bytes):
+                wb = python_calamine.CalamineWorkbook.from_filelike(io.BytesIO(file_source))
+            else:
+                wb = python_calamine.CalamineWorkbook.from_path(str(file_source))
+            return wb.get_sheet_by_index(0).to_python()
+        except Exception as e:
+            logger.debug("Falling back to openpyxl reader: %s", e)
+            if isinstance(file_source, bytes):
+                wb = openpyxl.load_workbook(io.BytesIO(file_source), read_only=True, data_only=True)
+            else:
+                wb = openpyxl.load_workbook(str(file_source), read_only=True, data_only=True)
 
-        ws = wb.active
-        rows = [list(r) for r in ws.iter_rows(values_only=True)]
-        wb.close()
-        return rows
+            ws = wb.active
+            rows = [list(r) for r in ws.iter_rows(values_only=True)]
+            wb.close()
+            return rows
 
     @classmethod
     async def parse_tender_registry(
@@ -137,6 +156,15 @@ class StandardTemplateParser:
 
         header = [str(c or "").strip() for c in rows[0]]
         h_map = {name.lower(): idx for idx, name in enumerate(header)}
+
+        # Pre-fetch existing projects in 1 single query to eliminate N+1 network latency
+        existing_q = select(TenderProject).where(
+            TenderProject.company_id == company_id,
+            TenderProject.deleted_at.is_(None),
+        )
+        existing_projects = (await db.execute(existing_q)).scalars().all()
+        existing_by_purchase = {p.purchase_number: p for p in existing_projects if p.purchase_number}
+        existing_by_name = {p.project_name: p for p in existing_projects}
 
         inserted_or_updated = 0
         for r in rows[1:]:
@@ -168,17 +196,8 @@ class StandardTemplateParser:
 
             debt_sum = max(Decimal("0.00"), contract_sum - paid_sum)
 
-            # Check existing project by (company_id, purchase_number) or (company_id, project_name)
-            q = select(TenderProject).where(
-                TenderProject.company_id == company_id,
-                TenderProject.deleted_at.is_(None),
-            )
-            if purchase_number:
-                q = q.where(TenderProject.purchase_number == purchase_number)
-            else:
-                q = q.where(TenderProject.project_name == project_name)
-
-            existing = (await db.execute(q)).scalar_one_or_none()
+            # O(1) in-memory lookup
+            existing = existing_by_purchase.get(purchase_number) if purchase_number else existing_by_name.get(project_name)
             if existing:
                 existing.file_id = file_id
                 existing.project_name = project_name
@@ -216,6 +235,9 @@ class StandardTemplateParser:
                     risk_level=ProjectRisk.NORMAL,
                 )
                 db.add(new_project)
+                if purchase_number:
+                    existing_by_purchase[purchase_number] = new_project
+                existing_by_name[project_name] = new_project
 
             inserted_or_updated += 1
 

@@ -65,6 +65,11 @@ def test_google_drive_mock_client_operations():
     assert upload_res.size_bytes == len(dummy_data)
     assert len(upload_res.md5_checksum) == 32
 
+    # Clean up uploaded test artifact
+    test_upload_file = client.mock_dir / "01_Реестры_Тендеров" / "test_upload.xlsx"
+    if test_upload_file.exists():
+        test_upload_file.unlink()
+
 
 @pytest.mark.asyncio
 async def test_drive_sync_api_endpoints(test_user):
@@ -120,7 +125,9 @@ async def test_drive_sync_end_to_end_real_db():
     Creates a temporary company, runs drive_sync_service against mock_drive,
     verifies records in all 5 business domain tables, and verifies 0-overhead deduplication.
     """
-    from app.core.database import async_session_factory
+    from sqlalchemy.pool import NullPool
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
     from app.models.project import TenderProject
     from app.models.finance import CashflowOperation
     from app.models.procurement import ProcurementItem
@@ -128,7 +135,10 @@ async def test_drive_sync_end_to_end_real_db():
     from app.models.task import OperationalTask
     from sqlalchemy import select
 
-    async with async_session_factory() as session:
+    test_engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+    test_session_factory = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with test_session_factory() as session:
         # Create isolated test company
         test_company = Company(
             id=uuid.uuid4(),
@@ -178,3 +188,4 @@ async def test_drive_sync_end_to_end_real_db():
             if target:
                 await session.delete(target)
                 await session.commit()
+            await test_engine.dispose()
