@@ -17,6 +17,8 @@ import type {
   TelegramSettings,
   DriveSyncResult,
   DriveSyncStatus,
+  TaskItem,
+  TaskWorkflowStatus,
 } from '@/types';
 import { mockData } from '@/mocks';
 
@@ -267,6 +269,59 @@ export const apiClient = {
       return mockData.driveSyncStatus;
     }
     return request<DriveSyncStatus>('/sync/status');
+  },
+
+  // --- Tasks & Smart Register ---
+  async getTasks(params?: {
+    role?: string;
+    urgent?: boolean;
+    source?: string;
+    status?: string;
+  }): Promise<TaskItem[]> {
+    if (USE_MOCKS) {
+      await delay(300);
+      let list = [...mockData.tasks];
+      if (params?.role && params.role !== 'all') {
+        list = list.filter((t) => t.responsible_role === params.role);
+      }
+      if (params?.urgent) {
+        list = list.filter(
+          (t) => (t.days_remaining !== undefined && t.days_remaining <= 5) || t.is_urgent
+        );
+      }
+      if (params?.source) {
+        list = list.filter((t) => t.source === params.source);
+      }
+      if (params?.status) {
+        list = list.filter((t) => t.status === params.status);
+      }
+      return list;
+    }
+    const searchParams = new URLSearchParams();
+    if (params?.role && params.role !== 'all') searchParams.set('role', params.role);
+    if (params?.urgent) searchParams.set('urgent', 'true');
+    if (params?.source) searchParams.set('source', params.source);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    return request<TaskItem[]>(`/tasks${qs ? `?${qs}` : ''}`);
+  },
+
+  async updateTaskStatus(
+    taskId: string,
+    status: TaskWorkflowStatus
+  ): Promise<{ id: string; status: TaskWorkflowStatus }> {
+    if (USE_MOCKS) {
+      await delay(150);
+      const item = mockData.tasks.find((t) => t.id === taskId);
+      if (item) {
+        (item as TaskItem).status = status;
+      }
+      return { id: taskId, status };
+    }
+    return request<{ id: string; status: TaskWorkflowStatus }>(`/tasks/${taskId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
   },
 };
 

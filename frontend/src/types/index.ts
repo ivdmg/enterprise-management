@@ -274,5 +274,34 @@ export interface DriveSyncStatus {
   target_folders_count?: number;
 }
 
+// --- Tasks & Smart Register ---
+export type TaskWorkflowStatus =
+  | 'in_progress'
+  | 'transferred_to_manager'
+  | 'approved_closed'
+  | 'pending'
+  | 'overdue';
+
+export interface TaskItem {
+  id: string;
+  task_title: string;
+  description?: string;
+  related_contract?: string;
+  project_id?: string;
+  responsible_role: string;
+  responsible_person: string;
+  due_date: string;
+  days_remaining?: number;
+  is_urgent?: boolean;
+  source?: 'accounting' | 'pto' | 'legal' | 'manual' | 'drive_sync';
+  source_label?: string;
+  status: TaskWorkflowStatus;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  estimated_penalty_amount?: number;
+  document_name?: string;
+  google_drive_link?: string;
+  created_at?: string;
+}
+
 export * from './roles';
 
