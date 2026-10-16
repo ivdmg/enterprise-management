@@ -71,3 +71,15 @@ class FileListItem(BaseModel):
     status: FileStatus
     uploaded_by: Optional[str] = None
     created_at: datetime
+
+
+class UploadAndAssignResult(BaseModel):
+    """Result of Accountant upload and assignment workflow (BE-5.1)."""
+    file_id: str
+    task_id: str
+    file_name: str
+    google_drive_folder: str
+    google_drive_link: str
+    assigned_to_role: str
+    status: str
+    message: str

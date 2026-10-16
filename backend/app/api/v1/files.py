@@ -1,13 +1,14 @@
 import os
 import uuid
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import (
     APIRouter,
     Depends,
     File,
+    Form,
     HTTPException,
     Query,
     UploadFile,
@@ -22,7 +23,7 @@ import openpyxl
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.enums import DomainCategory, FileStatus, UserRole
+from app.models.enums import DomainCategory, FileStatus, TaskPriority, TaskStatus, UserRole
 from app.models.file import FileTemplate, ParsingJob, UploadedFile
 from app.models.finance import CashflowOperation
 from app.models.payroll import PayrollRecord
@@ -37,11 +38,140 @@ from app.schemas.files import (
     MappingConfirmRequest,
     MappingConfirmResponseData,
     MappingPreviewResponseData,
+    UploadAndAssignResult,
 )
+from app.services.alerts_engine import alerts_engine
+from app.services.google_drive import get_google_drive_client
 from app.services.parser import CANONICAL_FIELDS, ExcelParserService
 from app.services.storage import build_tenant_storage_key, storage_service
+from app.services.template_parser import StandardTemplateParser
 
 router = APIRouter(prefix="/files", tags=["Files & Excel Ingestion"])
+
+
+@router.post(
+    "/upload-and-assign",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ResponseEnvelope[UploadAndAssignResult],
+    summary="Загрузка документа на Google Диск бухгалтером и передача менеджеру (BE-5.1)",
+)
+async def upload_and_assign_document(
+    file: UploadFile = File(...),
+    target_folder: str = Form(...),
+    comment: str = Form(...),
+    assignee_role: str = Form("manager"),
+    contract_id_or_name: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[UploadAndAssignResult]:
+    """
+    BE-5.1:
+    - Accepts file, target_folder on Google Drive, comment, and assignee_role.
+    - Saves file to Google Drive (Mock / API v3).
+    - Parses financial indicators if Excel file, updating cash balance.
+    - Creates task in operational_tasks with 'pending' status, drive link and comment.
+    """
+    orig_name = file.filename or "accounting_report.xlsx"
+    ext = os.path.splitext(orig_name)[1].lower()
+    if ext not in (".xlsx", ".xls", ".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Недопустимый формат файла. Поддерживаются только .xlsx, .xls, .csv",
+        )
+
+    content = await file.read()
+    if len(content) > settings.MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Размер файла превышает лимит {settings.MAX_FILE_SIZE_BYTES // (1024 * 1024)} МБ",
+        )
+
+    sha256_hash = hashlib.sha256(content).hexdigest()
+
+    # 1. Upload to Google Drive (Mock / API v3)
+    gdrive_client = get_google_drive_client()
+    drive_upload = gdrive_client.upload_file(
+        folder_name_or_id=target_folder,
+        filename=orig_name,
+        content=content,
+    )
+
+    # 2. Check if file record already exists or create new
+    existing_q = select(UploadedFile).where(
+        UploadedFile.company_id == current_user.company_id,
+        UploadedFile.sha256_hash == sha256_hash,
+        UploadedFile.deleted_at.is_(None),
+    )
+    uploaded_file = (await db.execute(existing_q)).scalar_one_or_none()
+
+    if not uploaded_file:
+        uploaded_file = UploadedFile(
+            company_id=current_user.company_id,
+            uploaded_by_user_id=current_user.id,
+            original_name=orig_name,
+            storage_path=f"google_drive:{drive_upload.id}",
+            file_size_bytes=len(content),
+            mime_type=file.content_type or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            sha256_hash=sha256_hash,
+            status=FileStatus.PROCESSED,
+        )
+        db.add(uploaded_file)
+        await db.flush()
+    else:
+        uploaded_file.storage_path = f"google_drive:{drive_upload.id}"
+        uploaded_file.status = FileStatus.PROCESSED
+        await db.flush()
+
+    # 3. Deterministic parsing of financial/operational data if spreadsheet
+    template_type = StandardTemplateParser.detect_template_type(orig_name, content)
+    if template_type:
+        try:
+            if "cashflow" in template_type:
+                await StandardTemplateParser.parse_cashflow_sheet(uploaded_file.id, current_user.company_id, content, db)
+            elif "procurement" in template_type:
+                await StandardTemplateParser.parse_procurement_sheet(uploaded_file.id, current_user.company_id, content, db)
+            elif "tender" in template_type:
+                await StandardTemplateParser.parse_tender_registry(uploaded_file.id, current_user.company_id, content, db)
+            elif "dispatch" in template_type:
+                await StandardTemplateParser.parse_dispatch_sheet(uploaded_file.id, current_user.company_id, content, db)
+            elif "task" in template_type:
+                await StandardTemplateParser.parse_operational_tasks(uploaded_file.id, current_user.company_id, content, db)
+
+            # Recompute cash gap and systemic alerts after financial ingestion
+            await alerts_engine.run_full_evaluation(current_user.company_id, db)
+        except Exception:
+            pass
+
+    # 4. Create Operational Task for assignee_role
+    today = datetime.now(timezone.utc).date()
+    new_task = OperationalTask(
+        company_id=current_user.company_id,
+        file_id=uploaded_file.id,
+        task_title=f"Согласование документа: {orig_name}",
+        related_contract=contract_id_or_name,
+        responsible_role=assignee_role or "manager",
+        responsible_person="Менеджер проекта",
+        due_date=today + timedelta(days=3),
+        status=TaskStatus.PENDING,
+        priority=TaskPriority.HIGH,
+        description=comment,
+        google_drive_link=drive_upload.web_view_link,
+    )
+    db.add(new_task)
+    await db.commit()
+    await db.refresh(new_task)
+
+    result_data = UploadAndAssignResult(
+        file_id=str(uploaded_file.id),
+        task_id=str(new_task.id),
+        file_name=orig_name,
+        google_drive_folder=target_folder,
+        google_drive_link=drive_upload.web_view_link,
+        assigned_to_role=assignee_role or "manager",
+        status="transferred_to_manager",
+        message="Файл успешно загружен на Google Диск и передан менеджеру проектов",
+    )
+    return ResponseEnvelope.ok(result_data)
 
 
 @router.post(

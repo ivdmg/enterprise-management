@@ -88,13 +88,13 @@ class StandardTemplateParser:
 
     @classmethod
     def detect_template_type(
-        cls, filename: str, headers: List[str]
+        cls, filename: str, headers: Optional[Union[List[Any], bytes, str]] = None
     ) -> Optional[str]:
         """Identifies which of the 5 standard templates the file represents."""
         norm_name = filename.lower()
         if "тендер" in norm_name or "контракт" in norm_name:
             return "tender_registry"
-        if "ддс" in norm_name or "касса" in norm_name or "взаиморасчет" in norm_name:
+        if "ддс" in norm_name or "касса" in norm_name or "взаиморасчет" in norm_name or "1c" in norm_name or "финанс" in norm_name:
             return "cashflow_sheet"
         if "закупок" in norm_name or "материал" in norm_name or "снабжен" in norm_name:
             return "procurement_sheet"
@@ -104,17 +104,22 @@ class StandardTemplateParser:
             return "operational_tasks"
 
         # Check by headers signature
-        h_str = " ".join(headers).lower()
-        if "номер_закупки" in h_str or "обеспечения_заявки" in h_str:
-            return "tender_registry"
-        if "статья_ддс" in h_str or "расчетный_счет" in h_str:
-            return "cashflow_sheet"
-        if "наименование_тмц" in h_str or "сумма_счета_руб" in h_str:
-            return "procurement_sheet"
-        if "тип_ресурса" in h_str or "наименование_единицы" in h_str:
-            return "dispatch_sheet"
-        if "ответственная_роль" in h_str or "крайний_срок" in h_str:
-            return "operational_tasks"
+        if headers is not None:
+            if isinstance(headers, (bytes, str)):
+                h_str = str(headers).lower()
+            else:
+                h_str = " ".join([str(h) for h in headers if h is not None]).lower()
+
+            if "номер_закупки" in h_str or "обеспечения_заявки" in h_str:
+                return "tender_registry"
+            if "статья_ддс" in h_str or "расчетный_счет" in h_str:
+                return "cashflow_sheet"
+            if "наименование_тмц" in h_str or "сумма_счета_руб" in h_str:
+                return "procurement_sheet"
+            if "тип_ресурса" in h_str or "наименование_единицы" in h_str:
+                return "dispatch_sheet"
+            if "ответственная_роль" in h_str or "крайний_срок" in h_str:
+                return "operational_tasks"
 
         return None
 

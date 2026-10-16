@@ -293,3 +293,8 @@ class GoogleDriveClient:
 
 # Singleton instance
 google_drive_client = GoogleDriveClient()
+
+
+def get_google_drive_client() -> GoogleDriveClient:
+    """Returns singleton instance of GoogleDriveClient."""
+    return google_drive_client
