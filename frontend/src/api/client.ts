@@ -21,6 +21,11 @@ import type {
   TaskWorkflowStatus,
   UploadAndAssignPayload,
   UploadAndAssignResult,
+  TenderStage,
+  ProcurementItemData,
+  ProcurementStatus,
+  DispatchRecordData,
+  DispatchStatus,
 } from '@/types';
 import { mockData } from '@/mocks';
 
@@ -388,6 +393,147 @@ export const apiClient = {
     return request<{ id: string; status: TaskWorkflowStatus }>(`/tasks/${taskId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    });
+  },
+
+  async updateProjectTenderStage(
+    projectId: string,
+    tender_stage: TenderStage
+  ): Promise<{ id: string; tender_stage: TenderStage }> {
+    if (USE_MOCKS) {
+      await delay(150);
+      const project = mockData.projects.find((p) => p.id === projectId);
+      if (project) {
+        project.tender_stage = tender_stage;
+      }
+      return { id: projectId, tender_stage };
+    }
+    return request<{ id: string; tender_stage: TenderStage }>(
+      `/dashboard/projects/${projectId}/stage`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ tender_stage }),
+      }
+    );
+  },
+
+  // --- Procurement & Supply (FE-5.2) ---
+  async getProcurementItems(params?: {
+    project_name?: string;
+    status?: ProcurementStatus;
+  }): Promise<ProcurementItemData[]> {
+    if (USE_MOCKS) {
+      await delay(200);
+      let list = [...mockData.procurementItems];
+      if (params?.project_name && params.project_name !== 'all') {
+        list = list.filter((item) => item.project_name === params.project_name);
+      }
+      if (params?.status) {
+        list = list.filter((item) => item.status === params.status);
+      }
+      return list;
+    }
+    const searchParams = new URLSearchParams();
+    if (params?.project_name && params.project_name !== 'all') {
+      searchParams.set('project_name', params.project_name);
+    }
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    return request<ProcurementItemData[]>(`/procurement/items${qs ? `?${qs}` : ''}`);
+  },
+
+  async updateProcurementStatus(
+    itemId: string,
+    status: ProcurementStatus
+  ): Promise<{ id: string; status: ProcurementStatus }> {
+    if (USE_MOCKS) {
+      await delay(150);
+      const item = mockData.procurementItems.find((p) => p.id === itemId);
+      if (item) {
+        item.status = status;
+      }
+      return { id: itemId, status };
+    }
+    return request<{ id: string; status: ProcurementStatus }>(
+      `/procurement/items/${itemId}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }
+    );
+  },
+
+  // --- Dispatch & Fleet (FE-5.3) ---
+  async getDispatchRecords(params?: {
+    status?: DispatchStatus;
+    resource_type?: 'machinery' | 'crew';
+  }): Promise<DispatchRecordData[]> {
+    if (USE_MOCKS) {
+      await delay(200);
+      let list = [...mockData.dispatchRecords];
+      if (params?.status) {
+        list = list.filter((rec) => rec.status === params.status);
+      }
+      if (params?.resource_type) {
+        list = list.filter((rec) => rec.resource_type === params.resource_type);
+      }
+      return list;
+    }
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.resource_type) searchParams.set('resource_type', params.resource_type);
+    const qs = searchParams.toString();
+    return request<DispatchRecordData[]>(`/dispatch/records${qs ? `?${qs}` : ''}`);
+  },
+
+  async updateDispatchStatus(
+    recordId: string,
+    status: DispatchStatus
+  ): Promise<{ id: string; status: DispatchStatus }> {
+    if (USE_MOCKS) {
+      await delay(150);
+      const record = mockData.dispatchRecords.find((r) => r.id === recordId);
+      if (record) {
+        record.status = status;
+        if (status === 'on_site') {
+          record.downtime_hours = undefined;
+          record.downtime_reason = undefined;
+        }
+      }
+      return { id: recordId, status };
+    }
+    return request<{ id: string; status: DispatchStatus }>(`/dispatch/records/${recordId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async logDispatchIncident(
+    recordId: string,
+    payload: {
+      status?: DispatchStatus;
+      downtime_reason: string;
+      downtime_hours: number;
+      incident_notes?: string;
+    }
+  ): Promise<DispatchRecordData> {
+    if (USE_MOCKS) {
+      await delay(250);
+      const record = mockData.dispatchRecords.find((r) => r.id === recordId);
+      if (record) {
+        record.status = payload.status || 'repair';
+        record.downtime_reason = payload.downtime_reason;
+        record.downtime_hours = payload.downtime_hours;
+        if (payload.incident_notes) {
+          record.incident_notes = payload.incident_notes;
+        }
+        return { ...record };
+      }
+      throw new Error('Record not found');
+    }
+    return request<DispatchRecordData>(`/dispatch/records/${recordId}/incident`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

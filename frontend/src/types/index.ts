@@ -212,7 +212,17 @@ export interface FinanceData {
   top_creditors: DebtorCreditor[];
 }
 
-// --- Projects ---
+// --- Projects & Tenders ---
+export type TenderStage = 'preparation' | 'submitted' | 'bidding' | 'won' | 'contract';
+
+export interface BankGuaranteeInfo {
+  bank_name: string;
+  amount: number;
+  expiry_date: string;
+  days_remaining: number;
+  is_critical: boolean;
+}
+
 export interface Project {
   id: string;
   project_code?: string;
@@ -229,6 +239,8 @@ export interface Project {
   days_overdue: number;
   risk_level: 'critical' | 'warning' | 'normal';
   penalty_amount_calculated?: number;
+  tender_stage?: TenderStage;
+  bank_guarantee?: BankGuaranteeInfo;
 }
 
 // --- Alerts ---
@@ -320,6 +332,43 @@ export interface TaskItem {
   document_name?: string;
   google_drive_link?: string;
   created_at?: string;
+}
+
+// --- Procurement & Materials Supply (FE-5.2) ---
+export type ProcurementStatus =
+  | 'invoice_pending'
+  | 'paid'
+  | 'in_transit'
+  | 'delivered';
+
+export interface ProcurementItemData {
+  id: string;
+  project_name: string;
+  item_name: string;
+  quantity: number;
+  unit: string;
+  supplier: string;
+  invoice_amount: number;
+  status: ProcurementStatus;
+  delivery_deadline: string;
+  invoice_number?: string;
+  created_at?: string;
+}
+
+// --- Fleet & Dispatch (FE-5.3) ---
+export type DispatchStatus = 'on_site' | 'repair' | 'downtime';
+
+export interface DispatchRecordData {
+  id: string;
+  shift_date: string;
+  target_object: string;
+  resource_type: 'machinery' | 'crew';
+  unit_name: string;
+  responsible_person: string;
+  status: DispatchStatus;
+  incident_notes?: string;
+  downtime_hours?: number;
+  downtime_reason?: string;
 }
 
 export * from './roles';
