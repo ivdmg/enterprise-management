@@ -92,16 +92,16 @@ export function RoleSwitcherModal({ isOpen, onClose, onRoleSelected }: RoleSwitc
                       key={role.id}
                       type="button"
                       onClick={() => handleSelectRole(role)}
-                      className={`min-h-[52px] w-full text-left p-3 rounded-lg border transition-all flex items-start gap-3 ${
+                      className={`min-h-[52px] w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 cursor-pointer ${
                         isSelected
-                          ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200 shadow-xs'
+                          ? 'border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-800/90 text-slate-900 dark:text-slate-100 shadow-2xs'
                           : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200'
                       }`}
                     >
                       <div
-                        className={`p-2 rounded-md shrink-0 mt-0.5 ${
+                        className={`p-2 rounded-lg shrink-0 mt-0.5 transition-colors ${
                           isSelected
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                       >
@@ -111,7 +111,7 @@ export function RoleSwitcherModal({ isOpen, onClose, onRoleSelected }: RoleSwitc
                         <div className="flex items-center justify-between gap-1">
                           <p className="text-sm font-semibold truncate">{role.shortName}</p>
                           {isSelected && (
-                            <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <Check className="h-4 w-4 text-slate-900 dark:text-slate-100 shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">

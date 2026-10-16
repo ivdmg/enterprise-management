@@ -61,7 +61,7 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <div className="h-8 w-8 border-2 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
