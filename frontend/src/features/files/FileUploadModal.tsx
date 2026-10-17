@@ -107,18 +107,18 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => inputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+            className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors ${
               isDragging
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/5'
-                : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                ? 'border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900/50'
+                : 'border-[var(--card-border)] hover:border-slate-400 dark:hover:border-slate-600'
             }`}
             id="file-drop-zone"
           >
-            <Upload className="h-8 w-8 mx-auto mb-3 text-slate-400 dark:text-slate-500" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <Upload className="h-8 w-8 mx-auto mb-3 text-[var(--text-muted)]" />
+            <p className="text-sm font-semibold text-[var(--text-main)]">
               Перетащите файл сюда
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-[var(--text-sub)] mt-1">
               или нажмите для выбора (.xlsx, .xls, .csv, до 25 МБ)
             </p>
             <input
@@ -137,19 +137,19 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
 
         {/* Selected file */}
         {file && !uploading && (
-          <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-3 p-3.5 bg-[var(--card-subtle)] rounded-xl border border-[var(--card-border)]">
             <FileSpreadsheet className="h-8 w-8 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+              <p className="text-sm font-bold text-[var(--text-main)] truncate">
                 {file.name}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[var(--text-sub)]">
                 {formatFileSize(file.size)}
               </p>
             </div>
             <button
               onClick={() => setFile(null)}
-              className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
               aria-label="Удалить файл"
             >
               <X className="h-4 w-4" />
@@ -160,15 +160,15 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
         {/* Progress */}
         {uploading && (
           <div className="space-y-2">
-            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <FileSpreadsheet className="h-8 w-8 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="flex items-center gap-3 p-3.5 bg-[var(--card-subtle)] rounded-xl border border-[var(--card-border)]">
+              <FileSpreadsheet className="h-8 w-8 text-slate-800 dark:text-slate-200 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                <p className="text-sm font-bold text-[var(--text-main)] truncate">
                   {file?.name}
                 </p>
                 <div className="mt-1.5 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                    className="h-full bg-slate-900 dark:bg-slate-100 rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -178,6 +178,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
               )}
             </div>
           </div>
+
         )}
 
         {/* Error */}

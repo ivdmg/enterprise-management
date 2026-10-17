@@ -14,33 +14,32 @@ interface KpiCardProps {
 
 export function KpiCard({ title, value, subtitle, icon: Icon, trend }: KpiCardProps) {
   return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            {title}
-          </p>
-          <p className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-            {value}
-          </p>
-          {subtitle && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
-          )}
-          {trend && (
-            <p
-              className={`text-xs font-medium ${
-                trend.positive
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-rose-600 dark:text-rose-400'
-              }`}
-            >
-              {trend.value}
-            </p>
-          )}
+    <Card padding="md">
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-xs font-medium text-[var(--text-sub)] tracking-tight">
+          {title}
+        </span>
+        <Icon className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
+      </div>
+
+      <div className="mt-2.5">
+        <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-[var(--text-main)]">
+          {value}
         </div>
-        <div className="p-2 rounded-md bg-slate-100 dark:bg-slate-800">
-          <Icon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-        </div>
+        {subtitle && (
+          <p className="text-xs text-[var(--text-sub)] mt-1 font-medium">{subtitle}</p>
+        )}
+        {trend && (
+          <p
+            className={`text-xs font-semibold mt-1 flex items-center gap-1 ${
+              trend.positive
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-rose-600 dark:text-rose-400'
+            }`}
+          >
+            {trend.value}
+          </p>
+        )}
       </div>
     </Card>
   );

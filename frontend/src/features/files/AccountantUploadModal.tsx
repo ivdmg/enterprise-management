@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
+import { Select } from '@/components/Select';
 import { apiClient } from '@/api/client';
 import { useToast } from '@/context/ToastContext';
 import { formatFileSize } from '@/utils/format';
@@ -175,36 +176,36 @@ export function AccountantUploadModal({
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => inputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+              className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors ${
                 isDragging
-                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20'
-                  : 'border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-900/40'
+                  ? 'border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-900/40'
+                  : 'border-[var(--card-border)] hover:border-slate-400 dark:hover:border-slate-600 bg-[var(--card-subtle)]'
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400 mb-2">
+              <div className="w-10 h-10 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center mx-auto text-[var(--text-main)] mb-2">
                 <Upload className="h-5 w-5" />
               </div>
-              <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              <p className="text-xs font-semibold text-[var(--text-main)]">
                 Перетащите файл .xlsx сюда или{' '}
-                <span className="text-indigo-600 dark:text-indigo-400 font-semibold underline">
+                <span className="text-[var(--text-main)] font-bold underline">
                   выберите с диска
                 </span>
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-[11px] text-[var(--text-muted)] mt-1">
                 Поддерживаются отчеты 1С:Предприятие (до {formatFileSize(MAX_FILE_SIZE)})
               </p>
             </div>
           ) : (
-            <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <FileSpreadsheet className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  <p className="text-xs font-bold text-[var(--text-main)] truncate">
                     {file.name}
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[11px] text-[var(--text-sub)]">
                     {formatFileSize(file.size)}
                   </p>
                 </div>
@@ -213,7 +214,7 @@ export function AccountantUploadModal({
                 type="button"
                 onClick={() => setFile(null)}
                 disabled={isSubmitting}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="min-h-[36px] min-w-[36px] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
                 aria-label="Удалить файл"
               >
                 <X className="h-4 w-4" />
@@ -224,49 +225,35 @@ export function AccountantUploadModal({
 
         {/* Target Folder on Google Drive */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Folder className="h-3.5 w-3.5 text-slate-400" />
+          <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5 flex items-center gap-1.5">
+            <Folder className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             <span>Целевая папка на Google Диске</span>
           </label>
-          <select
+          <Select
             value={targetFolder}
-            onChange={(e) => setTargetFolder(e.target.value)}
+            onChange={setTargetFolder}
             disabled={isSubmitting}
-            className="w-full min-h-[42px] px-3 py-2 text-xs bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            id="accountant-target-folder"
-          >
-            {DEFAULT_TARGET_FOLDERS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            options={DEFAULT_TARGET_FOLDERS}
+          />
         </div>
 
         {/* Related Contract / Object */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-slate-400" />
+          <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5 flex items-center gap-1.5">
+            <Building2 className="h-3.5 w-3.5 text-[var(--text-muted)]" />
             <span>Привязка к объекту СМР</span>
           </label>
-          <select
+          <Select
             value={contract}
-            onChange={(e) => setContract(e.target.value)}
+            onChange={setContract}
             disabled={isSubmitting}
-            className="w-full min-h-[42px] px-3 py-2 text-xs bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            id="accountant-contract-select"
-          >
-            {CONTRACT_OPTIONS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            options={CONTRACT_OPTIONS}
+          />
         </div>
 
         {/* Comment for Manager */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+          <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5">
             Комментарий и поручение менеджеру
           </label>
           <textarea
@@ -274,11 +261,12 @@ export function AccountantUploadModal({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             disabled={isSubmitting}
-            className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+            className="w-full p-3 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100 resize-none"
             placeholder="Укажите детали согласования или сроки ответа заказчика..."
             id="accountant-comment-textarea"
           />
         </div>
+
 
         {/* Error message */}
         {error && (

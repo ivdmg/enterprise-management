@@ -37,18 +37,18 @@ export function AuthPage() {
   };
 
   const inputClass =
-    'w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors';
+    'w-full px-3.5 py-2.5 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100 transition-colors';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+    <div className="min-h-screen bg-[var(--canvas-bg)] text-[var(--text-main)] transition-colors duration-200 flex flex-col">
       {/* Top bar with theme toggle */}
       <div className="flex justify-end p-4">
         <button
           onClick={toggle}
-          className="p-2 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+          className="p-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
           aria-label="Переключить тему"
         >
-          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
       </div>
 
@@ -56,24 +56,25 @@ export function AuthPage() {
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="flex items-center justify-center gap-2.5 mb-8">
-            <div className="p-2 rounded-lg bg-indigo-600">
-              <BarChart3 className="h-6 w-6 text-white" />
+            <div className="p-2.5 rounded-xl bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-sm flex items-center justify-center">
+              <BarChart3 className="h-5 w-5" />
             </div>
-            <span className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            <span className="text-xl font-bold tracking-tight text-[var(--text-main)]">
               Smart Enterprise Hub
             </span>
           </div>
 
           {/* Form Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">
+          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-7 shadow-xl">
+            <h1 className="text-lg font-bold text-[var(--text-main)] mb-1">
               {isLogin ? 'Вход в систему' : 'Регистрация компании'}
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+            <p className="text-xs text-[var(--text-sub)] mb-5">
               {isLogin
                 ? 'Введите данные для доступа к платформе'
                 : 'Создайте аккаунт для вашей компании'}
             </p>
+
 
             {error && (
               <div className="mb-4 px-3 py-2 rounded-md bg-rose-500/10 border border-rose-500/20 text-sm text-rose-600 dark:text-rose-400">
@@ -172,11 +173,12 @@ export function AuthPage() {
                   setIsLogin(!isLogin);
                   setError('');
                 }}
-                className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="text-xs text-[var(--text-sub)] hover:text-[var(--text-main)] underline font-medium transition-colors cursor-pointer"
               >
                 {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войти'}
               </button>
             </div>
+
           </div>
         </div>
       </div>

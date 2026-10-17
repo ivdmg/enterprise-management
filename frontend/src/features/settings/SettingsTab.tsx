@@ -78,7 +78,7 @@ export function SettingsTab() {
   if (loading || !settings) {
     return (
       <div className="py-12 flex justify-center">
-        <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -87,7 +87,7 @@ export function SettingsTab() {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xl text-sm font-medium transition-all">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xl text-sm font-semibold transition-all">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           <span>{toastMessage}</span>
         </div>
@@ -95,25 +95,25 @@ export function SettingsTab() {
 
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+        <h1 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
           Настройки системы
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-[var(--text-sub)] mt-1">
           Управление профилем компании, интеграциями оповещений и правилами рисков
         </p>
       </div>
 
       {/* Company & Profile Info */}
       <Card className="p-6">
-        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[var(--card-border)]">
+          <div className="p-2.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
             <Building2 className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-base font-bold text-[var(--text-main)]">
               Данные организации
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[var(--text-sub)]">
               Основные реквизиты вашей компании в Smart Enterprise Hub
             </p>
           </div>
@@ -121,37 +121,37 @@ export function SettingsTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
               Организация
             </label>
-            <div className="px-3.5 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-medium text-slate-800 dark:text-slate-200">
+            <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] font-medium text-[var(--text-main)]">
               ООО «ГлавСтройИнжиниринг»
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
               ИНН организации
             </label>
-            <div className="px-3.5 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 font-mono text-slate-800 dark:text-slate-200">
+            <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] font-mono text-[var(--text-main)]">
               7701987654
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
               Администратор
             </label>
-            <div className="px-3.5 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200">
+            <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)]">
               {user?.full_name || 'Иванов Иван Иванович'}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
               Электронная почта
             </label>
-            <div className="px-3.5 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200">
+            <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)]">
               {user?.email || 'director@glavstroy.ru'}
             </div>
           </div>
@@ -160,19 +160,20 @@ export function SettingsTab() {
 
       {/* Telegram Integration */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between mb-5 pb-4 border-b border-[var(--card-border)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+            <div className="p-2.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
               <Send className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <h2 className="text-base font-bold text-[var(--text-main)]">
                   Интеграция с Telegram
                 </h2>
                 <Badge variant="success">Подключен</Badge>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-[var(--text-sub)] mt-0.5">
+
                 Бот @{settings.bot_username} отправляет утренний дайджест и критические алерты
               </p>
             </div>
@@ -191,14 +192,14 @@ export function SettingsTab() {
 
         {/* Telegram Options */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
             <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <Clock className="h-5 w-5 text-[var(--text-muted)]" />
               <div>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                <p className="text-sm font-semibold text-[var(--text-main)]">
                   Ежедневный утренний дайджест
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[var(--text-sub)]">
                   Краткая сводка рисков и финансового состояния в 08:30
                 </p>
               </div>
@@ -210,7 +211,7 @@ export function SettingsTab() {
                 onChange={(e) =>
                   setSettings({ ...settings, daily_digest_time: e.target.value })
                 }
-                className="px-2.5 py-1 text-sm rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                className="px-2.5 py-1 text-sm rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)]"
               />
               <input
                 type="checkbox"
@@ -218,19 +219,19 @@ export function SettingsTab() {
                 onChange={(e) =>
                   setSettings({ ...settings, daily_digest_enabled: e.target.checked })
                 }
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded accent-slate-900 dark:accent-slate-100 cursor-pointer"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
             <div className="flex items-center gap-3">
-              <Bell className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <Bell className="h-5 w-5 text-[var(--text-muted)]" />
               <div>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                <p className="text-sm font-semibold text-[var(--text-main)]">
                   Мгновенные оповещения о критических срывах
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-[var(--text-sub)]">
                   Отправлять push в Telegram при выявлении критического риска
                 </p>
               </div>
@@ -247,7 +248,7 @@ export function SettingsTab() {
                   },
                 })
               }
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded accent-slate-900 dark:accent-slate-100 cursor-pointer"
             />
           </div>
         </div>
@@ -255,15 +256,15 @@ export function SettingsTab() {
 
       {/* Risk Thresholds */}
       <Card className="p-6">
-        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+        <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[var(--card-border)]">
+          <div className="p-2.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
             <Shield className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            <h2 className="text-base font-bold text-[var(--text-main)]">
               Пороги срабатывания алертов
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-[var(--text-sub)]">
               Параметры детекции угроз и кассовых разрывов
             </p>
           </div>
@@ -271,7 +272,7 @@ export function SettingsTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5">
               Предупреждение о дедлайне (дней до срока)
             </label>
             <div className="flex items-center gap-2">
@@ -289,14 +290,14 @@ export function SettingsTab() {
                     },
                   })
                 }
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100"
               />
-              <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">дней</span>
+              <span className="text-xs text-[var(--text-sub)] whitespace-nowrap">дней</span>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5">
               Горизонт прогнозирования кассового разрыва
             </label>
             <div className="flex items-center gap-2">
@@ -314,14 +315,14 @@ export function SettingsTab() {
                     },
                   })
                 }
-                className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100"
               />
-              <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">дней</span>
+              <span className="text-xs text-[var(--text-sub)] whitespace-nowrap">дней</span>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-[var(--card-border)]">
           <Button
             variant="primary"
             onClick={handleSave}
@@ -333,6 +334,7 @@ export function SettingsTab() {
           </Button>
         </div>
       </Card>
+
     </div>
   );
 }

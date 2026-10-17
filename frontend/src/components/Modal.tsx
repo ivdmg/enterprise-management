@@ -48,22 +48,23 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className={`relative w-full ${sizes[size]} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl animate-in fade-in duration-200`}
+        className={`relative w-full ${sizes[size]} bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl transition-colors duration-150 animate-in fade-in duration-200`}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
+          <h2 className="text-base font-bold text-[var(--text-main)]">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors"
             aria-label="Закрыть"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
+
     </div>
   );
 }

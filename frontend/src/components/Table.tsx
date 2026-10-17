@@ -17,7 +17,7 @@ export function Table({ children, className = '', ...props }: TableProps) {
 export function TableHeader({ children, className = '', ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={`border-b border-slate-200 dark:border-slate-800 text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 ${className}`}
+      className={`border-b border-[var(--card-border)] text-xs font-semibold uppercase tracking-wider text-[var(--text-sub)] bg-[var(--card-subtle)] ${className}`}
       {...props}
     >
       {children}
@@ -27,7 +27,7 @@ export function TableHeader({ children, className = '', ...props }: React.HTMLAt
 
 export function TableBody({ children, className = '', ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={`divide-y divide-slate-100 dark:divide-slate-800 ${className}`} {...props}>
+    <tbody className={`divide-y divide-[var(--card-border)] ${className}`} {...props}>
       {children}
     </tbody>
   );
@@ -36,7 +36,7 @@ export function TableBody({ children, className = '', ...props }: React.HTMLAttr
 export function TableRow({ children, className = '', ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr
-      className={`hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors ${className}`}
+      className={`hover:bg-[var(--card-subtle)] transition-colors ${className}`}
       {...props}
     >
       {children}
@@ -46,7 +46,7 @@ export function TableRow({ children, className = '', ...props }: React.HTMLAttri
 
 export function TableHead({ children, className = '', ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={`px-4 py-3 font-semibold ${className}`} {...props}>
+    <th className={`px-4 py-3 font-semibold text-[var(--text-sub)] ${className}`} {...props}>
       {children}
     </th>
   );
@@ -54,8 +54,9 @@ export function TableHead({ children, className = '', ...props }: React.ThHTMLAt
 
 export function TableCell({ children, className = '', ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`px-4 py-3 text-slate-700 dark:text-slate-300 ${className}`} {...props}>
+    <td className={`px-4 py-3 text-[var(--text-main)] ${className}`} {...props}>
       {children}
     </td>
   );
 }
+

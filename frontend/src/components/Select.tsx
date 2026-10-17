@@ -118,18 +118,18 @@ export function Select({
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        className={`w-full flex items-center justify-between gap-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 hover:border-slate-300 dark:hover:border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 dark:focus:ring-slate-600 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
+        className={`w-full flex items-center justify-between gap-2 border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] hover:bg-[var(--card-subtle)] hover:border-[var(--card-subtle-border)] transition-colors focus:outline-none focus:ring-1 focus:ring-[var(--card-border)] shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
           sizeClasses[size]
         }`}
       >
         <span className="flex items-center gap-2 truncate">
-          {selected?.icon && <selected.icon className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
-          <span className={selected ? 'font-medium truncate' : 'text-slate-400 dark:text-slate-500 truncate'}>
+          {selected?.icon && <selected.icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-sub)]" />}
+          <span className={selected ? 'font-medium truncate' : 'text-[var(--text-muted)] truncate'}>
             {selected ? selected.label : placeholder}
           </span>
         </span>
         <ChevronDown
-          className={`h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform duration-200 ${
+          className={`h-4 w-4 text-[var(--text-muted)] shrink-0 transition-transform duration-200 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -141,7 +141,7 @@ export function Select({
           ref={listRef}
           role="listbox"
           tabIndex={-1}
-          className="absolute z-50 mt-1.5 w-full min-w-[160px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 mt-1.5 w-full min-w-[160px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)]"
         >
           {options.map((option, idx) => {
             const isSelected = option.value === value;
@@ -161,18 +161,18 @@ export function Select({
                 onMouseEnter={() => setFocusedIndex(idx)}
                 className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs sm:text-sm rounded-lg transition-colors cursor-pointer text-left select-none ${
                   isSelected
-                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold'
+                    ? 'bg-[var(--card-subtle)] text-[var(--text-main)] font-semibold border border-[var(--card-border)]'
                     : isFocused
-                    ? 'bg-slate-50 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100'
-                    : 'text-slate-700 dark:text-slate-300'
+                    ? 'bg-[var(--card-subtle)]/70 text-[var(--text-main)]'
+                    : 'text-[var(--text-sub)] hover:text-[var(--text-main)]'
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
-                  {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+                  {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />}
                   <span className="truncate">{option.label}</span>
                 </div>
                 {isSelected && (
-                  <Check className="h-3.5 w-3.5 text-slate-900 dark:text-slate-100 shrink-0 ml-2" />
+                  <Check className="h-3.5 w-3.5 text-[var(--text-main)] shrink-0 ml-2" />
                 )}
               </button>
             );

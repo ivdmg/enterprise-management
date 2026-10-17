@@ -71,18 +71,18 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
   return (
     <>
       {/* Overlay */}
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-2xl flex flex-col transition-colors duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
+          <h2 className="text-base font-bold text-[var(--text-main)]">
             Центр алертов
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
             aria-label="Закрыть"
           >
             <X className="h-5 w-5" />
@@ -93,45 +93,56 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+            <div className="divide-y divide-[var(--card-border)]">
+
               {/* Active alerts */}
               {unresolvedAlerts.length > 0 && (
                 <div className="p-4 space-y-3">
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Активные ({unresolvedAlerts.length})
                   </p>
-                  {unresolvedAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2"
-                    >
-                      <div className="flex items-start gap-2">
-                        {getSeverityIcon(alert.severity)}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            {getSeverityBadge(alert.severity)}
-                          </div>
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {alert.title}
-                          </p>
-                          {alert.description && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                              {alert.description}
+                  {unresolvedAlerts.map((alert) => {
+                    const isCritical = alert.severity === 'CRITICAL';
+                    const isWarning = alert.severity === 'WARNING';
+
+                    return (
+                      <div
+                        key={alert.id}
+                        className={`p-3.5 rounded-xl border space-y-2 transition-colors ${
+                          isCritical
+                            ? 'bg-rose-50/75 dark:bg-rose-950/30 border-rose-200/90 dark:border-rose-900/60'
+                            : isWarning
+                            ? 'bg-amber-50/75 dark:bg-amber-950/30 border-amber-200/90 dark:border-amber-900/60'
+                            : 'bg-[var(--card-subtle)] border-[var(--card-border)]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {getSeverityIcon(alert.severity)}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              {getSeverityBadge(alert.severity)}
+                            </div>
+                            <p className="text-sm font-semibold text-[var(--text-main)]">
+                              {alert.title}
                             </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-400 dark:text-slate-500">
-                            {alert.calculated_financial_impact > 0 && (
-                              <span className="font-medium text-rose-600 dark:text-rose-400">
-                                {formatCurrency(alert.calculated_financial_impact)}
-                              </span>
+                            {alert.description && (
+                              <p className="text-xs text-[var(--text-sub)] mt-0.5">
+                                {alert.description}
+                              </p>
                             )}
-                            {alert.created_at && <span>{formatDate(alert.created_at)}</span>}
+                            <div className="flex items-center gap-3 mt-1.5 text-xs text-[var(--text-muted)]">
+                              {alert.calculated_financial_impact > 0 && (
+                                <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                  {formatCurrency(alert.calculated_financial_impact)}
+                                </span>
+                              )}
+                              {alert.created_at && <span>{formatDate(alert.created_at)}</span>}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       {/* Resolve form */}
                       {resolvingId === alert.id ? (
@@ -141,8 +152,9 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="Комментарий по решению..."
                             rows={2}
-                            className="w-full px-3 py-2 text-sm rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100 transition-colors resize-none"
                           />
+
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -175,8 +187,9 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
                         </Button>
                       )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
+              </div>
               )}
 
               {/* Resolved alerts */}

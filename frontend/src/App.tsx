@@ -60,7 +60,7 @@ export default function App() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--canvas-bg)] text-[var(--text-main)] flex items-center justify-center">
         <div className="h-8 w-8 border-2 border-slate-900 dark:border-slate-100 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -101,7 +101,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen bg-[var(--canvas-bg)] text-[var(--text-main)] transition-colors duration-200">
       <Header
         period={period}
         onPeriodChange={setPeriod}

@@ -130,19 +130,19 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+      <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--card-border)] transition-colors">
         <div className="max-w-screen-2xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Minimalist Brand Logo & Role Pill */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             {/* White & Gray Bento-Box Logo */}
-            <div className="p-2 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs flex items-center justify-center transition-colors">
+            <div className="p-2 rounded-xl bg-slate-950 text-white dark:bg-white dark:text-slate-950 shadow-2xs flex items-center justify-center transition-colors">
               <BarChart3 className="h-4 w-4" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100 hidden sm:inline leading-none">
+              <span className="text-sm font-semibold tracking-tight text-[var(--text-main)] hidden sm:inline leading-none">
                 Smart Enterprise Hub
               </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline mt-0.5 font-medium">
+              <span className="text-[10px] text-[var(--text-muted)] hidden sm:inline mt-0.5 font-medium">
                 Операционный пульт
               </span>
             </div>
@@ -151,11 +151,11 @@ export function Header({
             <button
               type="button"
               onClick={() => setRoleModalOpen(true)}
-              className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer shadow-2xs"
+              className="min-h-[38px] px-2.5 py-1 rounded-xl bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-[var(--text-main)] border border-[var(--card-subtle-border)] transition-colors flex items-center gap-1.5 text-xs font-medium cursor-pointer shadow-2xs"
               title="Переключить активную роль"
               id="header-role-switcher-btn"
             >
-              <span className="text-slate-700 dark:text-slate-300">
+              <span className="text-[var(--text-sub)]">
                 {getRoleIcon(currentRoleDef.iconName)}
               </span>
               <span className="max-w-[90px] sm:max-w-none truncate">{currentRoleDef.shortName}</span>
@@ -170,20 +170,20 @@ export function Header({
               type="button"
               onClick={handleSyncDrive}
               disabled={isSyncing}
-              className="min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer shadow-2xs"
+              className="min-h-[38px] px-2.5 sm:px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] hover:bg-[var(--card-subtle)] text-[var(--text-main)] text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer shadow-2xs"
               title="Синхронизировать с корпоративным Google Диском"
               id="header-drive-sync-btn"
             >
               <RefreshCw
-                className={`h-3.5 w-3.5 text-slate-600 dark:text-slate-400 shrink-0 ${
+                className={`h-3.5 w-3.5 text-[var(--text-sub)] shrink-0 ${
                   isSyncing ? 'animate-spin' : ''
                 }`}
               />
               <div className="hidden md:flex flex-col text-left leading-tight">
-                <span className="font-semibold text-slate-900 dark:text-slate-100 text-[11px]">
+                <span className="font-semibold text-[var(--text-main)] text-[11px]">
                   {isSyncing ? 'Синхронизация...' : 'Синхронизировать Диск'}
                 </span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                <span className="text-[10px] text-[var(--text-muted)]">
                   {formatRelativeTime(lastSyncedAt)}
                 </span>
               </div>
@@ -203,7 +203,7 @@ export function Header({
             <button
               type="button"
               onClick={onAlertsClick}
-              className="min-h-[38px] min-w-[38px] p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative flex items-center justify-center cursor-pointer"
+              className="min-h-[38px] min-w-[38px] p-2 rounded-xl text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors relative flex items-center justify-center cursor-pointer border border-transparent hover:border-[var(--card-border)]"
               aria-label="Уведомления и горящие риски"
               id="header-alerts-btn"
             >
@@ -219,11 +219,11 @@ export function Header({
             <button
               type="button"
               onClick={toggle}
-              className="min-h-[38px] min-w-[38px] p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center cursor-pointer border border-slate-200/60 dark:border-slate-700/60 shadow-2xs"
+              className="min-h-[38px] min-w-[38px] p-2 rounded-xl bg-[var(--card-bg)] text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors flex items-center justify-center cursor-pointer border border-[var(--card-border)] shadow-2xs"
               aria-label="Переключить тему"
               id="header-theme-toggle"
             >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
             </button>
 
             {/* User Profile */}
@@ -231,29 +231,29 @@ export function Header({
               <button
                 type="button"
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="min-h-[38px] flex items-center gap-2 px-2 py-1.5 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60"
+                className="min-h-[38px] flex items-center gap-2 px-2 py-1.5 rounded-xl text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer border border-transparent hover:border-[var(--card-border)]"
                 id="header-profile-btn"
               >
-                <div className="h-7 w-7 rounded-lg bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 flex items-center justify-center font-semibold text-xs shrink-0 shadow-2xs">
+                <div className="h-7 w-7 rounded-lg bg-[var(--text-main)] text-[var(--canvas-bg)] flex items-center justify-center font-semibold text-xs shrink-0 shadow-2xs">
                   <User className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 hidden md:inline max-w-[120px] truncate">
+                <span className="text-xs font-semibold text-[var(--text-main)] hidden md:inline max-w-[120px] truncate">
                   {user?.full_name?.split(' ').slice(0, 2).join(' ') || 'Профиль'}
                 </span>
-                <ChevronDown className="h-3 w-3 hidden md:inline text-slate-400" />
+                <ChevronDown className="h-3 w-3 hidden md:inline text-[var(--text-muted)]" />
               </button>
 
               {profileOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-                  <div className="absolute right-0 mt-1.5 w-64 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 text-slate-700 dark:text-slate-300 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                      <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  <div className="absolute right-0 mt-1.5 w-64 z-20 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl py-1.5 text-[var(--text-main)] animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3.5 py-2.5 border-b border-[var(--card-border)]">
+                      <p className="text-xs font-semibold text-[var(--text-main)] truncate">
                         {user?.full_name}
                       </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
-                      <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-800 dark:text-slate-200 font-medium">
-                        {getRoleIcon(currentRoleDef.iconName)}
+                      <p className="text-[11px] text-[var(--text-sub)] truncate">{user?.email}</p>
+                      <div className="mt-2 flex items-center gap-1.5 text-xs text-[var(--text-main)] font-medium">
+                        <span className="text-[var(--text-sub)]">{getRoleIcon(currentRoleDef.iconName)}</span>
                         <span>{currentRoleDef.name}</span>
                       </div>
                     </div>
@@ -265,10 +265,10 @@ export function Header({
                         setProfileOpen(false);
                         setRoleModalOpen(true);
                       }}
-                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
                       id="header-switch-role-item"
                     >
-                      <Users className="h-4 w-4 text-slate-500" />
+                      <Users className="h-4 w-4 text-[var(--text-muted)]" />
                       <span>Сменить активную роль (9 ролей)</span>
                     </button>
 
@@ -279,15 +279,15 @@ export function Header({
                           setProfileOpen(false);
                           onOpenSettings();
                         }}
-                        className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
                         id="header-settings-item"
                       >
-                        <SettingsIcon className="h-4 w-4 text-slate-400" />
+                        <SettingsIcon className="h-4 w-4 text-[var(--text-muted)]" />
                         <span>Настройки системы</span>
                       </button>
                     )}
 
-                    <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                    <div className="border-t border-[var(--card-border)] my-1" />
 
                     <button
                       type="button"
@@ -295,7 +295,7 @@ export function Header({
                         setProfileOpen(false);
                         logout();
                       }}
-                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50/80 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                       id="header-logout-item"
                     >
                       <LogOut className="h-4 w-4" />

@@ -73,7 +73,7 @@ export function RoleSwitcherModal({ isOpen, onClose, onRoleSelected }: RoleSwitc
       size="lg"
     >
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-[var(--text-sub)]">
           Выберите роль для быстрой адаптации рабочих вкладок, алертов и оперативных задач компании.
         </p>
 
@@ -81,7 +81,7 @@ export function RoleSwitcherModal({ isOpen, onClose, onRoleSelected }: RoleSwitc
           const deptRoles = roles.filter((r) => r.department === dept);
           return (
             <div key={dept} className="space-y-2">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 {dept}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -92,29 +92,29 @@ export function RoleSwitcherModal({ isOpen, onClose, onRoleSelected }: RoleSwitc
                       key={role.id}
                       type="button"
                       onClick={() => handleSelectRole(role)}
-                      className={`min-h-[52px] w-full text-left p-3 rounded-xl border transition-all flex items-start gap-3 cursor-pointer ${
+                      className={`min-h-[52px] w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 cursor-pointer ${
                         isSelected
-                          ? 'border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-800/90 text-slate-900 dark:text-slate-100 shadow-2xs'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200'
+                          ? 'border-2 border-[var(--text-main)] bg-[var(--card-bg)] text-[var(--text-main)] shadow-sm'
+                          : 'border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] hover:border-[var(--card-subtle-border)] text-[var(--text-main)]'
                       }`}
                     >
                       <div
                         className={`p-2 rounded-lg shrink-0 mt-0.5 transition-colors ${
                           isSelected
-                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            ? 'bg-[var(--text-main)] text-[var(--canvas-bg)]'
+                            : 'bg-[var(--card-bg)] text-[var(--text-sub)] border border-[var(--card-border)]'
                         }`}
                       >
                         {getRoleIcon(role.iconName)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-sm font-semibold truncate">{role.shortName}</p>
+                          <p className="text-sm font-semibold truncate text-[var(--text-main)]">{role.shortName}</p>
                           {isSelected && (
-                            <Check className="h-4 w-4 text-slate-900 dark:text-slate-100 shrink-0" />
+                            <Check className="h-4 w-4 text-[var(--text-main)] shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                        <p className="text-xs text-[var(--text-sub)] line-clamp-2 mt-0.5">
                           {role.description}
                         </p>
                       </div>

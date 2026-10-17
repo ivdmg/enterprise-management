@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { apiClient } from '@/api/client';
 import { formatCurrency, formatPercent, formatDate } from '@/utils/format';
 import type { Project, TenderStage } from '@/types';
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   Building2,
   Layers,
+  Info,
 } from 'lucide-react';
 
 interface StageDefinition {
@@ -45,6 +47,82 @@ function getRiskBadge(level: string) {
   }
 }
 
+// Compact Bank Guarantee formatted widget (FE-3.2)
+function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
+  if (!bg) {
+    return (
+      <span className="text-xs text-[var(--text-muted)] font-normal">
+        Не требуется
+      </span>
+    );
+  }
+
+  const isCritical = bg.days_remaining < 5 || bg.is_critical;
+  const isWarning = bg.days_remaining >= 5 && bg.days_remaining <= 14;
+
+  return (
+    <div
+      className={`group relative p-2 rounded-xl border text-xs transition-all ${
+        isCritical
+          ? 'bg-rose-50/75 border-rose-200/90 text-rose-800 dark:bg-rose-950/30 dark:border-rose-900/60 dark:text-rose-300'
+          : isWarning
+          ? 'bg-amber-50/75 border-amber-200/90 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900/60 dark:text-amber-300'
+          : 'bg-[var(--card-subtle)] border-[var(--card-border)] text-[var(--text-main)]'
+      }`}
+    >
+      {/* 1st row: Status indicator + remaining days */}
+      <div className="flex items-center justify-between gap-1.5 leading-tight">
+        <div className="flex items-center gap-1.5 font-semibold truncate">
+          {isCritical ? (
+            <ShieldAlert className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+          ) : (
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          )}
+          <span className="truncate">
+            {isCritical ? 'Риск РНП!' : 'БГ активна'}
+          </span>
+        </div>
+        <span
+          className={`font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded shrink-0 ${
+            isCritical
+              ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200'
+              : 'bg-[var(--card-bg)] text-[var(--text-sub)]'
+          }`}
+        >
+          {bg.days_remaining} дн.
+        </span>
+      </div>
+
+      {/* 2nd row: Bank name + Short currency amount */}
+      <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--text-sub)]">
+        <span className="truncate max-w-[85px]" title={bg.bank_name}>
+          {bg.bank_name}
+        </span>
+        <span className="font-mono font-medium shrink-0 ml-1">
+          {formatCurrency(bg.amount)}
+        </span>
+      </div>
+
+      {/* Tooltip on hover with full metadata */}
+      <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-30 w-56 p-2.5 rounded-xl bg-[var(--card-bg)] border border-[var(--card-border)] shadow-xl text-xs text-[var(--text-main)] space-y-1">
+        <div className="flex items-center justify-between font-semibold">
+          <span>{bg.bank_name}</span>
+          <span className="font-mono">{formatCurrency(bg.amount)}</span>
+        </div>
+        <div className="text-[11px] text-[var(--text-sub)] space-y-0.5">
+          <p>Срок действия: до {formatDate(bg.expiry_date)}</p>
+          <p>Остаток срока: {bg.days_remaining} календарных дней</p>
+          {isCritical && (
+            <p className="text-rose-600 dark:text-rose-400 font-medium">
+              Внимание: срок продления истекает, риск включения в РНП!
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectsTab() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +130,12 @@ export function ProjectsTab() {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // ConfirmModal state for tender stepper (FE-3.3)
+  const [pendingStageChange, setPendingStageChange] = useState<{
+    project: Project;
+    targetStage: StageDefinition;
+  } | null>(null);
 
   const loadProjects = () => {
     setLoading(true);
@@ -65,18 +149,35 @@ export function ProjectsTab() {
     loadProjects();
   }, []);
 
-  const handleStageChange = async (projectId: string, newStage: TenderStage) => {
-    // Optimistic update
+  // Triggered when user clicks stage in stepper
+  const handleStageClick = (project: Project, stage: StageDefinition) => {
+    // If clicking current stage, do nothing
+    if (project.tender_stage === stage.id) return;
+
+    // Open confirmation modal
+    setPendingStageChange({
+      project,
+      targetStage: stage,
+    });
+  };
+
+  // Confirmed in modal
+  const handleConfirmStageChange = async () => {
+    if (!pendingStageChange) return;
+    const { project, targetStage } = pendingStageChange;
+    const projectId = project.id;
+    const newStage = targetStage.id;
+
     setUpdatingId(projectId);
     setProjects((prev) =>
       prev.map((p) => (p.id === projectId ? { ...p, tender_stage: newStage } : p))
     );
+    setPendingStageChange(null);
 
     try {
       await apiClient.updateProjectTenderStage(projectId, newStage);
     } catch (err) {
       console.error('Failed to update stage:', err);
-      // Revert if error
       loadProjects();
     } finally {
       setUpdatingId(null);
@@ -105,21 +206,25 @@ export function ProjectsTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
+  const currentStageDef = pendingStageChange
+    ? STAGES.find((s) => s.id === pendingStageChange.project.tender_stage)
+    : null;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" id="projects-tab-section">
       {/* Top Header & Summary Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-[var(--text-main)]" />
             Тендеры и объекты строительства
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-[var(--text-sub)]">
             Линейный контроль стадий 44-ФЗ / 223-ФЗ, банковские гарантии и исполнение контрактов
           </p>
         </div>
@@ -127,7 +232,7 @@ export function ProjectsTab() {
         {/* Quick summary metrics */}
         <div className="flex flex-wrap items-center gap-2">
           {criticalBgCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-400 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/90 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-semibold">
               <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
               <span>
                 Риск РНП по БГ: {criticalBgCount}{' '}
@@ -135,8 +240,8 @@ export function ProjectsTab() {
               </span>
             </div>
           )}
-          <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium">
-            Портфель: <span className="font-mono font-semibold">{formatCurrency(totalContractSum)}</span>
+          <div className="px-3 py-1.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-sub)] text-xs font-medium border border-[var(--card-border)]">
+            Портфель: <span className="font-mono font-semibold text-[var(--text-main)]">{formatCurrency(totalContractSum)}</span>
           </div>
         </div>
       </div>
@@ -147,19 +252,19 @@ export function ProjectsTab() {
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по названию, шифру, заказчику или куратору..."
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--card-border)] placeholder:text-[var(--text-muted)] min-h-[38px]"
               />
             </div>
 
             {/* Risk filter */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-              <span className="text-[11px] uppercase font-semibold text-slate-400 whitespace-nowrap mr-1">
+              <span className="text-[11px] uppercase font-semibold text-[var(--text-muted)] whitespace-nowrap mr-1">
                 Риск:
               </span>
               {[
@@ -171,10 +276,10 @@ export function ProjectsTab() {
                 <button
                   key={rf.id}
                   onClick={() => setRiskFilter(rf.id)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-xs rounded-xl font-medium transition-colors whitespace-nowrap cursor-pointer min-h-[34px] ${
                     riskFilter === rf.id
-                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs'
+                      : 'bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
                   }`}
                 >
                   {rf.label}
@@ -184,17 +289,17 @@ export function ProjectsTab() {
           </div>
 
           {/* Tender Stage Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100 dark:border-slate-800/80">
-            <span className="text-[11px] uppercase font-semibold text-slate-400 whitespace-nowrap mr-1 flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-[var(--card-border)]">
+            <span className="text-[11px] uppercase font-semibold text-[var(--text-muted)] whitespace-nowrap mr-1 flex items-center gap-1">
               <Layers className="h-3 w-3" />
               Стадия:
             </span>
             <button
               onClick={() => setStageFilter('all')}
-              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors whitespace-nowrap ${
+              className={`px-3 py-1 text-xs rounded-xl font-medium transition-colors whitespace-nowrap cursor-pointer min-h-[32px] ${
                 stageFilter === 'all'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs'
+                  : 'bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
               }`}
             >
               Все стадии ({projects.length})
@@ -205,10 +310,10 @@ export function ProjectsTab() {
                 <button
                   key={s.id}
                   onClick={() => setStageFilter(s.id)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1 text-xs rounded-xl font-medium transition-colors whitespace-nowrap cursor-pointer min-h-[32px] ${
                     stageFilter === s.id
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs'
+                      : 'bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
                   }`}
                 >
                   {s.label} ({count})
@@ -221,69 +326,79 @@ export function ProjectsTab() {
 
       {/* Main Content Area */}
       <Card padding="none">
-        {/* Desktop Table View (>= 768px) */}
+        {/* ============================================================ */}
+        {/* DESKTOP TABLE VIEW (>= 768px): Centered, Balanced Grid (FE-3.1)*/}
+        {/* Proportions: Объект 28%, Степпер 26%, БГ 18%, Сумма 12%, Срок 10%, Риск 6% */}
+        {/* ============================================================ */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm" id="projects-table">
+          <table className="w-full text-sm table-fixed" id="projects-table">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-64">
+              <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
+                {/* 1. Объект и заказчик (28%) */}
+                <th className="text-left px-4 py-3 w-[28%]">
                   Объект и заказчик
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {/* 2. Степпер закупки (26%) */}
+                <th className="text-left px-4 py-3 w-[26%]">
                   Линейный степпер закупки
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-44">
+                {/* 3. Банковская гарантия (18%) */}
+                <th className="text-left px-4 py-3 w-[18%]">
                   Банковская гарантия
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {/* 4. Сумма договора (12%) */}
+                <th className="text-right px-4 py-3 w-[12%]">
                   Сумма договора
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-36">
-                  Выполнение
-                </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {/* 5. Срок и просрочки (10%) */}
+                <th className="text-right px-4 py-3 w-[10%]">
                   Срок сдачи
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {/* 6. Риск (6%) */}
+                <th className="text-center px-4 py-3 w-[6%]">
                   Риск
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-[var(--card-border)]">
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-400 text-sm">
-                    Объектов по выбранным фильтрам не найдено
+                  <td colSpan={6} className="px-4 py-12 text-center text-[var(--text-muted)] text-sm">
+                    Объектов по выбранным критериям не найдено
                   </td>
                 </tr>
               ) : (
                 filteredProjects.map((project) => {
                   const currentStageIdx = getStageIndex(project.tender_stage);
-                  const bg = project.bank_guarantee;
-                  const isBgCritical = bg && (bg.days_remaining < 5 || bg.is_critical);
+                  const isRowCritical = project.risk_level === 'critical';
 
                   return (
                     <tr
                       key={project.id}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                      className={`transition-colors ${
+                        isRowCritical
+                          ? 'bg-rose-50/20 dark:bg-rose-950/10 hover:bg-rose-50/40 dark:hover:bg-rose-950/20'
+                          : 'hover:bg-[var(--card-subtle)]/70'
+                      }`}
                     >
-                      {/* Project info */}
-                      <td className="px-4 py-3.5 align-top">
-                        <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                      {/* 1. Project info (28%) */}
+                      <td className="px-4 py-3.5 align-middle">
+                        <p className="font-semibold text-[var(--text-main)] text-sm leading-snug line-clamp-1" title={project.project_name}>
                           {project.project_name}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {project.project_code} {project.customer_name ? `· ${project.customer_name}` : ''}
+                        <p className="text-xs text-[var(--text-sub)] mt-0.5 truncate" title={project.customer_name}>
+                          <span className="font-mono text-[var(--text-muted)]">{project.project_code}</span>
+                          {project.customer_name ? ` · ${project.customer_name}` : ''}
                         </p>
                         {project.curator_name && (
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
                             Куратор: {project.curator_name}
                           </p>
                         )}
                       </td>
 
-                      {/* Linear Stepper */}
-                      <td className="px-4 py-3.5 align-top">
+                      {/* 2. Linear Stepper (26%) */}
+                      <td className="px-4 py-3.5 align-middle">
                         <div className="space-y-1.5">
                           <div className="flex items-center gap-1">
                             {STAGES.map((stage, idx) => {
@@ -294,31 +409,31 @@ export function ProjectsTab() {
                                 <div key={stage.id} className="flex items-center">
                                   <button
                                     type="button"
-                                    onClick={() => handleStageChange(project.id, stage.id)}
+                                    onClick={() => handleStageClick(project, stage)}
                                     title={`Сменить стадию на: ${stage.label}`}
                                     disabled={updatingId === project.id}
-                                    className={`px-2 py-1 rounded text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer select-none ${
+                                    className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer select-none ${
                                       isCurrent
-                                        ? 'bg-indigo-600 text-white font-semibold ring-1 ring-indigo-500 shadow-sm'
+                                        ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs ring-1 ring-slate-900 dark:ring-slate-100'
                                         : isCompleted
-                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                                        : 'bg-[var(--card-subtle)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)] border border-[var(--card-border)]'
                                     }`}
                                   >
                                     {isCompleted ? (
-                                      <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                     ) : (
                                       <span className="w-3 text-center">{stage.stepNumber}</span>
                                     )}
-                                    <span>{stage.label}</span>
+                                    <span className="hidden xl:inline">{stage.label}</span>
                                   </button>
 
                                   {idx < STAGES.length - 1 && (
                                     <div
-                                      className={`w-3.5 h-[2px] mx-0.5 ${
+                                      className={`w-2.5 h-[2px] mx-0.5 ${
                                         idx < currentStageIdx
                                           ? 'bg-emerald-500 dark:bg-emerald-600'
-                                          : 'bg-slate-200 dark:bg-slate-700'
+                                          : 'bg-[var(--card-border)]'
                                       }`}
                                     />
                                   )}
@@ -326,108 +441,44 @@ export function ProjectsTab() {
                               );
                             })}
                           </div>
-                          <p className="text-[11px] text-slate-400">
-                            Текущий этап:{' '}
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {STAGES[currentStageIdx]?.label}
-                            </span>{' '}
-                            (кликните для изменения)
+                          <p className="text-[11px] text-[var(--text-muted)]">
+                            Этап: <span className="font-semibold text-[var(--text-main)]">{STAGES[currentStageIdx]?.label}</span>
                           </p>
                         </div>
                       </td>
 
-                      {/* Bank Guarantee */}
-                      <td className="px-4 py-3.5 align-top">
-                        {bg ? (
-                          <div
-                            className={`p-2 rounded-lg border text-xs space-y-1 ${
-                              isBgCritical
-                                ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50 text-rose-800 dark:text-rose-300'
-                                : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-1.5 font-semibold">
-                              {isBgCritical ? (
-                                <>
-                                  <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                                  <span>Риск РНП! &le; {bg.days_remaining} дн.</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                  <span>БГ активна ({bg.days_remaining} дн.)</span>
-                                </>
-                              )}
-                            </div>
-                            <p className="text-[11px] opacity-90">
-                              {bg.bank_name} · {formatCurrency(bg.amount)}
-                            </p>
-                            <p className="text-[10px] opacity-75">
-                              До {formatDate(bg.expiry_date)}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">Не требуется</span>
-                        )}
+                      {/* 3. Bank Guarantee Compact Widget (18%) (FE-3.2) */}
+                      <td className="px-4 py-3.5 align-middle">
+                        <BankGuaranteeWidget bg={project.bank_guarantee} />
                       </td>
 
-                      {/* Contract Sum */}
-                      <td className="px-4 py-3.5 text-right font-mono text-slate-900 dark:text-slate-100 align-top">
-                        <p className="font-semibold">{formatCurrency(project.contract_sum)}</p>
-                        {project.paid_sum !== undefined && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            Оплачено: {formatCurrency(project.paid_sum)}
-                          </p>
-                        )}
-                      </td>
-
-                      {/* Completion Progress */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-mono font-medium text-slate-700 dark:text-slate-300">
-                              {formatPercent(project.completion_percent || 0)}
-                            </span>
-                            <span className="text-[11px] text-slate-400">
-                              {formatCurrency(project.completed_sum)}
-                            </span>
-                          </div>
-                          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                project.risk_level === 'critical'
-                                  ? 'bg-rose-500'
-                                  : project.risk_level === 'warning'
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
-                              }`}
-                              style={{ width: `${project.completion_percent || 0}%` }}
-                            />
-                          </div>
+                      {/* 4. Contract Sum (12%) */}
+                      <td className="px-4 py-3.5 text-right font-mono text-[var(--text-main)] align-middle">
+                        <p className="font-bold whitespace-nowrap">{formatCurrency(project.contract_sum)}</p>
+                        <div className="flex items-center justify-end gap-1.5 text-[11px] text-[var(--text-sub)] mt-0.5">
+                          <span>{formatPercent(project.completion_percent || 0)}</span>
+                          <span className="text-[var(--text-muted)]">КС-2</span>
                         </div>
                       </td>
 
-                      {/* Deadline & Penalty */}
-                      <td className="px-4 py-3.5 text-right text-slate-700 dark:text-slate-300 align-top">
-                        <p className="font-medium">
+                      {/* 5. Deadline & Penalties (10%) */}
+                      <td className="px-4 py-3.5 text-right text-[var(--text-main)] align-middle">
+                        <p className="font-medium whitespace-nowrap text-xs">
                           {project.deadline_date ? formatDate(project.deadline_date) : '—'}
                         </p>
                         {project.days_overdue > 0 ? (
-                          <p className="text-xs text-rose-600 dark:text-rose-400 font-semibold mt-0.5">
-                            +{project.days_overdue} дн. просрочка
+                          <p className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold whitespace-nowrap mt-0.5">
+                            +{project.days_overdue} дн.
                           </p>
                         ) : (
-                          <p className="text-[11px] text-slate-400 mt-0.5">В графике</p>
-                        )}
-                        {project.penalty_amount_calculated && project.penalty_amount_calculated > 0 ? (
-                          <p className="text-xs text-rose-600 dark:text-rose-400 font-mono font-semibold mt-1">
-                            Штраф: {formatCurrency(project.penalty_amount_calculated)}
+                          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
+                            В графике
                           </p>
-                        ) : null}
+                        )}
                       </td>
 
-                      {/* Risk */}
-                      <td className="px-4 py-3.5 text-center align-top">
+                      {/* 6. Risk Badge (6%) */}
+                      <td className="px-4 py-3.5 text-center align-middle">
                         {getRiskBadge(project.risk_level)}
                       </td>
                     </tr>
@@ -438,10 +489,12 @@ export function ProjectsTab() {
           </table>
         </div>
 
-        {/* Mobile Cards View (< 768px) */}
-        <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800" id="projects-mobile-cards">
+        {/* ============================================================ */}
+        {/* MOBILE CARDS VIEW (< 768px): Responsive Compact Bento Cards   */}
+        {/* ============================================================ */}
+        <div className="md:hidden divide-y divide-[var(--card-border)]">
           {filteredProjects.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">
               Объектов по выбранным фильтрам не найдено
             </div>
           ) : (
@@ -451,31 +504,27 @@ export function ProjectsTab() {
               const isBgCritical = bg && (bg.days_remaining < 5 || bg.is_critical);
 
               return (
-                <div key={project.id} className="p-4 space-y-3.5">
-                  {/* Title & Risk */}
+                <div key={project.id} className="p-4 space-y-3">
+                  {/* Top: Title & Risk badge */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                      <h3 className="font-semibold text-[var(--text-main)] text-sm">
                         {project.project_name}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {project.project_code} {project.customer_name ? `· ${project.customer_name}` : ''}
+                      </h3>
+                      <p className="text-xs text-[var(--text-sub)] mt-0.5">
+                        <span className="font-mono text-[var(--text-muted)]">{project.project_code}</span>
+                        {project.customer_name ? ` · ${project.customer_name}` : ''}
                       </p>
-                      {project.curator_name && (
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Куратор: {project.curator_name}
-                        </p>
-                      )}
                     </div>
-                    <div>{getRiskBadge(project.risk_level)}</div>
+                    {getRiskBadge(project.risk_level)}
                   </div>
 
-                  {/* Mobile Linear Stepper */}
-                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-2">
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                  {/* Stepper with Confirmation Protection */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
                       Стадия закупки (нажмите для смены):
                     </span>
-                    <div className="grid grid-cols-5 gap-1">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
                       {STAGES.map((stage, idx) => {
                         const isCompleted = idx < currentStageIdx;
                         const isCurrent = idx === currentStageIdx;
@@ -484,16 +533,21 @@ export function ProjectsTab() {
                           <button
                             key={stage.id}
                             type="button"
-                            onClick={() => handleStageChange(project.id, stage.id)}
+                            onClick={() => handleStageClick(project, stage)}
                             disabled={updatingId === project.id}
-                            className={`py-1.5 px-0.5 rounded text-[10px] text-center font-medium transition-all min-h-[36px] flex flex-col items-center justify-center ${
+                            className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
                               isCurrent
-                                ? 'bg-indigo-600 text-white font-bold ring-1 ring-indigo-500'
+                                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs'
                                 : isCompleted
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : 'bg-[var(--card-subtle)] text-[var(--text-muted)] border border-[var(--card-border)]'
                             }`}
                           >
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                              <span>{stage.stepNumber}.</span>
+                            )}
                             <span>{stage.label}</span>
                           </button>
                         );
@@ -501,48 +555,20 @@ export function ProjectsTab() {
                     </div>
                   </div>
 
-                  {/* Bank Guarantee Alert (Mobile) */}
-                  {bg && (
-                    <div
-                      className={`p-2.5 rounded-lg border text-xs space-y-1 ${
-                        isBgCritical
-                          ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/50 text-rose-800 dark:text-rose-300'
-                          : 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-semibold">
-                          {isBgCritical ? (
-                            <>
-                              <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                              <span>Риск РНП! Осталось {bg.days_remaining} дн.</span>
-                            </>
-                          ) : (
-                            <>
-                              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              <span>Банковская гарантия активна</span>
-                            </>
-                          )}
-                        </div>
-                        <span className="font-mono font-semibold">{formatCurrency(bg.amount)}</span>
-                      </div>
-                      <p className="text-[11px] opacity-80">
-                        {bg.bank_name} · Срок до {formatDate(bg.expiry_date)}
-                      </p>
-                    </div>
-                  )}
+                  {/* Bank Guarantee Widget Mobile */}
+                  <BankGuaranteeWidget bg={bg} />
 
                   {/* Financial & Deadline Grid */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <span className="text-[10px] uppercase font-medium text-slate-400">Сумма договора</span>
-                      <p className="text-sm font-semibold font-mono text-slate-900 dark:text-slate-100 mt-0.5">
+                    <div className="bg-[var(--card-subtle)] p-2.5 rounded-xl border border-[var(--card-border)]">
+                      <span className="text-[10px] uppercase font-medium text-[var(--text-muted)]">Сумма договора</span>
+                      <p className="text-sm font-semibold font-mono text-[var(--text-main)] mt-0.5">
                         {formatCurrency(project.contract_sum)}
                       </p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <span className="text-[10px] uppercase font-medium text-slate-400">Срок сдачи</span>
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-0.5">
+                    <div className="bg-[var(--card-subtle)] p-2.5 rounded-xl border border-[var(--card-border)]">
+                      <span className="text-[10px] uppercase font-medium text-[var(--text-muted)]">Срок сдачи</span>
+                      <p className="text-sm font-medium text-[var(--text-main)] mt-0.5">
                         {project.deadline_date ? formatDate(project.deadline_date) : '—'}
                       </p>
                       {project.days_overdue > 0 && (
@@ -555,11 +581,11 @@ export function ProjectsTab() {
 
                   {/* Progress Bar */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center justify-between text-xs text-[var(--text-sub)]">
                       <span>Выполнение работ</span>
-                      <span className="font-mono font-medium">{formatPercent(project.completion_percent || 0)}</span>
+                      <span className="font-mono font-medium text-[var(--text-main)]">{formatPercent(project.completion_percent || 0)}</span>
                     </div>
-                    <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-2 bg-[var(--card-subtle)] rounded-full overflow-hidden border border-[var(--card-border)]">
                       <div
                         className={`h-full rounded-full transition-all ${
                           project.risk_level === 'critical'
@@ -575,8 +601,8 @@ export function ProjectsTab() {
 
                   {/* Penalty Alert */}
                   {project.penalty_amount_calculated && project.penalty_amount_calculated > 0 ? (
-                    <div className="flex items-center justify-between text-xs bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300">
-                      <span className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-between text-xs bg-rose-50/75 dark:bg-rose-950/30 p-2.5 rounded-xl border border-rose-200/90 dark:border-rose-900/40 text-rose-700 dark:text-rose-300">
+                      <span className="flex items-center gap-1.5 font-medium">
                         <AlertTriangle className="h-4 w-4 shrink-0" />
                         Расчетный штраф (44-ФЗ):
                       </span>
@@ -589,6 +615,33 @@ export function ProjectsTab() {
           )}
         </div>
       </Card>
+
+      {/* ============================================================ */}
+      {/* CONFIRMATION MODAL: Protection against accidental stage click */}
+      {/* ============================================================ */}
+      {pendingStageChange && (
+        <ConfirmModal
+          isOpen={true}
+          title="Смена стадии тендера / закупки"
+          description={
+            <span>
+              Вы действительно хотите перевести объект{' '}
+              <strong className="text-[var(--text-main)]">
+                «{pendingStageChange.project.project_name}»
+              </strong>{' '}
+              на новый этап? Это изменит контрольные сроки и регламентный чек-лист работ.
+            </span>
+          }
+          currentStatusLabel={currentStageDef?.label || 'Текущая'}
+          newStatusLabel={pendingStageChange.targetStage.label}
+          confirmText="Перевести этап"
+          cancelText="Отмена"
+          variant="default"
+          isLoading={updatingId === pendingStageChange.project.id}
+          onConfirm={handleConfirmStageChange}
+          onCancel={() => setPendingStageChange(null)}
+        />
+      )}
     </div>
   );
 }

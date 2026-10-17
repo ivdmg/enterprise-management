@@ -48,11 +48,12 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <div className="h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">
+        <div className="h-8 w-8 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-[var(--text-sub)]">
           Загрузка оперативной сводки...
         </p>
       </div>
+
     );
   }
 
@@ -88,26 +89,30 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4" id="kpi-cards-row">
           {/* 1. Свободная касса */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
+          <div className={`border rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all flex flex-col justify-between ${
+            financial_health.is_cash_gap_predicted
+              ? 'bg-rose-50/75 border-rose-200/90 dark:bg-rose-950/25 dark:border-rose-900/50'
+              : 'bg-[var(--card-bg)] border-[var(--card-border)] hover:border-slate-300 dark:hover:border-slate-700'
+          }`}>
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Свободная касса
               </span>
-              <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
                 <Wallet className="h-5 w-5" />
               </div>
             </div>
 
             <div className="mt-2.5">
-              <div className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-100 tracking-tight">
+              <div className="text-2xl font-bold font-mono text-[var(--text-main)] tracking-tight">
                 {formatCurrency(financial_health.current_cash_balance)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-[11px] text-[var(--text-sub)] mt-1">
                 Живые деньги на расчетных счетах компании
               </p>
             </div>
 
-            <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+            <div className="mt-3.5 pt-3 border-t border-[var(--card-border)]">
               {financial_health.is_cash_gap_predicted ? (
                 <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -125,27 +130,27 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
           </div>
 
           {/* 2. Портфель контрактов */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
+          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Портфель контрактов
               </span>
-              <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+              <div className="p-2 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
                 <Building2 className="h-5 w-5" />
               </div>
             </div>
 
             <div className="mt-2.5">
-              <div className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-100 tracking-tight">
+              <div className="text-2xl font-bold font-mono text-[var(--text-main)] tracking-tight">
                 {formatCurrency(production_health.total_portfolio_sum || 148500000)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-[11px] text-[var(--text-sub)] mt-1">
                 Общая сумма активных договоров СМР
               </p>
             </div>
 
-            <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">
+            <div className="mt-3.5 pt-3 border-t border-[var(--card-border)] flex items-center justify-between text-xs">
+              <span className="text-[var(--text-sub)] font-medium">
                 {production_health.total_active_projects} объектов в работе
               </span>
               {production_health.projects_at_risk_count > 0 ? (
@@ -161,58 +166,58 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
           </div>
 
           {/* 3. Нам должны (Дебиторка) */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
+          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Нам должны (Дебиторка)
               </span>
-              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>
 
             <div className="mt-2.5">
-              <div className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-100 tracking-tight">
+              <div className="text-2xl font-bold font-mono text-[var(--text-main)] tracking-tight">
                 {formatCurrency(debtorsSum)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-[11px] text-[var(--text-sub)] mt-1">
                 Неоплаченные заказчиками объемы по КС-2
               </p>
             </div>
 
-            <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
+            <div className="mt-3.5 pt-3 border-t border-[var(--card-border)] flex items-center justify-between text-xs">
               <span className="text-amber-700 dark:text-amber-400 font-medium">
                 Просрочено: 4.15 млн ₽
               </span>
-              <span className="text-slate-400 text-[11px]">3 дебитора</span>
+              <span className="text-[var(--text-muted)] text-[11px]">3 дебитора</span>
             </div>
           </div>
 
           {/* 4. Мы должны (Кредиторка) */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
+          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all hover:border-slate-300 dark:hover:border-slate-700 flex flex-col justify-between">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Мы должны (Кредиторка)
               </span>
-              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <div className="p-2 rounded-xl bg-[var(--card-subtle)] text-[var(--text-sub)]">
                 <Receipt className="h-5 w-5" />
               </div>
             </div>
 
             <div className="mt-2.5">
-              <div className="text-2xl font-semibold font-mono text-slate-900 dark:text-slate-100 tracking-tight">
+              <div className="text-2xl font-bold font-mono text-[var(--text-main)] tracking-tight">
                 {formatCurrency(creditorsSum)}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              <p className="text-[11px] text-[var(--text-sub)] mt-1">
                 Неоплаченные счета поставщиков ТМЦ
               </p>
             </div>
 
-            <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-              <span className="text-slate-600 dark:text-slate-400 font-medium">
+            <div className="mt-3.5 pt-3 border-t border-[var(--card-border)] flex items-center justify-between text-xs">
+              <span className="text-[var(--text-sub)] font-medium">
                 Срок: до 18 октября
               </span>
-              <span className="text-slate-400 text-[11px]">2 счета ТМЦ</span>
+              <span className="text-[var(--text-muted)] text-[11px]">2 счета ТМЦ</span>
             </div>
           </div>
         </div>
@@ -234,31 +239,31 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
       {/* ============================================================ */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Risk overview */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 space-y-3 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <span className="text-xs font-semibold text-[var(--text-main)]">
               Сводка алертов платформы
             </span>
-            <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            <ShieldCheck className="h-4 w-4 text-[var(--text-main)]" />
           </div>
           <div className="flex items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-rose-500" />
-              <span className="text-slate-600 dark:text-slate-400">
-                Критических: <strong className="text-slate-900 dark:text-slate-100">{alerts_overview.critical_count}</strong>
+              <span className="text-[var(--text-sub)]">
+                Критических: <strong className="text-[var(--text-main)]">{alerts_overview.critical_count}</strong>
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-amber-500" />
-              <span className="text-slate-600 dark:text-slate-400">
-                Внимание: <strong className="text-slate-900 dark:text-slate-100">{alerts_overview.warning_count}</strong>
+              <span className="text-[var(--text-sub)]">
+                Внимание: <strong className="text-[var(--text-main)]">{alerts_overview.warning_count}</strong>
               </span>
             </div>
             {alerts_overview.info_count !== undefined && (
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-slate-400" />
-                <span className="text-slate-600 dark:text-slate-400">
-                  Инфо: <strong className="text-slate-900 dark:text-slate-100">{alerts_overview.info_count}</strong>
+                <span className="text-[var(--text-sub)]">
+                  Инфо: <strong className="text-[var(--text-main)]">{alerts_overview.info_count}</strong>
                 </span>
               </div>
             )}
@@ -266,41 +271,42 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
         </div>
 
         {/* Penalties Summary */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 space-y-3 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <span className="text-xs font-semibold text-[var(--text-main)]">
               Неустойки по 44-ФЗ
             </span>
             <Clock className="h-4 w-4 text-rose-600 dark:text-rose-400" />
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-base font-semibold font-mono text-rose-600 dark:text-rose-400">
+            <span className="text-base font-bold font-mono text-rose-600 dark:text-rose-400">
               {formatCurrency(production_health.total_calculated_penalties)}
             </span>
-            <span className="text-[11px] text-slate-500">расчет за текущий месяц</span>
+            <span className="text-[11px] text-[var(--text-sub)]">расчет за текущий месяц</span>
           </div>
         </div>
 
         {/* Action Link to Full Tenders Registry */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 flex items-center justify-between shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
           <div>
-            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+            <p className="text-xs font-bold text-[var(--text-main)]">
               Реестр контрактов и объектов
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-[var(--text-sub)] mt-0.5">
               Сроки сдачи, акты КС-2 и банковские гарантии
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigateTab && onNavigateTab('tenders')}
-            className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="min-h-[40px] px-3.5 py-2 rounded-xl bg-[var(--card-subtle)] hover:bg-[var(--card-border)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>Открыть</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
+
     </div>
   );
 }
