@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
+import { Modal } from '@/components/Modal';
+import { Button } from '@/components/Button';
 import { apiClient } from '@/api/client';
 import type { DispatchRecordData, DispatchStatus } from '@/types';
 import { LogIncidentModal } from './LogIncidentModal';
@@ -11,6 +13,10 @@ import {
   Wrench,
   CheckCircle2,
   AlertTriangle,
+  AlertOctagon,
+  HelpCircle,
+  FileSpreadsheet,
+  ExternalLink,
   Search,
   Building2,
   RefreshCw,
@@ -30,27 +36,156 @@ const STATUS_CONFIGS: Record<DispatchStatus, StatusConfig> = {
     id: 'on_site',
     label: 'На объекте',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50',
-    activeBtnClass: 'bg-emerald-600 text-white font-semibold shadow-sm',
+      'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60',
+    activeBtnClass: 'bg-emerald-600 text-white font-semibold shadow-2xs',
     dotColor: 'bg-emerald-500',
   },
   repair: {
     id: 'repair',
     label: 'В ремонте',
     badgeClass:
-      'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/50',
-    activeBtnClass: 'bg-rose-600 text-white font-semibold shadow-sm',
+      'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 border-rose-200 dark:border-rose-800/60',
+    activeBtnClass: 'bg-rose-600 text-white font-semibold shadow-2xs',
     dotColor: 'bg-rose-500',
   },
   downtime: {
     id: 'downtime',
     label: 'Простой',
     badgeClass:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50',
-    activeBtnClass: 'bg-amber-600 text-white font-semibold shadow-sm',
+      'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 border-amber-200 dark:border-amber-800/60',
+    activeBtnClass: 'bg-amber-600 text-white font-semibold shadow-2xs',
     dotColor: 'bg-amber-500',
   },
 };
+
+interface IncidentSummaryModalProps {
+  record: DispatchRecordData | null;
+  onClose: () => void;
+  onEdit: (record: DispatchRecordData) => void;
+}
+
+function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalProps) {
+  if (!record) return null;
+  const isMachinery = record.resource_type === 'machinery';
+  const isOnSite = record.status === 'on_site';
+  const isRepair = record.status === 'repair';
+
+  return (
+    <Modal
+      isOpen={!!record}
+      onClose={onClose}
+      title="Сводка по инциденту / состоянию"
+      size="md"
+    >
+      <div className="space-y-4">
+        {/* Status header banner */}
+        <div
+          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+            isOnSite
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200'
+              : isRepair
+              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200'
+              : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {isOnSite ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : isRepair ? (
+              <AlertOctagon className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            )}
+            <div>
+              <p className="font-bold text-sm">
+                {isOnSite ? 'Штатный режим' : isRepair ? 'Аварийный ремонт' : 'Технический простой'}
+              </p>
+              <p className="text-xs opacity-85">
+                {isOnSite
+                  ? 'Все системы функционируют штатно'
+                  : `Зафиксирован простой: ${record.downtime_hours || 0} ч.`}
+              </p>
+            </div>
+          </div>
+          <span className="font-mono text-xs opacity-75">{record.shift_date}</span>
+        </div>
+
+        {/* Details Grid */}
+        <div className="bg-[var(--card-subtle)] p-3.5 rounded-xl border border-[var(--card-border)] space-y-2.5 text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Единица ресурса:</span>
+              <span className="font-semibold text-[var(--text-main)] text-sm">{record.unit_name}</span>
+              <span className="text-[11px] text-[var(--text-sub)] block">
+                {isMachinery ? 'Спецтехника' : 'Строительная бригада'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Объект смены:</span>
+              <span className="font-medium text-[var(--text-main)]">{record.target_object}</span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-[var(--card-border)]/60 grid grid-cols-2 gap-2">
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Ответственный:</span>
+              <span className="font-medium text-[var(--text-main)]">{record.responsible_person}</span>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Часы простоя:</span>
+              <span className="font-mono font-bold text-[var(--text-main)]">
+                {record.downtime_hours !== undefined ? `${record.downtime_hours} ч.` : '0 ч.'}
+              </span>
+            </div>
+          </div>
+
+          {record.downtime_reason && (
+            <div className="pt-2 border-t border-[var(--card-border)]/60">
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Причина / неисправность:</span>
+              <p className="font-medium text-[var(--text-main)] mt-0.5">{record.downtime_reason}</p>
+            </div>
+          )}
+
+          {record.incident_notes && (
+            <div className="pt-2 border-t border-[var(--card-border)]/60">
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Принятые меры / комментарий:</span>
+              <p className="text-[var(--text-sub)] mt-0.5">{record.incident_notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Actions */}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-[var(--card-border)]">
+          <a
+            href="https://drive.google.com/drive/folders/enterprise-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-xs font-semibold text-[var(--text-main)] transition-colors shadow-2xs"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Ведомость в Google Диск</span>
+            <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
+          </a>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                onClose();
+                onEdit(record);
+              }}
+            >
+              {record.status === 'on_site' ? 'Зафиксировать поломку' : 'Редактировать'}
+            </Button>
+            <Button variant="primary" onClick={onClose}>
+              Понятно
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 export function DispatchTab() {
   const [records, setRecords] = useState<DispatchRecordData[]>([]);
@@ -61,6 +196,7 @@ export function DispatchTab() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedIncidentRecord, setSelectedIncidentRecord] = useState<DispatchRecordData | null>(null);
+  const [selectedIncidentSummary, setSelectedIncidentSummary] = useState<DispatchRecordData | null>(null);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -185,12 +321,32 @@ export function DispatchTab() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="neutral">Смена: 16.10.2026</Badge>
+          {/* Shift Date Badge styled identically to the Refresh button */}
+          <div className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium">Смена:</span>
+            <span className="font-mono">16.10.2026</span>
+          </div>
+
+          {/* Google Drive Link Button */}
+          <a
+            href="https://drive.google.com/drive/folders/enterprise-hub"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            title="Открыть суточный график и ведомость смены в Google Диск"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Google Диск</span>
+            <ExternalLink className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+          </a>
+
+          {/* Refresh Button */}
           <button
             type="button"
             onClick={loadRecords}
             title="Обновить суточный статус"
-            className="p-2 rounded-xl border border-[var(--card-border)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
+            className="min-h-[38px] min-w-[38px] p-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
+            id="dispatch-refresh-btn"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
@@ -366,36 +522,36 @@ export function DispatchTab() {
 
 
       {/* Main Checklist / Table */}
-      <Card padding="none">
+      <div className="border border-[var(--card-border)] rounded-2xl overflow-hidden bg-[var(--card-bg)] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
         {/* Desktop Table View (>= 768px) */}
         <div className="hidden md:block overflow-x-hidden">
           <table className="w-full text-sm table-fixed" id="dispatch-table">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+              <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)]">
+                <th className="text-left px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[22%]">
                   Единица ресурса
                 </th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
+                <th className="text-left px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[18%]">
                   Объект смены
                 </th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[16%]">
+                <th className="text-left px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[16%]">
                   Ответственный
                 </th>
-                <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[22%] min-w-[280px]">
+                <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[22%] min-w-[280px]">
                   Статус (в 1 клик)
                 </th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
+                <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[13%]">
                   Инцидент / Заметки
                 </th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[8%]">
+                <th className="text-right px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[9%]">
                   Действие
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y divide-[var(--card-border)]">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  <td colSpan={6} className="px-4 py-12 text-center text-[var(--text-muted)] text-sm">
                     Единиц техники или бригад по выбранным фильтрам не найдено
                   </td>
                 </tr>
@@ -406,12 +562,12 @@ export function DispatchTab() {
                   return (
                     <tr
                       key={rec.id}
-                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                      className="hover:bg-[var(--card-subtle)]/60 transition-colors"
                     >
                       {/* Unit name and type icon */}
-                      <td className="px-3 py-3.5 align-middle">
+                      <td className="px-3.5 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
+                          <div className="p-2 rounded-xl bg-[var(--card-subtle)] border border-[var(--card-border)]/60 text-[var(--text-main)] shrink-0">
                             {isMachinery ? (
                               <Truck className="h-4 w-4" />
                             ) : (
@@ -419,10 +575,10 @@ export function DispatchTab() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate" title={rec.unit_name}>
+                            <p className="font-semibold text-[var(--text-main)] text-sm truncate" title={rec.unit_name}>
                               {rec.unit_name}
                             </p>
-                            <p className="text-[11px] text-slate-500 truncate">
+                            <p className="text-[11px] text-[var(--text-sub)] truncate">
                               {isMachinery ? 'Спецтехника' : 'Строительная бригада'}
                             </p>
                           </div>
@@ -430,22 +586,22 @@ export function DispatchTab() {
                       </td>
 
                       {/* Object */}
-                      <td className="px-3 py-3.5 align-middle">
-                        <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
-                          <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <td className="px-3.5 py-3.5 align-middle">
+                        <div className="flex items-center gap-1.5 text-[var(--text-main)]">
+                          <Building2 className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
                           <span className="text-xs font-medium truncate" title={rec.target_object}>{rec.target_object}</span>
                         </div>
                       </td>
 
                       {/* Responsible person */}
-                      <td className="px-3 py-3.5 align-middle text-xs text-slate-700 dark:text-slate-300">
+                      <td className="px-3.5 py-3.5 align-middle text-xs text-[var(--text-main)]">
                         <span className="truncate block" title={rec.responsible_person}>{rec.responsible_person}</span>
                       </td>
 
-                      {/* 1-Click Status Switcher Pills (FE-1.4: Unified size and styling) */}
-                      <td className="px-3 py-3.5 align-middle">
+                      {/* 1-Click Status Switcher Pills */}
+                      <td className="px-3.5 py-3.5 align-middle">
                         <div className="flex items-center justify-center">
-                          <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                          <div className="inline-flex items-center bg-[var(--card-subtle)] p-1 rounded-xl border border-[var(--card-border)]">
                             {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
                               const cfg = STATUS_CONFIGS[st];
                               const isActive = rec.status === st;
@@ -459,7 +615,7 @@ export function DispatchTab() {
                                   className={`min-w-[85px] py-1 px-2 text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none font-medium text-center ${
                                     isActive
                                       ? cfg.activeBtnClass
-                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                      : 'text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
                                   }`}
                                 >
                                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dotColor}`} />
@@ -471,46 +627,64 @@ export function DispatchTab() {
                         </div>
                       </td>
 
-                      {/* Incident & Notes */}
-                      <td className="px-3 py-3.5 align-middle text-xs">
+                      {/* Incident & Notes: Clean status indicator with question icon modal trigger */}
+                      <td className="px-3.5 py-3.5 align-middle text-center">
                         {rec.status === 'on_site' ? (
-                          <span className="text-slate-400 flex items-center gap-1 text-[11px] truncate">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                            <span className="truncate">Работает по заданию</span>
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedIncidentSummary(rec)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer group shadow-2xs"
+                            title="Все системы в норме. Нажмите для сводки"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>В норме</span>
+                          </button>
+                        ) : rec.status === 'downtime' ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedIncidentSummary(rec)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer group shadow-2xs"
+                            title={`${rec.downtime_reason || 'Технический простой'}. Нажмите для подробностей`}
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span>Простой {rec.downtime_hours ? `${rec.downtime_hours}ч` : ''}</span>
+                            <HelpCircle className="h-3 w-3 text-amber-500 opacity-60 group-hover:opacity-100 shrink-0" />
+                          </button>
                         ) : (
-                          <div className="space-y-0.5 min-w-0">
-                            {rec.downtime_reason && (
-                              <p className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 truncate" title={rec.downtime_reason}>
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                <span className="truncate">{rec.downtime_reason}</span>
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                              {rec.downtime_hours !== undefined && (
-                                <span className="font-mono font-medium text-rose-600 dark:text-rose-400 whitespace-nowrap">
-                                  Простой: {rec.downtime_hours} ч.
-                                </span>
-                              )}
-                              {rec.incident_notes && (
-                                <span className="truncate max-w-xs opacity-80" title={rec.incident_notes}>
-                                  {rec.incident_notes}
-                                </span>
-                              )}
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedIncidentSummary(rec)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors cursor-pointer group shadow-2xs"
+                            title={`${rec.downtime_reason || 'Аварийный ремонт'}. Нажмите для подробностей`}
+                          >
+                            <AlertOctagon className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                            <span>Поломка</span>
+                            <HelpCircle className="h-3 w-3 text-rose-500 opacity-60 group-hover:opacity-100 shrink-0" />
+                          </button>
                         )}
                       </td>
 
-                      {/* Action: Log / Edit incident */}
-                      <td className="px-3 py-3.5 align-middle text-right">
-                        <button
-                          type="button"
-                          onClick={() => openIncidentModal(rec)}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
-                        >
-                          {rec.status === 'on_site' ? 'Поломка' : 'Изменить'}
-                        </button>
+                      {/* Action: Google Drive + Log / Edit incident */}
+                      <td className="px-3.5 py-3.5 align-middle text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <a
+                            href="https://drive.google.com/drive/folders/enterprise-hub"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-[var(--text-main)] transition-colors shadow-2xs"
+                            title="Открыть табель / ведомость в Google Диск"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => openIncidentModal(rec)}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
+                          >
+                            {rec.status === 'on_site' ? 'Поломка' : 'Изменить'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -521,9 +695,9 @@ export function DispatchTab() {
         </div>
 
         {/* Mobile Checklist Cards View (< 768px) */}
-        <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800" id="dispatch-mobile-cards">
+        <div className="md:hidden divide-y divide-[var(--card-border)]" id="dispatch-mobile-cards">
           {filteredRecords.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
+            <div className="p-8 text-center text-[var(--text-muted)] text-sm">
               Единиц техники или бригад по выбранным фильтрам не найдено
             </div>
           ) : (
@@ -532,41 +706,45 @@ export function DispatchTab() {
               const statusCfg = STATUS_CONFIGS[rec.status];
 
               return (
-                <div key={rec.id} className="p-4 space-y-3">
+                <div key={rec.id} className="p-4 space-y-3 bg-[var(--card-bg)]">
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2.5">
-                      <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mt-0.5">
+                      <div className="p-2 rounded-xl bg-[var(--card-subtle)] border border-[var(--card-border)]/60 text-[var(--text-main)] shrink-0 mt-0.5">
                         {isMachinery ? <Truck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                        <h4 className="font-semibold text-[var(--text-main)] text-sm">
                           {rec.unit_name}
                         </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                          <Building2 className="h-3 w-3 text-slate-400" />
+                        <p className="text-xs text-[var(--text-sub)] flex items-center gap-1 mt-0.5">
+                          <Building2 className="h-3 w-3 text-[var(--text-muted)]" />
                           {rec.target_object}
                         </p>
                       </div>
                     </div>
 
-                    <span
-                      className={`px-2 py-0.5 rounded text-[11px] font-semibold border flex items-center gap-1 ${statusCfg.badgeClass}`}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIncidentSummary(rec)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1 cursor-pointer transition-colors shadow-2xs ${statusCfg.badgeClass}`}
+                      title="Нажмите для просмотра сводки инцидента"
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotColor}`} />
-                      {statusCfg.label}
-                    </span>
+                      <span>{statusCfg.label}</span>
+                      <HelpCircle className="h-3 w-3 opacity-60" />
+                    </button>
                   </div>
 
                   {/* Responsible Person */}
-                  <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800/80">
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 block">Ответственный на смене:</span>
-                    <span className="font-medium text-slate-800 dark:text-slate-200">{rec.responsible_person}</span>
+                  <div className="text-xs text-[var(--text-sub)] bg-[var(--card-subtle)] p-2.5 rounded-xl border border-[var(--card-border)]/60">
+                    <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Ответственный на смене:</span>
+                    <span className="font-medium text-[var(--text-main)]">{rec.responsible_person}</span>
                   </div>
 
                   {/* 1-Click Status Switcher (Mobile Large Targets >= 44px) */}
                   <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                    <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">
                       Сменить статус в 1 клик:
                     </span>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -580,10 +758,10 @@ export function DispatchTab() {
                             type="button"
                             onClick={() => handleQuickStatusChange(rec.id, st)}
                             disabled={updatingId === rec.id}
-                            className={`min-h-[44px] px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all select-none border ${
+                            className={`min-h-[44px] px-2 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all select-none border cursor-pointer ${
                               isActive
                                 ? `${cfg.activeBtnClass} border-transparent`
-                                : 'bg-slate-100 dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                                : 'bg-[var(--card-subtle)] border-[var(--card-border)] text-[var(--text-sub)] hover:text-[var(--text-main)]'
                             }`}
                           >
                             <span className={`w-2 h-2 rounded-full ${cfg.dotColor}`} />
@@ -596,38 +774,50 @@ export function DispatchTab() {
 
                   {/* Incident Alert Details (if repair or downtime) */}
                   {rec.status !== 'on_site' && (
-                    <div className="bg-rose-50/70 dark:bg-rose-950/30 p-2.5 rounded-lg border border-rose-200/80 dark:border-rose-900/40 text-xs space-y-1">
-                      <div className="flex items-center justify-between text-rose-800 dark:text-rose-300 font-semibold">
+                    <div
+                      onClick={() => setSelectedIncidentSummary(rec)}
+                      className="bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 text-xs space-y-1 cursor-pointer hover:bg-amber-100/60 transition-colors"
+                    >
+                      <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 font-semibold">
                         <span className="flex items-center gap-1">
-                          <AlertTriangle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                           {rec.status === 'repair' ? 'Аварийный ремонт' : 'Технический простой'}
                         </span>
-                        {rec.downtime_hours !== undefined && (
-                          <span className="font-mono">{rec.downtime_hours} ч.</span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {rec.downtime_hours !== undefined && (
+                            <span className="font-mono">{rec.downtime_hours} ч.</span>
+                          )}
+                          <HelpCircle className="h-3 w-3 text-amber-500 opacity-70" />
+                        </div>
                       </div>
                       {rec.downtime_reason && (
-                        <p className="text-[11px] text-slate-700 dark:text-slate-300">
+                        <p className="text-[11px] text-[var(--text-main)]">
                           {rec.downtime_reason}
-                        </p>
-                      )}
-                      {rec.incident_notes && (
-                        <p className="text-[10px] text-slate-500 italic">
-                          Меры: {rec.incident_notes}
                         </p>
                       )}
                     </div>
                   )}
 
-                  {/* Button: Зафиксировать поломку / простой */}
-                  <div className="pt-1">
+                  {/* Mobile Actions: Google Drive + Зафиксировать поломку / простой */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <a
+                      href="https://drive.google.com/drive/folders/enterprise-hub"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-h-[42px] px-3 py-2 text-xs font-semibold rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors shadow-2xs flex items-center justify-center gap-1.5"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Google Диск</span>
+                      <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
+                    </a>
+
                     <button
                       type="button"
                       onClick={() => openIncidentModal(rec)}
-                      className="w-full min-h-[44px] px-3 py-2 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                      className="min-h-[42px] px-3 py-2 text-xs font-semibold rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Wrench className="h-4 w-4 text-slate-500" />
-                      <span>Зафиксировать поломку / простой</span>
+                      <Wrench className="h-4 w-4 text-[var(--text-muted)]" />
+                      <span>{rec.status === 'on_site' ? 'Поломка' : 'Изменить'}</span>
                     </button>
                   </div>
                 </div>
@@ -635,7 +825,7 @@ export function DispatchTab() {
             })
           )}
         </div>
-      </Card>
+      </div>
 
       {/* Incident Logging Modal */}
       <LogIncidentModal
@@ -643,6 +833,16 @@ export function DispatchTab() {
         onClose={() => setIsIncidentModalOpen(false)}
         record={selectedIncidentRecord}
         onSubmit={handleIncidentSubmit}
+      />
+
+      {/* Incident Summary Quick Modal */}
+      <IncidentSummaryModal
+        record={selectedIncidentSummary}
+        onClose={() => setSelectedIncidentSummary(null)}
+        onEdit={(rec) => {
+          setSelectedIncidentSummary(null);
+          openIncidentModal(rec);
+        }}
       />
     </div>
   );

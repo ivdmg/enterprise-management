@@ -26,6 +26,7 @@ export default function App() {
   const [showAccountantUpload, setShowAccountantUpload] = useState(false);
   const [mappingFile, setMappingFile] = useState<{ id: string; name: string } | null>(null);
   const [pendingAccountingCount, setPendingAccountingCount] = useState(2);
+  const [highlightProjectId, setHighlightProjectId] = useState<string | null>(null);
 
   // Poll/fetch pending accounting tasks count
   useEffect(() => {
@@ -74,9 +75,22 @@ export default function App() {
   const renderTab = () => {
     switch (activeTab) {
       case 'summary':
-        return <DashboardTab onNavigateTab={(tab) => setActiveTab(tab)} />;
+        return (
+          <DashboardTab
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            onNavigateToProject={(projectId) => {
+              setHighlightProjectId(projectId);
+              setActiveTab('tenders');
+            }}
+          />
+        );
       case 'tenders':
-        return <ProjectsTab />;
+        return (
+          <ProjectsTab
+            highlightProjectId={highlightProjectId}
+            onClearHighlight={() => setHighlightProjectId(null)}
+          />
+        );
       case 'finance':
         return <FinanceTab />;
       case 'procurement':
@@ -96,7 +110,15 @@ export default function App() {
       case 'settings':
         return <SettingsTab />;
       default:
-        return <DashboardTab onNavigateTab={(tab) => setActiveTab(tab)} />;
+        return (
+          <DashboardTab
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            onNavigateToProject={(projectId) => {
+              setHighlightProjectId(projectId);
+              setActiveTab('tenders');
+            }}
+          />
+        );
     }
   };
 

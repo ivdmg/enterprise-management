@@ -16,6 +16,8 @@ import {
   Building2,
   Layers,
   Info,
+  FileSpreadsheet,
+  ExternalLink,
 } from 'lucide-react';
 
 interface StageDefinition {
@@ -125,13 +127,48 @@ function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
   );
 }
 
-export function ProjectsTab() {
+export interface ProjectsTabProps {
+  highlightProjectId?: string | null;
+  onClearHighlight?: () => void;
+}
+
+export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTabProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
+
+  // Auto-highlight effect when navigated from FirePanel / FireDetailView
+  useEffect(() => {
+    if (highlightProjectId) {
+      setActiveHighlightId(highlightProjectId);
+      setSearchQuery('');
+      setStageFilter('all');
+      setRiskFilter('all');
+
+      const scrollTimer = setTimeout(() => {
+        const el =
+          document.getElementById(`project-row-${highlightProjectId}`) ||
+          document.getElementById(`project-card-${highlightProjectId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+
+      const fadeTimer = setTimeout(() => {
+        setActiveHighlightId(null);
+        if (onClearHighlight) onClearHighlight();
+      }, 4000);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(fadeTimer);
+      };
+    }
+  }, [highlightProjectId]);
 
   // ConfirmModal state for tender stepper (FE-3.3)
   const [pendingStageChange, setPendingStageChange] = useState<{
@@ -414,12 +451,16 @@ export function ProjectsTab() {
                 filteredProjects.map((project) => {
                   const currentStageIdx = getStageIndex(project.tender_stage);
                   const isRowCritical = project.risk_level === 'critical';
+                  const isHighlighted = activeHighlightId === project.id;
 
                   return (
                     <tr
                       key={project.id}
-                      className={`transition-colors ${
-                        isRowCritical
+                      id={`project-row-${project.id}`}
+                      className={`transition-all duration-300 ${
+                        isHighlighted
+                          ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-500 ring-inset shadow-md'
+                          : isRowCritical
                           ? 'bg-red-50/25 dark:bg-red-950/15 hover:bg-red-50/40 dark:hover:bg-red-950/25'
                           : 'hover:bg-[var(--card-subtle)]/70'
                       }`}
@@ -429,10 +470,27 @@ export function ProjectsTab() {
                         <p className="font-semibold text-[var(--text-main)] text-sm leading-snug line-clamp-1" title={project.project_name}>
                           {project.project_name}
                         </p>
-                        <p className="text-xs text-[var(--text-sub)] mt-0.5 truncate" title={project.customer_name}>
-                          <span className="font-mono text-[var(--text-muted)]">{project.project_code}</span>
-                          {project.customer_name ? ` · ${project.customer_name}` : ''}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 truncate text-xs">
+                          <span className="font-mono text-[var(--text-muted)] shrink-0">{project.project_code}</span>
+                          {project.customer_name && (
+                            <span className="text-[var(--text-sub)] truncate max-w-[120px]" title={project.customer_name}>
+                              · {project.customer_name}
+                            </span>
+                          )}
+                          <span className="text-[var(--text-muted)] text-[10px]">·</span>
+                          <a
+                            href="https://drive.google.com/drive/folders/enterprise-hub"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors shrink-0"
+                            title="Открыть документы объекта в Google Диск"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FileSpreadsheet className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                            <span>Диск</span>
+                            <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                          </a>
+                        </div>
                         {project.curator_name && (
                           <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
                             Куратор: {project.curator_name}
@@ -531,19 +589,41 @@ export function ProjectsTab() {
               const currentStageIdx = getStageIndex(project.tender_stage);
               const bg = project.bank_guarantee;
               const isBgCritical = bg && (bg.days_remaining < 5 || bg.is_critical);
+              const isHighlighted = activeHighlightId === project.id;
 
               return (
-                <div key={project.id} className="p-4 space-y-3">
+                <div
+                  key={project.id}
+                  id={`project-card-${project.id}`}
+                  className={`p-4 space-y-3 transition-all duration-300 ${
+                    isHighlighted
+                      ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-500 rounded-xl shadow-md'
+                      : ''
+                  }`}
+                >
                   {/* Top: Title & Risk badge */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h3 className="font-semibold text-[var(--text-main)] text-sm">
                         {project.project_name}
                       </h3>
-                      <p className="text-xs text-[var(--text-sub)] mt-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap text-xs text-[var(--text-sub)] mt-0.5">
                         <span className="font-mono text-[var(--text-muted)]">{project.project_code}</span>
-                        {project.customer_name ? ` · ${project.customer_name}` : ''}
-                      </p>
+                        {project.customer_name ? <span>· {project.customer_name}</span> : ''}
+                        <span>·</span>
+                        <a
+                          href="https://drive.google.com/drive/folders/enterprise-hub"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium hover:underline"
+                          title="Открыть документы объекта в Google Диск"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FileSpreadsheet className="h-3 w-3" />
+                          <span>Google Диск</span>
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
                     </div>
                     {getRiskBadge(project.risk_level)}
                   </div>

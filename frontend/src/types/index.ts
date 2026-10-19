@@ -72,6 +72,7 @@ export interface FileListItem {
   status: string;
   uploaded_by: string;
   created_at: string;
+  google_drive_link?: string;
 }
 
 export interface UploadAndAssignPayload {

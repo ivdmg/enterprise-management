@@ -51,6 +51,7 @@ export const mockData = {
       status: 'processed',
       uploaded_by: 'Иванов Иван Иванович',
       created_at: '2026-10-11T14:30:00Z',
+      google_drive_link: 'https://drive.google.com/file/d/demo-smr-august-file/view',
     },
     {
       id: 'c1000000-0000-0000-0000-000000000002',
@@ -59,6 +60,7 @@ export const mockData = {
       status: 'processed',
       uploaded_by: 'Петрова Мария Сергеевна',
       created_at: '2026-10-10T09:15:00Z',
+      google_drive_link: 'https://drive.google.com/file/d/demo-fot-payouts-file/view',
     },
     {
       id: 'c1000000-0000-0000-0000-000000000003',
@@ -67,6 +69,7 @@ export const mockData = {
       status: 'awaiting_confirmation',
       uploaded_by: 'Сидоров Алексей Петрович',
       created_at: '2026-10-09T16:45:00Z',
+      google_drive_link: 'https://drive.google.com/file/d/demo-debt-q3-file/view',
     },
   ] as FileListItem[],
 

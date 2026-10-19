@@ -17,9 +17,10 @@ import { FirePanel } from './components/FirePanel';
 
 interface DashboardTabProps {
   onNavigateTab?: (tabId: string) => void;
+  onNavigateToProject?: (projectId: string) => void;
 }
 
-export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
+export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTabProps) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [financeData, setFinanceData] = useState<FinanceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -228,9 +229,9 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
       {/* ============================================================ */}
       <FirePanel
         items={top_fire_items}
-        onNavigateToProject={() => {
+        onNavigateToProject={onNavigateToProject || (() => {
           if (onNavigateTab) onNavigateTab('tenders');
-        }}
+        })}
         onNavigateTab={onNavigateTab}
       />
 

@@ -14,6 +14,8 @@ import {
   Search,
   RotateCcw,
   SlidersHorizontal,
+  FileSpreadsheet,
+  ExternalLink,
 } from 'lucide-react';
 import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
@@ -482,16 +484,30 @@ export function FireDetailView({
                     </div>
                   </div>
 
-                  {/* Quick Action Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleActionClick(item)}
-                    className="min-h-[40px] px-3.5 py-2 rounded-xl bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700/80 text-[var(--text-main)] font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
-                    id={`fire-detail-item-btn-${item.id}`}
-                  >
-                    <span>Перейти к объекту</span>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-[var(--text-sub)]" />
-                  </button>
+                  {/* Quick Action Buttons: Open Google Drive File & Navigate to Project */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href="https://drive.google.com/drive/folders/enterprise-hub"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-h-[40px] px-3 py-2 rounded-xl bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-main)] font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      title="Открыть расчетный файл / акт в Google Диск"
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Файл в Google Диск</span>
+                      <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => handleActionClick(item)}
+                      className="min-h-[40px] px-3.5 py-2 rounded-xl bg-[var(--card-bg)] hover:bg-[var(--card-subtle)] border border-[var(--card-border)] text-[var(--text-main)] font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                      id={`fire-detail-item-btn-${item.id}`}
+                    >
+                      <span>Перейти к объекту</span>
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[var(--text-sub)]" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

@@ -29,6 +29,7 @@ export function Select({
   size = 'md',
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -51,7 +52,28 @@ export function Select({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
+  // Scroll focused option into view when opened or navigated
+  useEffect(() => {
+    if (isOpen && listRef.current && focusedIndex >= 0) {
+      const optionEl = listRef.current.children[focusedIndex] as HTMLElement | undefined;
+      if (optionEl && typeof optionEl.scrollIntoView === 'function') {
+        optionEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [isOpen, focusedIndex]);
+
   const openSelect = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Flip upward if space below is limited (< 250px) and there is more room above
+      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
     setIsOpen(true);
     setFocusedIndex(selectedIndex >= 0 ? selectedIndex : 0);
   };
@@ -109,7 +131,11 @@ export function Select({
   };
 
   return (
-    <div ref={containerRef} className={`relative inline-block ${className}`} id={selectId}>
+    <div
+      ref={containerRef}
+      className={`relative inline-block ${className} ${isOpen ? 'z-50' : ''}`}
+      id={selectId}
+    >
       {/* Trigger Button */}
       <button
         type="button"
@@ -141,7 +167,9 @@ export function Select({
           ref={listRef}
           role="listbox"
           tabIndex={-1}
-          className="absolute z-[100] mt-1.5 w-full min-w-[160px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)]"
+          className={`absolute z-[100] w-full min-w-[200px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-2xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)] ${
+            openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+          }`}
         >
           {options.map((option, idx) => {
             const isSelected = option.value === value;
