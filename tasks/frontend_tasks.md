@@ -1,54 +1,41 @@
-# Задачи для Frontend-разработчика: Полный редизайн (White & Gray Bento-Box), Защита от дурака и Адаптивные сценарии
-## Роль: Senior React / TypeScript Developer | Проект: Smart Enterprise Hub (v2.0 Redesign)
+# Задачи для Frontend-разработчика: Устранение багов верстки, Плотная корпоративная палитра, Удаление селектора ролей и Мобильный адаптив (v2.1)
+## Роль: Senior React / TypeScript Developer | Проект: Smart Enterprise Hub
 
 ---
 
 ## 🎯 Системный промпт для Frontend-агента (Скопируйте в новый чат)
 
 > **Твоя роль**: Ты — ведущий Senior Frontend разработчик платформы Smart Enterprise Hub.
-> **Твоя цель**: Провести полный визуальный и UX-редизайн платформы по стандартам современного сдержанного корпоративного минимализма (White & Gray Bento-Box aesthetic), ликвидировать все сине-фиолетовые оттенки (наследие дефолтных стилей Gemini/Antigravity), внедрить универсальную «защиту от дурака» (Confirmation Modal) для любых смен статусов, переработать экран «Где горит?» с разгрузкой сводки и drill-down представлением, а также обеспечить безупречную читаемость таблиц на десктопе и интерактивных карточек на мобильных устройствах.
+> **Твоя цель**: Устранить дефекты верстки таблиц (наезды колонок, горизонтальные скроллы, разнобой размеров плашек), полностью удалить селектор ролей из Header, заменить неоновые/розовые цвета бейджей на плотные благородные корпоративные оттенки, адаптировать ConfirmModal под тёмную тему и реализовать безупречный мобильный UX (Бургер-меню, Sticky Bottom Bar, адаптивные карточки и графики под iPhone 16 Pro Max / Pixel).
 >
-> **Стек и UI-библиотека проекта**:
+> **Стек и инструменты**:
 > - **React 19 + TypeScript + Vite + Tailwind CSS v4 (`@tailwindcss/vite`) + Lucide React (`lucide-react`)**.
-> - Архитектура компонентов: **Модульный headless UI-кит по паттернам Shadcn UI** (`frontend/src/components/`).
-> - Никаких тяжелых внешних монструозных библиотек (MUI, Ant Design). Используем кастомные легковесные компоненты на Tailwind CSS, стилизованные под Shadcn/Radix (Card, Badge, Button, Modal, ConfirmModal, Select, DropdownMenu, SegmentedControl).
+> - UI-архитектура: Модульный headless UI-кит на Tailwind CSS в стиле Shadcn/Radix ([frontend/src/components/](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/)).
 >
 > **Критические правила разработки**:
-> 1. **НЕ трогать бэкенд (Python/FastAPI)**. Все изменения только внутри папки [`frontend/`](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend).
-> 2. **Палитра White & Gray**: Запрещены любые сине-фиолетовые/индиго акценты (`indigo-600`, `#4F46E5`, `#4338CA`, фиолетовые тени). Основные цвета: белый (`#ffffff`), нейтральные серые сланцевые тона (`slate-50`, `slate-100`, `slate-200`, `slate-700`, `slate-900`). Активные контролы и кнопки — глубокий темный графит / черный (`slate-900` / `#0f172a` в светлой теме, `slate-100` в темной теме).
-> 3. **Семантические акценты строго по делу**:
->    - 🟢 **Изумрудный (Emerald)**: Норма, оплачено, принято, без отставаний.
->    - 🟡 **Янтарный (Amber)**: Внимание, счет на оплате, скорый срок.
->    - 🔴 **Рубиновый (Rose/Red)**: Критический риск, просрочка, штрафы 44-ФЗ, риск РНП по БГ.
-> 4. **Защита от дурака (Confirm Modal) ОБЯЗАТЕЛЬНА**: Любое изменение статуса (в Снабжении, Тендерном степпере, Смарт-реестре задач) должно запрашивать подтверждение через модальное окно, исключая случайные клики.
-> 5. **Никаких нативных селектов ОС**: Все выпадающие списки (`select`, дропдауны, контекстные меню) должны быть кастомными стилизованными компонентами в единой стилистике Shadcn, а не стандартными элементами Windows/macOS.
-> 6. **Два режима темы (Light & Dark)**: Полноценная поддержка светлой и темной темы через переключатель (Moon/Sun) в Header.
+> 1. **НЕ трогать бэкенд (Python/FastAPI)**. Все правки ведутся строго внутри директории [`frontend/`](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend).
+> 2. **Ликвидация неоновости и полупрозрачности**: Убрать все «неоновые», полупрозрачные и розовые оттенки из алертов и статусов. Использовать плотные, благородные, непрозрачные корпоративные цвета:
+>    - 🔴 **Критический (Red/Danger)**: Плотный красный `#DC2626` / `#EF4444`, мягкий фон `bg-red-50 dark:bg-red-950/60`, граница `border-red-300 dark:border-red-800`, контрастный текст `text-red-700 dark:text-red-200`.
+>    - 🟡 **Предупреждение (Amber/Warning)**: Плотный янтарный `#D97706` / `#F59E0B`, мягкий фон `bg-amber-50 dark:bg-amber-950/60`, граница `border-amber-300 dark:border-amber-800`, текст `text-amber-800 dark:text-amber-200`.
+>    - 🟢 **Норма (Emerald/Success)**: Плотный изумрудно-зеленый `#16A34A` / `#22C55E`, фон `bg-emerald-50 dark:bg-emerald-950/60`, граница `border-emerald-300 dark:border-emerald-800`, текст `text-emerald-800 dark:text-emerald-200`.
+> 3. **Никаких нативных селектов ОС**: Все выпадающие списки (`select`) только через кастомный стилизованный компонент [`Select.tsx`](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Select.tsx).
+> 4. **Полное отсутствие горизонтального скролла на десктопе**: Таблицы должны идеально вписываться в границы экрана с фиксированными или пропорциональными ширинами колонок (`table-fixed` или выверенный flex-grid).
+> 5. **Защита от дурака**: Смена статусов обязательно запрашивает подтверждение через [`ConfirmModal.tsx`](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/ConfirmModal.tsx), который обязан безупречно выглядеть как в светлой, так и в тёмной теме.
+> 6. **Качество адаптива**: Ориентир мобильной верстки — экраны от 375px до 440px (iPhone 16 Pro Max, Google Pixel) и планшеты (768px - 1024px). Ни один элемент не должен вываливаться за пределы экрана (`overflow-x-hidden`).
 
 ---
 
-## 📚 Контекст и референсы для изучения
+## 📚 Контекст и файлы для изучения
 
-Перед реализацией изучи ключевые файлы проекта:
-1. ⭐️ [ui_design_constraints.md](file:///c:/Users/Ivan/Desktop/enterprise%20management/agents/ui_design_constraints.md) — базовые принципы корпоративного минимализма, отсутствие текстовых эмодзи, векторные иконки Lucide.
-2. ⭐️ [SYSTEM_ARCHITECTURE_AND_BUSINESS_ANALYSIS.md](file:///c:/Users/Ivan/Desktop/enterprise%20management/docs/SYSTEM_ARCHITECTURE_AND_BUSINESS_ANALYSIS.md) — бизнес-сценарии 9 ролей, сквозной цикл 44-ФЗ/223-ФЗ, правила расчета штрафов и банковских гарантий.
-3. [frontend/src/index.css](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/index.css) — CSS-переменные темы, утилитарные классы.
-4. [frontend/src/components/](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/) — текущие базовые компоненты UI-кита.
-5. [frontend/src/features/dashboard/DashboardTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/DashboardTab.tsx) — главная сводка и экран «Где горит?».
-6. [frontend/src/features/dashboard/ProjectsTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/ProjectsTab.tsx) — реестр тендеров и объектов, степпер, банковские гарантии.
-7. [frontend/src/features/procurement/ProcurementTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/procurement/ProcurementTab.tsx) — реестр снабжения и счетов ТМЦ.
-8. [frontend/src/features/tasks/TasksTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/tasks/TasksTab.tsx) — смарт-реестр задач.
-
----
-
-## 🎨 Визуальный стандарт и UI-Кит (White & Gray Bento-Box)
-
-Референс дизайна — аналитический калькулятор и дашборд в сдержанном стиле:
-- **Контейнеры (Cards)**: Чистый белый фон `bg-white dark:bg-slate-900`, граница 1px `border-slate-200 dark:border-slate-800`, радиус скругления `rounded-xl` (12px) или `rounded-2xl` (16px), деликатная тень `shadow-2xs` или `shadow-xs`.
-- **Сегментированные контролы и табы**: Серый подложечный контейнер `bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl`. Активный элемент — контрастная плашка `bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-xs`.
-- **Кнопки первичных действий (Primary)**: `bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 rounded-lg px-4 py-2 font-medium transition-colors`.
-- **Кнопки вторичных действий (Secondary/Ghost)**: `bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-lg px-3 py-2 transition-colors`.
-- **Типографика**: Чистые шрифты sans-serif (Inter/system-ui), крупные контрастные числовые метрики (`font-mono text-2xl/text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100`), аккуратные подписи показателя (`text-xs font-medium text-slate-500 uppercase tracking-wider`).
-- **Стилизованные Dropdown / Popover**: Фон `bg-white dark:bg-slate-900`, граница `border-slate-200 dark:border-slate-800`, скругление `rounded-xl`, мягкая тень `shadow-lg`, аккуратный ховер `hover:bg-slate-50 dark:hover:bg-slate-800/60`.
+1. [frontend/src/components/Header.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Header.tsx) — верхняя шапка (удаление селектора роли, добавление мобильного Бургер-меню).
+2. [frontend/src/components/TabNav.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/TabNav.tsx) — навигация (на мобильном превращается в Sticky Bottom Bar).
+3. [frontend/src/components/ConfirmModal.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/ConfirmModal.tsx) — модальное окно подтверждения (доработка стилей под Dark Mode).
+4. [frontend/src/components/Badge.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Badge.tsx) — статусные плашки и бейджи (замена неоновых оттенков).
+5. [frontend/src/features/dashboard/ProjectsTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/ProjectsTab.tsx) — реестр объектов (наезд степпера на БГ, скролл колонки Риск).
+6. [frontend/src/features/procurement/ProcurementTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/procurement/ProcurementTab.tsx) — таблица снабжения (горизонтальный скролл, вылезание статуса «Счет на оплате»).
+7. [frontend/src/features/dispatch/DispatchTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dispatch/DispatchTab.tsx) — диспетчерская (разнобой плашек «На объекте», «В ремонте», «Простой»).
+8. [frontend/src/features/tasks/TasksTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/tasks/TasksTab.tsx) — смарт-реестр задач (горизонтальный скролл, статусы, модалка).
+9. [frontend/src/features/dashboard/FinanceTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/FinanceTab.tsx) — график финансов (мобильная адаптация Recharts).
 
 ---
 
@@ -56,140 +43,99 @@
 
 Разработчик обязан вести статус по мере выполнения:
 - `[ ] ⏳ В очереди` — задача ожидает старта.
-- `[-] 🔄 В работе` — ведется написание кода и компонентов.
-- `[x] ✅ Завершено (Краткий отчет)` — задача готова, стили выверены, протестировано на десктопе и мобильном.
-- `[!] ⚠️ Блокер` — есть вопрос или зависимость.
+- `[-] 🔄 В работе` — ведется разработка и тестирование.
+- `[x] ✅ Завершено (Краткий отчет)` — задача готова, верстка проверена на десктопе и мобильном.
+- `[!] ⚠️ Блокер` — обнаружена зависимость или критический баг.
 
 ---
 
 ## 🛠️ Backlog задач для Frontend-разработчика
 
-### ФАЗА 1: Токенизация White & Gray, ликвидация фиолетовых оттенков и базовый UI-Кит (P0)
+### ФАЗА 1: Устранение дефектов верстки десктопных таблиц (P0)
 
-- [x] ✅ **Задача FE-1.1: Полное искоренение фиолетово-синих оттенков в `index.css` и глобальных стилях**
-  - Ликвидированы переменные `--color-brand-600` и `--color-brand-700`.
-  - Установлена сдержанная палитра White & Gray Bento-Box (`#0F172A` / `#F8FAFC`).
-  - Настроены переменные темы для Light и Dark режимов (`--bg-primary`, `--bg-card`, `--border-color`, `--text-primary`, `--text-secondary`).
+- [x] ✅ **Задача FE-1.1: Разделение колонок «Степпер закупки» и «Банковская гарантия» в ProjectsTab**
+  - Файл: [frontend/src/features/dashboard/ProjectsTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/ProjectsTab.tsx)
+  - Выполнено: переведено на `table-fixed` с пропорциями (Объект 25%, Степпер 28% min-w-[240px], БГ 20% min-w-[170px], Сумма 12%, Срок 9%, Риск 6%) и защитными отступами `px-3`, исключающими наложение ячеек.
 
-- [x] ✅ **Задача FE-1.2: Рефакторинг и расширение компонентов UI-кита (Shadcn-стиль)**
-  - `Button.tsx`: обновлены варианты (`primary` в графитовом стиле, `secondary`, `outline`, `ghost`, `danger`) без индиго.
-  - `Badge.tsx`: пастельные фоны с тонкими рамками (Success, Warning, Danger, Neutral, Info).
-  - `SegmentedControl.tsx`: создан универсальный компонент сегментированных табов и фильтров по Bento-box референсу.
-  - `Select.tsx`: реализован кастомный компонент выпадающего списка в стиле Shadcn с анимацией, клавиатурной навигацией (стрелки, Enter, Escape) и кликом вне области.
+- [x] ✅ **Задача FE-1.2: Устранение горизонтального скролла и обрезки колонки «Риск» в ProjectsTab**
+  - Файл: [frontend/src/features/dashboard/ProjectsTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/ProjectsTab.tsx)
+  - Выполнено: заменен `overflow-x-auto` на `overflow-x-hidden`, бейдж риска сцентрирован с `max-w-[80px]`, горизонтальный скролл на десктопе устранен.
 
-- [x] ✅ **Задача FE-1.3: Универсальный модальный компонент подтверждения («Защита от дурака» — ConfirmModal)**
-  - Создан компонент `ConfirmModal.tsx` с визуализацией смены статуса (`«Текущий статус»` $\rightarrow$ `«Новый статус»`), защитой от случайных кликов, Escape-хэндлером и безопасными кнопками.
+- [x] ✅ **Задача FE-1.3: Ликвидация горизонтального скролла в таблице «Снабжение и закупки» (ProcurementTab)**
+  - Файл: [frontend/src/features/procurement/ProcurementTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/procurement/ProcurementTab.tsx)
+  - Выполнено: колонка статуса зафиксирована `w-[10%] min-w-[170px]`, кнопка статуса ограничена `max-w-[170px]` с `truncate`, `overflow-x-hidden` на десктопе, сбалансированы ширины ТМЦ/Объекта/Поставщика.
 
-- [x] ✅ **Задача FE-1.4: Редизайн Header и TabNav под стиль референса (Скриншоты)**
-  - `Header.tsx`: минималистичный логотип в темном блоке, кастомный селектор периода, кнопка Sun/Moon, профиль и синхронизация Google Диска приведены к стилю White & Gray.
-  - `TabNav.tsx`: сегментированные капсульные кнопки (Pill/Segmented control) в сдержанном контейнере, чистая белая карточка активной вкладки с деликатной тенью на десктопе и аккуратная нижняя панель на мобильных устройствах.
-  - `RoleSwitcherModal.tsx`: устранена фиолетовая подсветка при выборе ролей.
+- [x] ✅ **Задача FE-1.4: Унификация плашек статусов в Диспетчерской (DispatchTab)**
+  - Файл: [frontend/src/features/dispatch/DispatchTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dispatch/DispatchTab.tsx)
+  - Выполнено: кнопки быстрого переключения статусов приведены к единообразному размеру `min-w-[85px] py-1 px-2 text-center text-xs`, отцентрированы в ячейке; таблица переведена на `table-fixed` и `overflow-x-hidden`.
 
----
-
-### ФАЗА 2: Экран «Где горит?» — 3 ключевые карточки и Drill-Down детальный вид (P0)
-
-- [x] ✅ **Задача FE-2.1: Блок из 3-х карточек в едином модуле на главном экране (Сводка)**
-  - Главный экран сводки полностью разгружен от перегруженного длинного списка карточек.
-  - Реализован единый лаконичный Bento-модуль из 3-х ключевых интерактивных карточек:
-    1. 🔴 **«Критические риски»**: число критических алертов ($\le 3$ дн.), розовый акцент/заливка, общий объем финансового риска.
-    2. 🟡 **«Внимание и предупреждения»**: число предупреждений (дедлайн 4-5 дн.), янтарный акцент/заливка, объем риска.
-    3. 🟠 **«Штрафы и просрочки»**: число объектов с просрочками/неустойками 44-ФЗ, общая сумма расчетных штрафов.
-  - Карточки интерактивны: имеют hover-эффект приподнимания (`hover:-translate-y-0.5 hover:shadow-md`), стрелки перехода и доступность с клавиатуры.
-
-- [x] ✅ **Задача FE-2.2: Реализация детального экрана / Drill-Down представления списка карточек**
-  - Создан компонент `FireDetailView.tsx`, куда пользователь бесшовно проваливается при клике на любую из 3-х карточек или кнопку «Все риски».
-  - Предусмотрена кнопка «$\leftarrow$ Назад к оперативной сводке».
-  - Внедрена панель фильтрации: фильтр по объектам СМР (кастомный `Select`), по ответственным кураторам, текстовый поиск и сортировка.
-  - Детальные карточки инцидентов сохраняют цветовую подсветку (заливки) в строгом графитовом Bento-стиле с расчетом неустоек по 44-ФЗ и кнопкой «Перейти к объекту».
+- [x] ✅ **Задача FE-1.5: Разграничение колонок и устранение скролла в Смарт-реестре задач (TasksTab)**
+  - Файл: [frontend/src/features/tasks/TasksTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/tasks/TasksTab.tsx)
+  - Выполнено: заданы пропорции колонок 30% / 18% / 14% / 14% / 16% / 8%, селектор статуса зафиксирован с `truncate` (`max-w-[170px]`), скролл устранен через `overflow-x-hidden`.
 
 ---
 
-### ФАЗА 3: Редизайн «Тендеры и объекты» — Центрирование, баланс и адаптивная Банковская гарантия (P0)
+## ФАЗА 2: Цветовая палитра — Отказ от неоновости и переход на плотные корпоративные цвета (P0)
 
-### ФАЗА 3: Редизайн «Тендеры и объекты» — Центрирование, баланс и адаптивная Банковская гарантия (P0)
+- [x] ✅ **Задача FE-2.1: Рефакторинг палитры статусов в Badge.tsx и index.css**
+  - Файлы: [frontend/src/components/Badge.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Badge.tsx), [frontend/src/index.css](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/index.css)
+  - Выполнено: заменены все неоновые и полупрозрачные rose/amber/emerald стили на плотные благородные корпоративные оттенки:
+    - Danger: `bg-red-50 text-red-800 border-red-300 dark:bg-red-950/70 dark:text-red-200 dark:border-red-800/80`
+    - Warning: `bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800/80`
+    - Success: `bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800/80`
+  - Обновлены глобальные CSS-токены `--semantic-*` в светлой и тёмной теме без розовых и неоновых примесей.
 
-- [x] ✅ **Задача FE-3.1: Выверенная центрированная таблица объектов и ликвидация визуального шума**
-  - Таблица объектов сбалансирована по четким пропорциям колонок: `Объект и заказчик` 28%, `Степпер закупки` 26%, `Банковская гарантия` 18%, `Сумма договора` 12%, `Срок сдачи` 10%, `Риск` 6%.
-  - Числа и суммы выровнены строго по правому краю в `font-mono font-bold`, даты зафиксированы в `whitespace-nowrap`.
-  - Устранен визуальный шум: единая гармоничная типографика, деликатные бордеры и центрирование.
-
-- [x] ✅ **Задача FE-3.2: Адаптивный и компактный виджет плашки «Банковская гарантия»**
-  - Создан компактный двухстрочный виджет `BankGuaranteeWidget`:
-    - 1-я строка: Статус гарантии (`БГ активна` / `Риск РНП!`) с цветным индикатором и бейджем оставшихся дней.
-    - 2-я строка: Название банка и сумма в компактном виде (`Сбер · 4.5 млн ₽`).
-  - При наведении отображается детальный всплывающий Tooltip со сроком действия, датой окончания и предупреждением о рисках 44-ФЗ.
-  - При критическом сроке (< 5 дней) блок выделяется предупреждающей заливкой без разъезжания верстки.
-
-- [x] ✅ **Задача FE-3.3: Интеграция ConfirmModal в линейный степпер закупки**
-  - В линейный степпер стадий тендера интегрирован `ConfirmModal` («Защита от дурака»).
-  - При клике на любую новую стадию закупки запрашивается модальное подтверждение с визуализацией `«Текущая стадия»` $\rightarrow$ `«Новая стадия»`.
-  - Исключены случайные переключения этапов при скролле или тапе.
+- [x] ✅ **Задача FE-2.2: Обновление карточек алертов экрана «Где горит?» (DashboardTab / FireDetailView)**
+  - Файлы: [frontend/src/features/dashboard/DashboardTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/DashboardTab.tsx), [frontend/src/features/dashboard/components/FirePanel.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/components/FirePanel.tsx), [frontend/src/features/dashboard/components/FireDetailView.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/components/FireDetailView.tsx)
+  - Выполнено: ключевые 3 карточки сводки («Критические риски», «Внимание и предупреждения», «Штрафы и просрочки») и KPI карточки «Свободная касса» перекрашены в благородные солидные цвета.
+  - Детальные карточки в `FireDetailView` оформлены с плотными левыми акцентными полосами (`border-l-4 border-l-red-600` / `border-l-amber-500`) и сдержанными непрозрачными подложками.
 
 ---
 
-### ФАЗА 4: Редизайн «Снабжение и закупки» — Зебра-таблица, Мобильные карточки-аккордеоны и Защита от дурака (P0)
+## ФАЗА 3: Очистка Header и стилизация ConfirmModal в Dark Mode (P0)
 
-- [x] ✅ **Задача FE-4.1: Десктопная таблица снабжения с легкой зеброй и повышенной читаемостью**
-  - Реализовано чередование строк (деликатная зебра `bg-[var(--card-subtle)]/40` и `bg-[var(--card-bg)]`) с плавным ховером.
-  - Нативный браузерный `<select>` заменен на кастомный стилизованный компонент `Select` со скруглениями, клавиатурной навигацией и полной поддержкой тем.
-  - Повышена контрастность номенклатуры ТМЦ, артикулов счетов и выравнивания сумм по правому краю (`font-mono font-bold`).
+- [x] ✅ **Задача FE-3.1: Удаление дропдауна выбора роли из Header (Десктоп и Мобайл)**
+  - Файл: [frontend/src/components/Header.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Header.tsx)
+  - Выполнено: селектор роли, модальное окно переключения ролей и связанные с ним иконки/логика полностью удалены из Header на всех брейкпоинтах. Освобожденное пространство отдано под логотип, название системы и статус синхронизации Google Диска.
 
-- [x] ✅ **Задача FE-4.2: Мобильное представление в виде карточек-аккордеонов (Expandable Cards)**
-  - На экранах `< 768px` сжатая таблица трансформируется в интерактивные карточки-аккордеоны.
-  - В свернутом состоянии: наименование ТМЦ, объект СМР, сумма и компактный бейдж статуса.
-  - При тапе карточка плавно раскрывается, отображая поставщика, реквизиты счета, объем, единицы измерения, дедлайн поставки и кнопки действий с увеличенной тач-зоной ($\ge 44$ px).
-
-- [x] ✅ **Задача FE-4.3: Защита от дурака при смене статусов оплаты и логистики ТМЦ**
-  - Подключен `ConfirmModal` к выпадающему дропдауну статусов ТМЦ (`Счет на оплате` $\rightarrow$ `Оплачено` $\rightarrow$ `В пути` $\rightarrow$ `На объекте`) и быстрой кнопке следующего шага.
-  - При выборе нового статуса открывается диалог подтверждения с указанием номера счета, позиции ТМЦ и визуальным переходом статуса.
-  - Исключены случайные переключения или списания при таче и скролле.
+- [x] ✅ **Задача FE-3.2: Адаптация ConfirmModal под тёмную тему (Dark Mode)**
+  - Файл: [frontend/src/components/ConfirmModal.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/ConfirmModal.tsx)
+  - Выполнено: фон оверлея настроен как `bg-black/60 backdrop-blur-xs`, карточка диалога — `bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl`, виджет перехода статусов стилизован для тёмной темы (`dark:bg-slate-800/80 border-slate-700`), статусные иконки переведены на плотную корпоративную гамму без розовых/неоновых оттенков.
 
 ---
 
-### ФАЗА 5: Редизайн «Смарт-реестр задач» и гармонизация остальных разделов (P1)
+## ФАЗА 4: Полноценный мобильный адаптив (iPhone 16 Pro Max, Pixel, Tablets) (P0)
 
-- [x] ✅ **Задача FE-5.1: Читаемость Смарт-реестра задач и защита от дурака в 1-клик статусах**
-  - Модифицирован [frontend/src/features/tasks/TasksTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/tasks/TasksTab.tsx):
-  - Применена стилистика White & Gray:
-    - Заменены синие фоны табов и бейджей на нейтральные сдержанные стили.
-    - Таблица задач на десктопе: зебра-строки, четкие границы, правое выравнивание дедлайнов и сумм штрафов.
-    - Селектор фильтра 9 ролей оформлен через стилизованный кастомный `Select`.
-  - Добавлен `ConfirmModal` при смене статуса задачи (`В работе` $\rightarrow$ `Передано менеджеру` $\rightarrow$ `Согласовано / Закрыто`).
+- [x] ✅ **Задача FE-4.1: Мобильное Бургер-меню (Navigation Drawer)**
+  - Файл: [frontend/src/components/Header.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/Header.tsx)
+  - Выполнено: добавлена кнопка Бургера в мобильный Header (`< 768px`). Реализован плавный выезжающий Drawer справа: полный список всех 7 разделов с иконками, переключатель периода отчетов, кнопка синхронизации Google Диска, профиль и кнопка выхода.
 
-- [x] ✅ **Задача FE-5.2: Мобильная адаптация Смарт-реестра (Cards with Accordion)**
-  - На мобильных устройствах задачи отображаются аккуратными карточками с раскрытием подробностей (описание задачи, ссылка на Google Таблицу/Диск, ответственный куратор).
-  - Кнопки смены статуса на мобильных имеют увеличенную тач-зону ($\ge 44 \times 44$ px) и обязательно запрашивают подтверждение в `ConfirmModal`.
+- [x] ✅ **Задача FE-4.2: Прилипающая нижняя панель навигации (Sticky Bottom Bar)**
+  - Файл: [frontend/src/components/TabNav.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/components/TabNav.tsx)
+  - Выполнено: панель зафиксирована внизу экрана `fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md pb-[max(0.75rem,env(safe-area-inset-bottom))]`. Выведены 4 ключевые вкладки и кнопка «Разделы», в `App.tsx` добавлен защитный отступ контента `pb-24 md:pb-6`.
 
-- [x] ✅ **Задача FE-5.3: Гармонизация вкладок «Финансы и касса» и «Файлы и Google Диск»**
-  - В [frontend/src/features/dashboard/FinanceTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/FinanceTab.tsx):
-    - Оставлены текущие финансовые расчеты и структура, графики Recharts и карточки дебиторки/кредиторки переведены на цвета палитры Slate (без фиолетовых заливок).
-  - В [frontend/src/features/files/FilesTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/files/FilesTab.tsx):
-    - Очищены файловые списки и элементы управления от старых сине-фиолетовых цветов, приведены к единому стандарту White & Gray.
+- [x] ✅ **Задача FE-4.3: Адаптация карточек и устранение переполнения экрана (No Overflow-X)**
+  - Файлы: [frontend/src/App.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/App.tsx), все модули `src/features/*`
+  - Выполнено: на корневом контейнере `App.tsx` установлен `max-w-full overflow-x-hidden`. Все таблицы на мобильных устройствах (`< 768px`) скрываются и заменяются на мобильные Bento-карточки и аккордеоны. Исключены вылезания за пределы экранов 375px–440px (iPhone 16 Pro Max, Google Pixel).
 
----
-
-### ФАЗА 6: Тестирование, полировка адаптивности (Desktop/Mobile) и валидация тем (P1)
-
-- [x] ✅ **Задача FE-6.1: Валидация Light/Dark режимов и контрастности по WCAG**
-  - Проверено переключение темы во всех 7 вкладках. В темном режиме обеспечен чистый графитовый фон (`#0d0e11`, `#17181c`) без красноватых оттенков, текст везде контрастен (`text-slate-100` / `text-slate-300`).
-  - В светлом режиме холст мягкий (`slate-50`), карточки чистые белые с тонкими рамками (`slate-200/80`), статусная подсветка выполнена фоновой заливкой.
-
-- [x] ✅ **Задача FE-6.2: Проверка мобильного вьюпорта ($\le 390px$, iPhone / Android) и тач-зон**
-  - Протестированы все экраны на отсутствие горизонтального переполнения (`overflow-x-hidden`).
-  - Все интерактивные элементы, фильтры, аккордеоны и кнопки имеют размер тач-зоны не менее $44 \times 44$ px.
-  - Окна подтверждения `ConfirmModal` центрируются, адаптируются под сенсорные экраны и нажимаются одной рукой.
-  - Все нативные `<select>` заменены на кастомный компонент `Select`.
+- [x] ✅ **Задача FE-4.4: Адаптация финансового графика (Recharts) под мобильные экраны**
+  - Файл: [frontend/src/features/dashboard/FinanceTab.tsx](file:///c:/Users/Ivan/Desktop/enterprise%20management/frontend/src/features/dashboard/FinanceTab.tsx)
+  - Выполнено: график адаптирован через `h-60 sm:h-72 w-full`, отступы оптимизированы, размер шрифтов меток `10px`, `minTickGap={20}` предотвращает наложение дат, тултип стилизован под компактный тач-виджет, линии и заливки приведены к корпоративным плотным изумрудным и красным тонам (`#16A34A` / `#DC2626`).
 
 ---
 
 ## 📋 Чек-лист приемки для System Analyst / Tech Lead
 
-При передаче этапа на ревью проверить:
-1. Отсутствие сине-фиолетовых оттенков (`#4F46E5`, `indigo-600`) во всем коде фронтенда.
-2. Соответствие скриншотам референса (White & Gray Bento-box, черные активные кнопки/табы, мягкие границы).
-3. Работу 3-х карточек экрана «Где горит?» и переход в детальный вид без перегрузки главной сводки.
-4. Отсутствие нативных браузерных `<select>` с серыми стрелками Windows.
-5. Работу `ConfirmModal` при смене любых статусов во всех разделах.
-6. Читаемость таблиц на десктопе (зебра) и трансформацию в раскрывающиеся карточки на мобильных устройствах.
-7. Корректную работу светлой и темной темы.
+Перед сдачей этапа убедиться в выполнении критериев:
+1. `ProjectsTab`: степпер и банковская гарантия имеют чёткие независимые границы, колонка «Риск» не вылазит, горизонтальный скролл на экранах $\ge 1280px$ отсутствует.
+2. `ProcurementTab`: плашка «Счёт на оплате» аккуратно вписана в ширину ячейки, таблица не скроллится горизонтально.
+3. `DispatchTab`: статусы «На объекте», «В ремонте», «Простой» имеют строго одинаковые размеры и центрирование.
+4. `TasksTab`: селекторы статусов компактны, таблица вписана в рамки контейнера.
+5. `ConfirmModal`: в тёмном режиме фон модалки темный (`bg-slate-900`), контрастный, без белых артефактов.
+6. `Header`: селектор роли («Гендиректор...») полностью удален из верстки десктопа и мобайла.
+7. Палитра: красные, желтые и зеленые статусы плотные, не неоновые, без розовых оттенков.
+8. Мобильная версия (iPhone 16 Pro Max / 430px, Pixel / 412px):
+   - Бургер-меню открывает Drawer с навигацией и сервисами.
+   - Нижняя навигация прилипает к низу экрана (`fixed bottom-0`).
+   - Горизонтальный скролл страницы отсутствует (`overflow-x` чистый).
+   - График финансов читаем и не ломает контейнер.

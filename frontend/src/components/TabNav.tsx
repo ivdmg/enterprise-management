@@ -9,6 +9,7 @@ import {
   FolderGit2,
   Menu,
   X,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import { useRole } from '@/context/RoleContext';
@@ -40,13 +41,22 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
   const { isRoleFocusedTab, currentRoleDef } = useRole();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // For mobile bottom bar: select 4 most relevant tabs based on role + "More"
+  // For mobile top bar: select 4 most relevant tabs based on role + activeTab fallback
   const prioritizedTabs = [...tabs].sort((a, b) => {
     const aFocus = isRoleFocusedTab(a.id) ? 1 : 0;
     const bFocus = isRoleFocusedTab(b.id) ? 1 : 0;
     return bFocus - aFocus;
   });
-  const bottomBarTabs = prioritizedTabs.slice(0, 4);
+  const defaultFour = prioritizedTabs.slice(0, 4);
+  const activeTabInFour = defaultFour.some((t) => t.id === activeTab);
+  const activeTabObj = tabs.find((t) => t.id === activeTab);
+
+  const displayedMobileTabs =
+    activeTabInFour || !activeTabObj
+      ? defaultFour
+      : [defaultFour[0], defaultFour[1], defaultFour[2], activeTabObj];
+
+  const isMoreSectionActive = !displayedMobileTabs.some((t) => t.id === activeTab);
 
   const handleTabClick = (tabId: string) => {
     onChange(tabId);
@@ -123,104 +133,106 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
       </nav>
 
       {/* ============================================================ */}
-      {/* MOBILE TOP HORIZONTAL PILLS (< 768px)                         */}
-      {/* ============================================================ */}
-      <div className="md:hidden border-b border-[var(--card-border)] bg-[var(--header-bg)] backdrop-blur-sm overflow-x-auto scrollbar-none px-3 py-2 flex gap-1.5">
-        <div className="inline-flex items-center bg-[var(--card-subtle)] p-0.5 rounded-xl border border-[var(--card-subtle-border)]">
-          {tabs.map((tab) => {
-            const Icon = TAB_ICONS[tab.id] || LayoutDashboard;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabClick(tab.id)}
-                className={`min-h-[36px] px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950 font-semibold shadow-xs'
-                    : 'text-[var(--text-sub)] hover:text-[var(--text-main)]'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{tab.shortLabel || tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* MOBILE BOTTOM NAVIGATION BAR (< 768px)                       */}
+      {/* MOBILE TOP 5-COLUMN SEGMENTED BAR (< 768px)                  */}
+      {/* 4 Prioritized Tabs + "Разделы" Drawer Trigger (No Overflow)  */}
       {/* ============================================================ */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-t border-[var(--card-border)] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
-        id="mobile-bottom-nav"
+        className="md:hidden bg-[var(--card-bg)] border-b border-[var(--card-border)] w-full transition-colors shadow-2xs"
+        id="mobile-top-nav-bar"
       >
-        <div className="grid grid-cols-5 h-14">
-          {bottomBarTabs.map((tab) => {
+        <div className="grid grid-cols-5 w-full items-center py-1.5 px-0.5">
+          {displayedMobileTabs.map((tab) => {
             const Icon = TAB_ICONS[tab.id] || LayoutDashboard;
             const isActive = activeTab === tab.id;
+
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabClick(tab.id)}
-                className={`min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`min-h-[46px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors cursor-pointer select-none py-1 px-0.5 ${
                   isActive
-                    ? 'text-slate-900 dark:text-slate-100 font-semibold'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    ? 'text-[var(--text-main)] font-semibold'
+                    : 'text-[var(--text-sub)] hover:text-[var(--text-main)]'
                 }`}
-                id={`mobile-nav-${tab.id}`}
+                id={`mobile-tab-${tab.id}`}
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`} />
-                <span className="truncate max-w-[64px]">{tab.shortLabel || tab.label}</span>
+                <div
+                  className={`p-1 rounded-lg transition-all ${
+                    isActive
+                      ? 'bg-[var(--card-subtle)] border border-[var(--card-border)] text-[var(--text-main)] shadow-2xs'
+                      : 'text-[var(--text-muted)]'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+                <span className="truncate max-w-[58px] leading-tight text-center">
+                  {tab.shortLabel || tab.label}
+                </span>
               </button>
             );
           })}
 
-          {/* More / Menu Button */}
+          {/* 5th Column: "Разделы" Menu Button */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-            id="mobile-nav-more"
+            className={`min-h-[46px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors cursor-pointer select-none py-1 px-0.5 ${
+              isMoreSectionActive
+                ? 'text-[var(--text-main)] font-semibold'
+                : 'text-[var(--text-sub)] hover:text-[var(--text-main)]'
+            }`}
+            id="mobile-tab-sections-btn"
           >
-            <Menu className="h-4 w-4 text-slate-400" />
-            <span>Разделы</span>
+            <div
+              className={`p-1 rounded-lg transition-all ${
+                isMoreSectionActive
+                  ? 'bg-[var(--card-subtle)] border border-[var(--card-border)] text-[var(--text-main)] shadow-2xs'
+                  : 'text-[var(--text-muted)]'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </div>
+            <span className="truncate max-w-[58px] leading-tight text-center">
+              Разделы
+            </span>
           </button>
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/* MOBILE SLIDE-UP DRAWER FOR ALL 7 TABS                        */}
+      {/* MOBILE SLIDE-UP MODAL/DRAWER FOR ALL SECTIONS                */}
       {/* ============================================================ */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end">
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative bg-[var(--card-bg)] border-t border-[var(--card-border)] rounded-t-2xl p-4 pb-8 space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto text-[var(--text-main)]">
+
+          {/* Modal Card */}
+          <div className="relative bg-[var(--card-bg)] border-t border-[var(--card-border)] rounded-t-2xl p-4 pb-8 space-y-3 shadow-2xl max-h-[85vh] overflow-y-auto text-[var(--text-main)] z-10 animate-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between border-b border-[var(--card-border)] pb-3">
               <div>
                 <h3 className="text-base font-semibold text-[var(--text-main)]">
-                  Все разделы хаба
+                  Все разделы платформы
                 </h3>
                 <p className="text-xs text-[var(--text-sub)]">
-                  Роль: {currentRoleDef.name}
+                  Выберите необходимый рабочий раздел
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer"
-                aria-label="Закрыть меню"
+                className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] cursor-pointer transition-colors"
+                aria-label="Закрыть меню разделов"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 pt-1">
+            <div className="grid grid-cols-1 gap-1.5 pt-1">
               {tabs.map((tab) => {
                 const Icon = TAB_ICONS[tab.id] || LayoutDashboard;
                 const isActive = activeTab === tab.id;
@@ -231,31 +243,43 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabClick(tab.id)}
-                    className={`min-h-[48px] w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                    className={`min-h-[46px] w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                       isActive
-                        ? 'border-[var(--text-main)] bg-[var(--card-subtle)] text-[var(--text-main)] font-semibold shadow-2xs'
-                        : 'border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)]'
+                        ? 'border-[var(--card-border)] bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-semibold shadow-2xs'
+                        : 'border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-2 rounded-lg ${
+                        className={`p-1.5 rounded-lg ${
                           isActive
-                            ? 'bg-[var(--text-main)] text-[var(--canvas-bg)]'
-                            : 'bg-[var(--card-subtle)] text-[var(--text-sub)] border border-[var(--card-border)]'
+                            ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
+                            : 'bg-[var(--card-bg)] text-[var(--text-sub)] border border-[var(--card-border)]'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="text-left">
-                        <p className="font-medium">{tab.label}</p>
+                        <p className="font-semibold">{tab.label}</p>
                         {isFocused && (
-                          <p className="text-[10px] text-[var(--text-muted)]">
+                          <p className={`text-[10px] ${isActive ? 'text-slate-300 dark:text-slate-600' : 'text-[var(--text-muted)]'}`}>
                             Фокус роли {currentRoleDef.shortName}
                           </p>
                         )}
                       </div>
                     </div>
+
+                    {tab.badge !== undefined && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          isActive
+                            ? 'bg-red-600 text-white'
+                            : 'bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}

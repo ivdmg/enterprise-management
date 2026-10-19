@@ -48,18 +48,18 @@ def start_scheduler() -> None:
         logger.warning("Scheduler is already running")
         return
 
-    interval_hours = max(1, settings.GOOGLE_DRIVE_SYNC_INTERVAL_HOURS)
+    interval_seconds = max(10, getattr(settings, "SYNC_INTERVAL_SECONDS", 120))
     scheduler.add_job(
         sync_google_drive_job,
-        trigger=IntervalTrigger(hours=interval_hours),
+        trigger=IntervalTrigger(seconds=interval_seconds),
         id="sync_google_drive_job",
-        name="Sync Google Drive 5 Standard Folders",
+        name="Sync Google Drive Incoming Folders",
         replace_existing=True,
     )
     scheduler.start()
     logger.info(
-        "AsyncIOScheduler started successfully. Drive sync job scheduled every %d hours.",
-        interval_hours,
+        "AsyncIOScheduler started successfully. Drive sync job scheduled every %d seconds.",
+        interval_seconds,
     )
 
 

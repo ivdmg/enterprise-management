@@ -29,13 +29,13 @@ export function Button({
     primary:
       'bg-slate-900 text-white hover:bg-slate-800 active:bg-slate-950 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white dark:active:bg-slate-200 focus:ring-slate-400 dark:focus:ring-slate-500 dark:focus:ring-offset-slate-900 shadow-2xs',
     secondary:
-      'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 focus:ring-slate-300 dark:focus:ring-offset-slate-900 shadow-2xs',
+      'bg-[var(--btn-secondary-bg)] text-[var(--btn-secondary-text)] hover:bg-[var(--card-border)] border border-[var(--btn-secondary-border)] focus:ring-[var(--card-border)] dark:focus:ring-offset-slate-900 shadow-2xs',
     outline:
-      'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 focus:ring-slate-300 dark:focus:ring-offset-slate-900',
+      'border border-[var(--card-border)] text-[var(--text-main)] hover:bg-[var(--card-subtle)] focus:ring-[var(--card-border)] dark:focus:ring-offset-slate-900',
     ghost:
-      'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 focus:ring-slate-300 dark:focus:ring-offset-slate-900',
+      'text-[var(--text-sub)] hover:bg-[var(--card-subtle)] hover:text-[var(--text-main)] focus:ring-[var(--card-border)] dark:focus:ring-offset-slate-900',
     danger:
-      'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800 focus:ring-rose-500 dark:focus:ring-offset-slate-900 shadow-2xs',
+      'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-500 dark:focus:ring-offset-slate-900 shadow-2xs',
   };
 
   const sizes: Record<ButtonSize, string> = {

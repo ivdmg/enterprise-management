@@ -79,3 +79,57 @@ async def test_file_upload_duplicate_detection(mock_user):
         assert data["error"]["details"]["original_name"] == "test_report.xlsx"
 
     app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_damaged_file_upload_returns_422(mock_user):
+    """
+    Validates Task BE-2.3: damaged or corrupt files return HTTP 422 with
+    graceful error details and do not cause uncaught 500 errors.
+    """
+    db_mock = AsyncMock()
+    result_mock = MagicMock()
+    result_mock.scalar_one_or_none.return_value = None
+    db_mock.execute.return_value = result_mock
+
+    async def override_get_db():
+        yield db_mock
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Damaged corrupted binary file disguised as .xlsx
+        corrupt_bytes = b"CORRUPTED_NON_ZIP_EXCEL_HEADER_DATA_12345678"
+        files = {
+            "file": (
+                "corrupt_estimate.xlsx",
+                io.BytesIO(corrupt_bytes),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        }
+
+        resp = await client.post("/api/v1/files/upload", files=files)
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["status"] == "error"
+        assert "details" in data
+        assert len(data["details"]) > 0
+
+        # 2. Unsupported extension (e.g. .exe)
+        bad_files = {
+            "file": (
+                "virus.exe",
+                io.BytesIO(b"MZ..."),
+                "application/octet-stream",
+            )
+        }
+        bad_resp = await client.post("/api/v1/files/upload", files=bad_files)
+        assert bad_resp.status_code == 422
+        bad_data = bad_resp.json()
+        assert bad_data["status"] == "error"
+
+    app.dependency_overrides.clear()
+
+    app.dependency_overrides.clear()

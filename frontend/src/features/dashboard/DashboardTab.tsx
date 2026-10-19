@@ -91,7 +91,7 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
           {/* 1. Свободная касса */}
           <div className={`border rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all flex flex-col justify-between ${
             financial_health.is_cash_gap_predicted
-              ? 'bg-rose-50/75 border-rose-200/90 dark:bg-rose-950/25 dark:border-rose-900/50'
+              ? 'bg-red-50/90 border-red-300 dark:bg-red-950/60 dark:border-red-800'
               : 'bg-[var(--card-bg)] border-[var(--card-border)] hover:border-slate-300 dark:hover:border-slate-700'
           }`}>
             <div className="flex items-start justify-between gap-2">
@@ -114,7 +114,7 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
 
             <div className="mt-3.5 pt-3 border-t border-[var(--card-border)]">
               {financial_health.is_cash_gap_predicted ? (
-                <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
+                <div className="flex items-center gap-1.5 text-xs text-red-700 dark:text-red-300 font-medium">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   <span>
                     Разрыв {financial_health.gap_date ? formatDate(financial_health.gap_date) : 'в течение 14 дней'}
@@ -154,7 +154,7 @@ export function DashboardTab({ onNavigateTab }: DashboardTabProps) {
                 {production_health.total_active_projects} объектов в работе
               </span>
               {production_health.projects_at_risk_count > 0 ? (
-                <span className="text-rose-600 dark:text-rose-400 font-medium">
+                <span className="text-red-700 dark:text-red-300 font-medium">
                   {production_health.projects_at_risk_count} под риском
                 </span>
               ) : (

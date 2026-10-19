@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +21,7 @@ from app.schemas.tasks import (
     UpdateTaskStatusRequest,
     UpdateTaskStatusResponse,
 )
+from app.services.audit import record_audit_log
 
 router = APIRouter(prefix="/tasks", tags=["Operational Tasks & Smart Register"])
 
@@ -80,6 +81,13 @@ def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskIte
     status_code=status.HTTP_200_OK,
     response_model=ResponseEnvelope[List[TaskItemResponse]],
     summary="Реестр операционных задач с фильтрацией по ролям и срочности (BE-5.2)",
+)
+@router.get(
+    "/operational",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[List[TaskItemResponse]],
+    summary="Алиас реестра операционных задач",
+    include_in_schema=False,
 )
 async def list_operational_tasks(
     role: Optional[str] = Query(None, description="Фильтрация по роли исполнителя"),
@@ -176,6 +184,7 @@ async def list_operational_tasks(
 async def update_task_status(
     task_id: uuid.UUID,
     payload: UpdateTaskStatusRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ResponseEnvelope[UpdateTaskStatusResponse]:
@@ -183,6 +192,7 @@ async def update_task_status(
     BE-5.3: 1-click status update by project manager:
     Accepts: 'pending' | 'in_progress' | 'completed' | 'approved_closed' | 'transferred_to_manager'.
     If status transitions to completed/approved_closed, automatically resolves linked system alerts.
+    BE-5.1: Logs status transition to audit_logs.
     """
     query = select(OperationalTask).where(
         OperationalTask.id == task_id,
@@ -212,7 +222,20 @@ async def update_task_status(
             detail=f"Недопустимый статус: '{payload.status}'. Допустимы: pending, in_progress, completed, approved_closed",
         )
 
+    old_status = task.status.value
     task.status = target_status
+
+    # Record Audit Log (BE-5.1)
+    await record_audit_log(
+        db=db,
+        company_id=current_user.company_id,
+        entity_type="task",
+        entity_id=task.id,
+        old_status=old_status,
+        new_status=target_status.value,
+        user_id=current_user.id,
+        request=request,
+    )
 
     # If completed, resolve any active alerts linked to this task
     if target_status == TaskStatus.COMPLETED:

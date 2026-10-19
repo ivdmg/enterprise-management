@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+from pathlib import Path
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -46,13 +47,21 @@ class GoogleDriveSyncService:
     and the Smart Enterprise Hub database.
     """
 
-    TARGET_FOLDERS = [
+    # Folders monitored for incoming files
+    INCOMING_FOLDERS = [
+        "01_Сметы_и_Тендеры",
+        "02_Счета_Снабжения",
+        "03_Банк_и_Касса",
+        "04_Путевые_листы",
         "01_Реестры_Тендеров",
         "02_Финансы_и_1С",
         "03_Снабжение_и_Закупки",
         "04_ПТО_и_Объекты",
         "05_Юридический_Отдел",
     ]
+
+    PROCESSED_FOLDER = "05_Обработано"
+    ERROR_FOLDER = "99_Ошибки_парсинга"
 
     def __init__(self):
         self._lock = asyncio.Lock()
@@ -70,8 +79,9 @@ class GoogleDriveSyncService:
         db: Optional[AsyncSession] = None,
     ) -> Dict[str, Any]:
         """
-        Synchronizes all 5 target folders on Google Drive for the specified company.
+        Synchronizes incoming folders on Google Drive for the specified company.
         Performs 0-overhead hash skipping when files have not changed.
+        Moves processed documents to '05_Обработано' and failed documents to '99_Ошибки_парсинга'.
         """
         status_info = self.get_status(company_id)
         if status_info.status == "syncing":
@@ -90,10 +100,14 @@ class GoogleDriveSyncService:
             owns_session = db is None
             session = db if db is not None else async_session_factory()
 
+            # Ensure local incoming storage directory exists (Task BE-1.2)
+            incoming_dir = Path("storage/incoming")
+            incoming_dir.mkdir(parents=True, exist_ok=True)
+
             try:
-                # 1. Discover all files across the 5 target folders
+                # 1. Discover all files across incoming target folders
                 all_drive_files: List[DriveFileInfo] = []
-                for folder in self.TARGET_FOLDERS:
+                for folder in self.INCOMING_FOLDERS:
                     try:
                         folder_files = google_drive_client.list_files_in_folder(folder)
                         all_drive_files.extend(folder_files)
@@ -109,9 +123,14 @@ class GoogleDriveSyncService:
                 # 2. Process each file
                 for file_info in all_drive_files:
                     try:
-                        # Download raw file bytes to compute SHA-256
+                        # Download raw file bytes with retry/backoff
                         file_bytes = google_drive_client.download_file_bytes(file_info.id)
                         sha256_hash = hashlib.sha256(file_bytes).hexdigest()
+
+                        # Save copy to local temporary incoming storage (Task BE-1.2)
+                        ext = Path(file_info.name).suffix or ".xlsx"
+                        incoming_file_path = incoming_dir / f"{file_info.id}_{file_info.name}"
+                        incoming_file_path.write_bytes(file_bytes)
 
                         # Check if this exact file version was already ingested
                         query = select(UploadedFile).where(
@@ -137,7 +156,7 @@ class GoogleDriveSyncService:
                         storage_key = build_tenant_storage_key(
                             company_id=company_id,
                             sha256_hash=sha256_hash,
-                            extension=".xlsx",
+                            extension=ext,
                         )
                         await storage_service.save_file(file_bytes, storage_key)
 
@@ -150,12 +169,12 @@ class GoogleDriveSyncService:
                             file_size_bytes=len(file_bytes),
                             mime_type=file_info.mime_type,
                             sha256_hash=sha256_hash,
-                            status=FileStatus.PROCESSED,
+                            status=FileStatus.UPLOADED,
                         )
                         session.add(uploaded_file)
                         await session.flush()
 
-                        # Fast deterministic parsing into business models
+                        # Deterministic parsing into business models
                         tpl_type, count = await standard_template_parser.parse_and_persist(
                             file_source=file_bytes,
                             filename=file_info.name,
@@ -164,8 +183,24 @@ class GoogleDriveSyncService:
                             db=session,
                         )
 
+                        uploaded_file.status = FileStatus.PROCESSED
                         await session.commit()
                         processed += 1
+
+                        # Task BE-1.3: Move to 05_Обработано if file is in active incoming pipeline folders (01_Сметы_и_Тендеры etc.)
+                        active_incoming_roots = [
+                            "01_Сметы_и_Тендеры",
+                            "02_Счета_Снабжения",
+                            "03_Банк_и_Касса",
+                            "04_Путевые_листы",
+                        ]
+                        if file_info.parent_folder in active_incoming_roots:
+                            google_drive_client.move_file(
+                                file_id=file_info.id,
+                                target_folder_name_or_id=self.PROCESSED_FOLDER,
+                                current_folder_id=file_info.parent_folder,
+                            )
+
                         status_info.details.append({
                             "file": file_info.name,
                             "folder": file_info.parent_folder,
@@ -176,12 +211,43 @@ class GoogleDriveSyncService:
 
                     except Exception as fe:
                         await session.rollback()
-                        logger.error("Error processing Drive file '%s': %s", file_info.name, fe)
+                        error_msg = str(fe)
+                        logger.error("Error processing Drive file '%s': %s", file_info.name, error_msg)
+
+                        # Task BE-1.3 & BE-2.3: Move to 99_Ошибки_парсинга and mark status error
+                        try:
+                            # Register error record in DB
+                            err_file = UploadedFile(
+                                company_id=company_id,
+                                uploaded_by_user_id=user_id,
+                                original_name=file_info.name,
+                                storage_path=f"storage/incoming/{file_info.id}_{file_info.name}",
+                                file_size_bytes=len(file_bytes) if 'file_bytes' in locals() else 0,
+                                mime_type=file_info.mime_type,
+                                sha256_hash=sha256_hash if 'sha256_hash' in locals() else "error",
+                                status=FileStatus.ERROR,
+                                error_message=error_msg,
+                            )
+                            session.add(err_file)
+                            await session.commit()
+                        except Exception as dbe:
+                            await session.rollback()
+                            logger.error("Failed to record file error in DB: %s", dbe)
+
+                        # Move file on Google Drive to error folder with description
+                        if file_info.parent_folder not in (self.PROCESSED_FOLDER, self.ERROR_FOLDER):
+                            google_drive_client.move_file(
+                                file_id=file_info.id,
+                                target_folder_name_or_id=self.ERROR_FOLDER,
+                                current_folder_id=file_info.parent_folder,
+                                description=f"Ошибка парсинга: {error_msg[:250]}",
+                            )
+
                         status_info.details.append({
                             "file": file_info.name,
                             "folder": file_info.parent_folder,
                             "action": "error",
-                            "error": str(fe),
+                            "error": error_msg,
                         })
 
                 # 3. Post-sync risk evaluation and alert updates

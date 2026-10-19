@@ -368,26 +368,26 @@ export function DispatchTab() {
       {/* Main Checklist / Table */}
       <Card padding="none">
         {/* Desktop Table View (>= 768px) */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm" id="dispatch-table">
+        <div className="hidden md:block overflow-x-hidden">
+          <table className="w-full text-sm table-fixed" id="dispatch-table">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
                   Единица ресурса
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
                   Объект смены
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[16%]">
                   Ответственный
                 </th>
-                <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-72">
-                  Статус (переключение в 1 клик)
+                <th className="text-center px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[22%] min-w-[280px]">
+                  Статус (в 1 клик)
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Инцидент / Заметки диспетчера
+                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
+                  Инцидент / Заметки
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-36">
+                <th className="text-right px-3 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[8%]">
                   Действие
                 </th>
               </tr>
@@ -409,20 +409,20 @@ export function DispatchTab() {
                       className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                     >
                       {/* Unit name and type icon */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="flex items-start gap-2.5">
-                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 mt-0.5">
+                      <td className="px-3 py-3.5 align-middle">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
                             {isMachinery ? (
                               <Truck className="h-4 w-4" />
                             ) : (
                               <Users className="h-4 w-4" />
                             )}
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate" title={rec.unit_name}>
                               {rec.unit_name}
                             </p>
-                            <p className="text-[11px] text-slate-500">
+                            <p className="text-[11px] text-slate-500 truncate">
                               {isMachinery ? 'Спецтехника' : 'Строительная бригада'}
                             </p>
                           </div>
@@ -430,68 +430,70 @@ export function DispatchTab() {
                       </td>
 
                       {/* Object */}
-                      <td className="px-4 py-3.5 align-top">
+                      <td className="px-3 py-3.5 align-middle">
                         <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200">
                           <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="text-xs font-medium">{rec.target_object}</span>
+                          <span className="text-xs font-medium truncate" title={rec.target_object}>{rec.target_object}</span>
                         </div>
                       </td>
 
                       {/* Responsible person */}
-                      <td className="px-4 py-3.5 align-top text-xs text-slate-700 dark:text-slate-300">
-                        {rec.responsible_person}
+                      <td className="px-3 py-3.5 align-middle text-xs text-slate-700 dark:text-slate-300">
+                        <span className="truncate block" title={rec.responsible_person}>{rec.responsible_person}</span>
                       </td>
 
-                      {/* 1-Click Status Switcher Pills */}
-                      <td className="px-4 py-3.5 align-top">
-                        <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700">
-                          {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
-                            const cfg = STATUS_CONFIGS[st];
-                            const isActive = rec.status === st;
+                      {/* 1-Click Status Switcher Pills (FE-1.4: Unified size and styling) */}
+                      <td className="px-3 py-3.5 align-middle">
+                        <div className="flex items-center justify-center">
+                          <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                            {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
+                              const cfg = STATUS_CONFIGS[st];
+                              const isActive = rec.status === st;
 
-                            return (
-                              <button
-                                key={st}
-                                type="button"
-                                onClick={() => handleQuickStatusChange(rec.id, st)}
-                                disabled={updatingId === rec.id}
-                                className={`px-2.5 py-1 text-xs rounded-md transition-all flex items-center gap-1 cursor-pointer select-none ${
-                                  isActive
-                                    ? cfg.activeBtnClass
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                                }`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dotColor}`} />
-                                <span>{cfg.label}</span>
-                              </button>
-                            );
-                          })}
+                              return (
+                                <button
+                                  key={st}
+                                  type="button"
+                                  onClick={() => handleQuickStatusChange(rec.id, st)}
+                                  disabled={updatingId === rec.id}
+                                  className={`min-w-[85px] py-1 px-2 text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none font-medium text-center ${
+                                    isActive
+                                      ? cfg.activeBtnClass
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                                  }`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dotColor}`} />
+                                  <span className="whitespace-nowrap">{cfg.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </td>
 
                       {/* Incident & Notes */}
-                      <td className="px-4 py-3.5 align-top text-xs">
+                      <td className="px-3 py-3.5 align-middle text-xs">
                         {rec.status === 'on_site' ? (
-                          <span className="text-slate-400 flex items-center gap-1 text-[11px]">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                            Работает по суточному заданию
+                          <span className="text-slate-400 flex items-center gap-1 text-[11px] truncate">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                            <span className="truncate">Работает по заданию</span>
                           </span>
                         ) : (
-                          <div className="space-y-1">
+                          <div className="space-y-0.5 min-w-0">
                             {rec.downtime_reason && (
-                              <p className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                              <p className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 truncate" title={rec.downtime_reason}>
                                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                {rec.downtime_reason}
+                                <span className="truncate">{rec.downtime_reason}</span>
                               </p>
                             )}
                             <div className="flex items-center gap-2 text-[11px] text-slate-500">
                               {rec.downtime_hours !== undefined && (
-                                <span className="font-mono font-medium text-rose-600 dark:text-rose-400">
+                                <span className="font-mono font-medium text-rose-600 dark:text-rose-400 whitespace-nowrap">
                                   Простой: {rec.downtime_hours} ч.
                                 </span>
                               )}
                               {rec.incident_notes && (
-                                <span className="truncate max-w-xs opacity-80">
+                                <span className="truncate max-w-xs opacity-80" title={rec.incident_notes}>
                                   {rec.incident_notes}
                                 </span>
                               )}
@@ -501,11 +503,11 @@ export function DispatchTab() {
                       </td>
 
                       {/* Action: Log / Edit incident */}
-                      <td className="px-4 py-3.5 align-top text-right">
+                      <td className="px-3 py-3.5 align-middle text-right">
                         <button
                           type="button"
                           onClick={() => openIncidentModal(rec)}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                          className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer whitespace-nowrap"
                         >
                           {rec.status === 'on_site' ? 'Поломка' : 'Изменить'}
                         </button>

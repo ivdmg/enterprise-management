@@ -331,8 +331,29 @@ export function ProcurementTab() {
             </div>
           </div>
 
-          {/* Status Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-[var(--card-border)] pb-1 scrollbar-none">
+          {/* Mobile Status Filter Dropdown (< md) - No Overflow */}
+          <div className="md:hidden pt-1 border-t border-[var(--card-border)]">
+            <label className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block mb-1">
+              Статус поставки:
+            </label>
+            <Select
+              options={[
+                { value: 'all', label: `Все позиции (${items.length})` },
+                ...(Object.keys(STATUS_CONFIGS) as ProcurementStatus[]).map((st) => ({
+                  value: st,
+                  label: `${STATUS_CONFIGS[st].label} (${items.filter((i) => i.status === st).length})`,
+                })),
+              ]}
+              value={statusFilter}
+              onChange={(val) => setStatusFilter(val as any)}
+              size="md"
+              className="w-full"
+              id="mobile-procurement-status-select"
+            />
+          </div>
+
+          {/* Status Filter Pills (desktop only >= md) */}
+          <div className="hidden md:flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-[var(--card-border)] pb-1 scrollbar-none">
             <span className="text-[11px] uppercase font-semibold text-[var(--text-muted)] whitespace-nowrap mr-1">
               Статус:
             </span>
@@ -372,31 +393,31 @@ export function ProcurementTab() {
       {/* Main Registry */}
       <Card padding="none">
         {/* ============================================================ */}
-        {/* DESKTOP TABLE VIEW (>= 768px): Zebra Striping & High Contrast (FE-4.1) */}
+        {/* DESKTOP TABLE VIEW (>= 768px): Zebra Striping & High Contrast (FE-1.3) */}
         {/* ============================================================ */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-hidden">
           <table className="w-full text-sm table-fixed" id="procurement-table">
             <thead>
               <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
-                <th className="text-left px-4 py-3 w-[26%]">
+                <th className="text-left px-3 py-3 w-[24%]">
                   Номенклатура ТМЦ
                 </th>
-                <th className="text-left px-4 py-3 w-[20%]">
+                <th className="text-left px-3 py-3 w-[18%]">
                   Объект СМР
                 </th>
-                <th className="text-left px-4 py-3 w-[18%]">
+                <th className="text-left px-3 py-3 w-[16%]">
                   Поставщик и счет
                 </th>
-                <th className="text-right px-4 py-3 w-[10%]">
+                <th className="text-right px-3 py-3 w-[10%]">
                   Объем
                 </th>
-                <th className="text-right px-4 py-3 w-[12%]">
+                <th className="text-right px-3 py-3 w-[12%]">
                   Сумма счета
                 </th>
-                <th className="text-left px-4 py-3 w-[14%]">
+                <th className="text-left px-3 py-3 w-[10%]">
                   Срок поставки
                 </th>
-                <th className="text-center px-4 py-3 w-[140px]">
+                <th className="text-center px-3 py-3 w-[10%] min-w-[170px]">
                   Статус
                 </th>
               </tr>
@@ -425,14 +446,14 @@ export function ProcurementTab() {
                       }`}
                     >
                       {/* Item Name (High Contrast) */}
-                      <td className="px-4 py-3.5 align-middle">
+                      <td className="px-3 py-3.5 align-middle">
                         <p className="font-semibold text-[var(--text-main)] text-sm leading-snug line-clamp-2" title={item.item_name}>
                           {item.item_name}
                         </p>
                       </td>
 
                       {/* Project */}
-                      <td className="px-4 py-3.5 align-middle">
+                      <td className="px-3 py-3.5 align-middle">
                         <div className="flex items-center gap-1.5 text-[var(--text-main)]">
                           <Building2 className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
                           <span className="text-xs font-medium truncate" title={item.project_name}>
@@ -442,12 +463,12 @@ export function ProcurementTab() {
                       </td>
 
                       {/* Supplier & Invoice */}
-                      <td className="px-4 py-3.5 align-middle">
+                      <td className="px-3 py-3.5 align-middle">
                         <p className="text-xs font-semibold text-[var(--text-main)] truncate" title={item.supplier}>
                           {item.supplier}
                         </p>
                         {item.invoice_number ? (
-                          <p className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
+                          <p className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5 truncate">
                             {item.invoice_number}
                           </p>
                         ) : (
@@ -456,27 +477,27 @@ export function ProcurementTab() {
                       </td>
 
                       {/* Quantity */}
-                      <td className="px-4 py-3.5 text-right font-mono text-xs text-[var(--text-main)] align-middle">
+                      <td className="px-3 py-3.5 text-right font-mono text-xs text-[var(--text-main)] align-middle">
                         <span className="font-bold">{item.quantity}</span>{' '}
                         <span className="text-[var(--text-sub)] text-[11px]">{item.unit}</span>
                       </td>
 
                       {/* Amount */}
-                      <td className="px-4 py-3.5 text-right font-mono font-bold text-[var(--text-main)] align-middle whitespace-nowrap">
+                      <td className="px-3 py-3.5 text-right font-mono font-bold text-[var(--text-main)] align-middle whitespace-nowrap">
                         {formatCurrency(item.invoice_amount)}
                       </td>
 
                       {/* Delivery Deadline */}
-                      <td className="px-4 py-3.5 align-middle text-xs whitespace-nowrap">
+                      <td className="px-3 py-3.5 align-middle text-xs whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-[var(--text-sub)]">
                           <Calendar className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
                           <span>{formatDate(item.delivery_deadline)}</span>
                         </div>
                       </td>
 
-                      {/* Status Dropdown with ConfirmModal Protection (FE-4.3) */}
-                      <td className="px-4 py-3.5 align-middle text-center">
-                        <div className="relative inline-block text-left procurement-status-dropdown-container">
+                      {/* Status Dropdown with ConfirmModal Protection (FE-1.3) */}
+                      <td className="px-3 py-3.5 align-middle text-center">
+                        <div className="relative inline-block w-full max-w-[170px] text-left procurement-status-dropdown-container">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -484,10 +505,12 @@ export function ProcurementTab() {
                               setActiveDropdownId(isMenuOpen ? null : item.id);
                             }}
                             disabled={updatingId === item.id}
-                            className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all ${statusCfg.badgeClass}`}
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs transition-all overflow-hidden ${statusCfg.badgeClass}`}
                           >
-                            <span className={`w-2 h-2 rounded-full ${statusCfg.dotColor}`} />
-                            <span className="whitespace-nowrap">{statusCfg.label}</span>
+                            <span className="flex items-center gap-1.5 min-w-0 truncate">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotColor}`} />
+                              <span className="truncate whitespace-nowrap">{statusCfg.label}</span>
+                            </span>
                             <ChevronDown className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />
                           </button>
 
@@ -626,16 +649,16 @@ export function ProcurementTab() {
                               e.stopPropagation();
                               setActiveDropdownId(isMenuOpen ? null : item.id);
                             }}
-                            className={`min-h-[44px] px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${statusCfg.badgeClass}`}
+                            className="min-h-[44px] px-3.5 py-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-2xs transition-colors"
                           >
-                            <span className={`w-2 h-2 rounded-full ${statusCfg.dotColor}`} />
+                            <span className={`w-2 h-2 rounded-full ${statusCfg.dotColor} shrink-0`} />
                             <span>Сменить статус</span>
-                            <ChevronDown className="h-3.5 w-3.5 opacity-60 ml-0.5" />
+                            <ChevronDown className="h-3.5 w-3.5 text-[var(--text-muted)] ml-0.5" />
                           </button>
 
                           {isMenuOpen && (
-                            <div className="absolute left-0 bottom-full mb-1 w-48 bg-[var(--card-bg)] rounded-2xl shadow-xl border border-[var(--card-border)] py-1.5 z-40">
-                              <div className="px-3 py-1 text-[10px] uppercase font-bold text-[var(--text-muted)] border-b border-[var(--card-border)]">
+                            <div className="absolute left-0 bottom-full mb-1.5 w-52 bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-[var(--card-border)] py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
+                              <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-[var(--text-muted)] border-b border-[var(--card-border)]">
                                 Выберите статус:
                               </div>
                               {(Object.keys(STATUS_CONFIGS) as ProcurementStatus[]).map((st) => {

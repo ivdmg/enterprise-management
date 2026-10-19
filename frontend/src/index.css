@@ -45,18 +45,18 @@
   --btn-secondary-text: #18181b;
   --btn-secondary-border: #e4e4e7;
 
-  /* Semantic alert tokens */
+  /* Semantic alert tokens (Dense corporate palette without pink/neon) */
   --semantic-success-bg: #ecfdf5;
-  --semantic-success-border: #a7f3d0;
+  --semantic-success-border: #86efac;
   --semantic-success-text: #065f46;
 
   --semantic-warning-bg: #fffbeb;
-  --semantic-warning-border: #fde68a;
-  --semantic-warning-text: #92400e;
+  --semantic-warning-border: #fcd34d;
+  --semantic-warning-text: #78350f;
 
-  --semantic-danger-bg: #fff1f2;
-  --semantic-danger-border: #fecdd3;
-  --semantic-danger-text: #9f1239;
+  --semantic-danger-bg: #fef2f2;
+  --semantic-danger-border: #fca5a5;
+  --semantic-danger-text: #991b1b;
 
   color-scheme: light;
 }
@@ -80,18 +80,18 @@
   --btn-secondary-text: #e5e7eb;
   --btn-secondary-border: #2a2b33;
 
-  /* Semantic alert tokens */
-  --semantic-success-bg: rgba(6, 78, 59, 0.28);
-  --semantic-success-border: rgba(5, 150, 105, 0.45);
-  --semantic-success-text: #6ee7b7;
+  /* Semantic alert tokens (Dense corporate dark shades) */
+  --semantic-success-bg: rgba(6, 78, 59, 0.45);
+  --semantic-success-border: rgba(34, 197, 94, 0.6);
+  --semantic-success-text: #bbf7d0;
 
-  --semantic-warning-bg: rgba(120, 53, 15, 0.28);
-  --semantic-warning-border: rgba(217, 119, 6, 0.45);
-  --semantic-warning-text: #fcd34d;
+  --semantic-warning-bg: rgba(120, 53, 15, 0.45);
+  --semantic-warning-border: rgba(245, 158, 11, 0.6);
+  --semantic-warning-text: #fde68a;
 
-  --semantic-danger-bg: rgba(136, 19, 55, 0.28);
-  --semantic-danger-border: rgba(225, 29, 72, 0.45);
-  --semantic-danger-text: #fda4af;
+  --semantic-danger-bg: rgba(127, 29, 29, 0.45);
+  --semantic-danger-border: rgba(239, 68, 68, 0.6);
+  --semantic-danger-text: #fecaca;
 
   color-scheme: dark;
 }

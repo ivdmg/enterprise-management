@@ -50,3 +50,13 @@ class UpdateTelegramSettingsRequest(BaseModel):
     telegram_bot_token: Optional[str] = None
     telegram_channel_id: Optional[int] = None
     alert_rules: Optional[Dict[str, Any]] = None
+
+
+class KeyRateSettingsResponse(BaseModel):
+    key_rate_percent: float = Field(..., description="Annualized Central Bank key rate (in percent, e.g. 19.0)")
+    daily_penalty_fraction: str = Field("1/300", description="Statutory daily fraction per 44-FZ")
+    daily_rate_percent: float = Field(..., description="Daily penalty rate in percent")
+
+
+class UpdateKeyRateRequest(BaseModel):
+    key_rate_percent: float = Field(..., ge=0.0, le=100.0, description="New Central Bank key rate percent, e.g. 19.0 or 21.0")

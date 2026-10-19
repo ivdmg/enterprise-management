@@ -101,7 +101,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--canvas-bg)] text-[var(--text-main)] transition-colors duration-200">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[var(--canvas-bg)] text-[var(--text-main)] transition-colors duration-200">
       <Header
         period={period}
         onPeriodChange={setPeriod}
@@ -109,10 +109,11 @@ export default function App() {
         onAlertsClick={() => setShowAlerts(true)}
         onOpenSettings={() => setActiveTab('settings')}
         onNavigateTab={(tab) => setActiveTab(tab)}
+        activeTab={activeTab}
       />
       <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 md:pb-6">
+      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-8 sm:pb-10">
         {renderTab()}
       </main>
 

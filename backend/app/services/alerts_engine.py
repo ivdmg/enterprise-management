@@ -6,7 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.alert import SystemAlert
+from app.core.config import settings
+from app.models.alert import IntegrationSetting, SystemAlert
 from app.models.enums import AlertSeverity, DomainCategory, ProjectRisk, TaskPriority, TaskStatus
 from app.models.finance import CashflowOperation
 from app.models.procurement import ProcurementItem
@@ -20,15 +21,78 @@ class AlertsEngine:
     Implements:
     - 5-day rule for approaching and overdue deadlines across all operational domains.
     - Russian 44-FZ statutory penalty calculations (1/300 Central Bank key rate/day on unfulfilled KS-2 volume).
-    - Bank guarantee expiration monitoring.
+    - Bank guarantee expiration monitoring with RNP risk control (<=5 days: critical, 6-15 days: warning).
     - Material supply procurement delay monitoring.
     - Critical operational tasks / disagreement protocol penalty monitoring.
     - 14-day cash gap forecasting with daily trajectory simulation.
     """
 
-    # Central Bank of Russia baseline key rate (19% annualized)
-    KEY_RATE: Decimal = Decimal("0.19")
-    DAILY_PENALTY_RATE: Decimal = Decimal("0.19") / Decimal("300")
+    # Central Bank of Russia default baseline key rate (19% annualized)
+    KEY_RATE: Decimal = Decimal(str(settings.KEY_RATE_PERCENT)) / Decimal("100")
+    DAILY_PENALTY_RATE: Decimal = (Decimal(str(settings.KEY_RATE_PERCENT)) / Decimal("100")) / Decimal("300")
+
+    @classmethod
+    async def get_effective_key_rate(cls, company_id: Optional[uuid.UUID], db: Optional[AsyncSession]) -> Decimal:
+        """
+        Retrieves company-specific key rate from IntegrationSetting or falls back to global Settings.
+        """
+        if company_id and db:
+            try:
+                q = select(IntegrationSetting).where(IntegrationSetting.company_id == company_id)
+                res = await db.execute(q)
+                setting_rec = res.scalar_one_or_none()
+                if setting_rec and setting_rec.alert_rules and "key_rate_percent" in setting_rec.alert_rules:
+                    val = Decimal(str(setting_rec.alert_rules["key_rate_percent"]))
+                    return val / Decimal("100")
+            except Exception:
+                pass
+        return Decimal(str(settings.KEY_RATE_PERCENT)) / Decimal("100")
+
+    @classmethod
+    def calculate_44fz_penalty(
+        cls,
+        contract_sum: Decimal,
+        completed_sum: Decimal,
+        days_overdue: int,
+        key_rate: Optional[Decimal] = None,
+    ) -> Decimal:
+        """
+        Calculates Russian 44-FZ statutory penalty:
+        Penalty = (Contract_Sum - Completed_Sum) * Days_Overdue * (1/300 * KeyRate).
+        """
+        if days_overdue <= 0:
+            return Decimal("0.00")
+        unfulfilled = max(Decimal("0.00"), contract_sum - completed_sum)
+        if unfulfilled == Decimal("0.00") and completed_sum == Decimal("0.00"):
+            unfulfilled = contract_sum
+        rate = key_rate if key_rate is not None else cls.KEY_RATE
+        daily_rate = rate / Decimal("300")
+        penalty = (unfulfilled * Decimal(days_overdue) * daily_rate).quantize(Decimal("0.01"))
+        return max(Decimal("0.00"), penalty)
+
+    @classmethod
+    def calculate_bg_risk_level(
+        cls,
+        bg_expiry: Optional[date],
+        project_status: str,
+        today: Optional[date] = None,
+    ) -> str:
+        """
+        Computes Bank Guarantee risk level (BE-3.2):
+        - If project is 'completed' -> 'ok'
+        - If bg_expiry <= today + 5 days (remaining <= 5) -> 'critical' (Risk of RNP!)
+        - If bg_expiry between 6 and 15 days remaining -> 'warning' (Renew BG or sign KS-2)
+        - Otherwise -> 'ok'
+        """
+        if not bg_expiry or str(project_status).lower() == "completed":
+            return "ok"
+        current_date = today or datetime.now(timezone.utc).date()
+        days_diff = (bg_expiry - current_date).days
+        if days_diff <= 5:
+            return "critical"
+        elif 6 <= days_diff <= 15:
+            return "warning"
+        return "ok"
 
     @classmethod
     async def evaluate_tender_penalties(
@@ -52,6 +116,9 @@ class AlertsEngine:
 
         generated_alerts: List[SystemAlert] = []
 
+        effective_key_rate = await cls.get_effective_key_rate(company_id, db)
+        daily_penalty_rate = effective_key_rate / Decimal("300")
+
         for p in projects:
             unfulfilled_sum = max(Decimal("0.00"), p.contract_sum - p.completed_sum)
             if unfulfilled_sum == Decimal("0.00") and p.completed_sum == Decimal("0.00"):
@@ -64,7 +131,7 @@ class AlertsEngine:
                     # Overdue project
                     days_overdue = abs(days_diff)
                     penalty = (
-                        unfulfilled_sum * Decimal(days_overdue) * cls.DAILY_PENALTY_RATE
+                        unfulfilled_sum * Decimal(days_overdue) * daily_penalty_rate
                     ).quantize(Decimal("0.01"))
                     p.penalty_amount_calculated = penalty
                     p.risk_level = ProjectRisk.CRITICAL
@@ -114,7 +181,7 @@ class AlertsEngine:
                     severity = AlertSeverity.CRITICAL if days_remaining <= 2 else AlertSeverity.WARNING
                     p.risk_level = ProjectRisk.CRITICAL if days_remaining <= 2 else ProjectRisk.WARNING
 
-                    daily_penalty_rate = (unfulfilled_sum * cls.DAILY_PENALTY_RATE).quantize(
+                    approaching_daily_penalty = (unfulfilled_sum * daily_penalty_rate).quantize(
                         Decimal("0.01")
                     )
 
@@ -130,7 +197,7 @@ class AlertsEngine:
                     desc = (
                         f"До дедлайна сдачи СМР осталось {days_remaining} дн. ({p.deadline_date}). "
                         f"Незакрытый объем КС-2: {unfulfilled_sum:,.2f} ₽. "
-                        f"Риск неустойки 44-ФЗ: {daily_penalty_rate:,.2f} ₽/день. "
+                        f"Риск неустойки 44-ФЗ: {approaching_daily_penalty:,.2f} ₽/день. "
                         f"Куратор: {p.curator_name or 'Не назначен'}."
                     )
 
@@ -157,12 +224,14 @@ class AlertsEngine:
                         db.add(new_alert)
                         generated_alerts.append(new_alert)
 
-            # --- 3: Bank guarantee expiry check (5-day rule) ---
+            # --- 3: Bank guarantee expiry check (BE-3.2) ---
+            # If <= 5 days -> critical, "Срок банковской гарантии истекает через N дн. Риск включения в РНП!"
+            # If 6..15 days -> warning, "Необходимо продлить БГ или подписать КС-2"
             bg_expiry = getattr(p, "bank_guarantee_expiry", getattr(p, "bank_guarantee_end_date", None))
             guarantee_sum = getattr(p, "application_guarantee_sum", getattr(p, "application_security_sum", Decimal("0.00"))) or Decimal("0.00")
-            if bg_expiry:
+            if bg_expiry and p.status != "completed":
                 bg_days_diff = (bg_expiry - today).days
-                if bg_days_diff <= 5:
+                if bg_days_diff <= 15:
                     if bg_days_diff < 0:
                         bg_overdue = abs(bg_days_diff)
                         bg_severity = AlertSeverity.CRITICAL
@@ -174,13 +243,24 @@ class AlertsEngine:
                             f"Обеспечение: {guarantee_sum:,.2f} ₽. "
                             f"Куратор: {p.curator_name or 'Не назначен'}."
                         )
-                    else:
-                        bg_severity = AlertSeverity.CRITICAL if bg_days_diff <= 2 else AlertSeverity.WARNING
+                    elif bg_days_diff <= 5:
+                        bg_severity = AlertSeverity.CRITICAL
                         bg_alert_type = "BANK_GUARANTEE_EXPIRING"
-                        bg_title = f"Истекает банковская гарантия ({bg_days_diff} дн.): {p.project_name}"
+                        bg_title = f"Срок банковской гарантии истекает через {bg_days_diff} дн. Риск включения в РНП! ({p.project_name})"
                         bg_desc = (
                             f"Срок действия БГ истекает {bg_expiry} (осталось {bg_days_diff} дн.). "
-                            f"Необходимо срочное продление гарантии. "
+                            f"Срок банковской гарантии истекает через {bg_days_diff} дн. Риск включения в РНП! "
+                            f"Обеспечение: {guarantee_sum:,.2f} ₽. "
+                            f"Куратор: {p.curator_name or 'Не назначен'}."
+                        )
+                    else:
+                        # 6 to 15 days
+                        bg_severity = AlertSeverity.WARNING
+                        bg_alert_type = "BANK_GUARANTEE_EXPIRING"
+                        bg_title = f"Необходимо продлить БГ или подписать КС-2: {p.project_name}"
+                        bg_desc = (
+                            f"До окончания банковской гарантии осталось {bg_days_diff} дн. ({bg_expiry}). "
+                            f"Необходимо продлить БГ или подписать КС-2. "
                             f"Обеспечение: {guarantee_sum:,.2f} ₽. "
                             f"Куратор: {p.curator_name or 'Не назначен'}."
                         )

@@ -110,7 +110,7 @@ export function MappingDrawer({ isOpen, onClose, fileId, fileName }: MappingDraw
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 pt-5 pb-32 space-y-5">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
@@ -152,7 +152,7 @@ export function MappingDrawer({ isOpen, onClose, fileId, fileName }: MappingDraw
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                   Сопоставление колонок ({data.columns_mapping.length})
                 </p>
-                <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                <div className="border border-slate-200 dark:border-slate-700 rounded-lg">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/50">

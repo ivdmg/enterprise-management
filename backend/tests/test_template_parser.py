@@ -192,3 +192,124 @@ async def test_parse_all_5_templates_speed_and_persistence():
                 await session.delete(target)
                 await session.commit()
             await test_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_1c_client_bank_exchange_parser():
+    """Validates 1CClientBankExchange (.txt) parser with material & payroll matching (BE-2.2)."""
+    from sqlalchemy.pool import NullPool
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from app.core.config import settings
+    from app.models.payroll import PayrollRecord
+    from app.models.procurement import ProcurementItem
+
+    sample_1c_txt = """1CClientBankExchange
+ВерсияФормата=1.03
+Кодировка=Windows
+Отправитель=Бухгалтерия
+СекцияРасчСчет
+ДатаНачала=01.10.2026
+ДатаКонца=15.10.2026
+НачальныйОстаток=5000000.00
+КонецРасчСчет
+СекцияДокумент=Платежное поручение
+Номер=101
+Дата=05.10.2026
+Сумма=150000.00
+Плательщик=ООО "Генподрядчик"
+ПлательщикРасчСчет=40702810100000000001
+Получатель=ООО "БетонСтрой"
+НазначениеПлатежа=Оплата по счету № 45 за материалы и товарный бетон на объекте
+КонецДокумента
+СекцияДокумент=Платежное поручение
+Номер=102
+Дата=10.10.2026
+Сумма=450000.00
+Плательщик=ООО "Генподрядчик"
+Получатель=Иванов Иван Иванович
+НазначениеПлатежа=Заработная плата за сентябрь 2026 г. согласно ведомости
+КонецДокумента
+КонецФайла
+"""
+
+    test_engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+    test_session_factory = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with test_session_factory() as session:
+        test_comp = Company(id=uuid.uuid4(), name=f"1C Test {uuid.uuid4().hex[:6]}", inn="7711223344", is_active=True)
+        session.add(test_comp)
+
+        # Pre-seed procurement item to verify auto-payment matching
+        proc_item = ProcurementItem(
+            company_id=test_comp.id,
+            project_name="ЖК Северная Долина",
+            item_name="Товарный бетон Б-25",
+            supplier='ООО "БетонСтрой"',
+            invoice_amount=Decimal("150000.00"),
+            status="Счет_На_Оплате",
+        )
+        session.add(proc_item)
+        await session.commit()
+
+        try:
+            parsed_count = await standard_template_parser.parse_1c_client_bank_exchange(
+                file_source=sample_1c_txt.encode("cp1251"),
+                company_id=test_comp.id,
+                file_id=None,
+                db=session,
+            )
+            await session.commit()
+            assert parsed_count == 2, f"Expected 2 parsed payments, got {parsed_count}"
+
+            # Check cashflow records
+            cashflows = (await session.execute(select(CashflowOperation).where(CashflowOperation.company_id == test_comp.id))).scalars().all()
+            assert len(cashflows) == 2
+            assert any(c.dds_article == "Оплата ТМЦ и материалов" for c in cashflows)
+            assert any(c.dds_article == "Заработная плата" for c in cashflows)
+
+            # Check procurement status was updated to 'Оплачено'
+            await session.refresh(proc_item)
+            assert proc_item.status == "Оплачено"
+
+            # Check payroll record was created
+            payrolls = (await session.execute(select(PayrollRecord).where(PayrollRecord.company_id == test_comp.id))).scalars().all()
+            assert len(payrolls) == 1
+            assert payrolls[0].paid_amount == Decimal("450000.00")
+
+        finally:
+            target = await session.get(Company, test_comp.id)
+            if target:
+                await session.delete(target)
+                await session.commit()
+            await test_engine.dispose()
+
+
+def test_fuzzy_matching_and_validation_error():
+    """Validates FuzzyColumnMatcher aliases and DocumentValidationError reporting (BE-2.1, BE-2.3)."""
+    from app.services.template_parser import FuzzyColumnMatcher, find_header_row, DocumentValidationError
+
+    # Decorative header followed by columns with non-standard synonyms
+    rows = [
+        ["ООО 'СтройХолдинг' ИНН 7701234567"],
+        ["УТВЕРЖДАЮ: Генеральный директор"],
+        [""],
+        ["Позиция ТМЦ", "Кол-во", "Ед", "Контрагент (Продавец)", "Сумма с НДС, руб.", "Срок доставки"],
+        ["Песок строительный", 50, "м3", "ООО ПесокТорг", "150000", "2026-11-01"],
+    ]
+
+    h_idx, header_row = find_header_row(rows, min_matches=2)
+    assert h_idx == 3, f"Expected header row at index 3, got {h_idx}"
+
+    matcher = FuzzyColumnMatcher(header_row)
+    assert matcher.find_column_index(["наименование_тмц", "тмц", "позиция", "товар"]) == 0
+    assert matcher.find_column_index(["поставщик", "контрагент", "продавец"]) == 3
+    assert matcher.find_column_index(["сумма_счета_руб", "сумма с ндс", "сумма", "цена"]) == 4
+
+    # Verify DocumentValidationError structure
+    err = DocumentValidationError(
+        "Ошибка валидации файла сметы",
+        details=[{"row": 14, "column": "Сумма", "error": "Некорректный числовой формат: 'триста тысяч'"}]
+    )
+    assert err.message == "Ошибка валидации файла сметы"
+    assert len(err.details) == 1
+    assert err.details[0]["row"] == 14

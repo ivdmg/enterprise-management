@@ -97,7 +97,15 @@ async def test_drive_sync_api_endpoints(test_user):
         assert "status" in data["data"]
         assert data["data"]["status"] in ("idle", "syncing")
 
-        # 2. POST trigger sync
+        # 2. POST init-folders
+        init_resp = await client.post("/api/v1/sync/init-folders", json={})
+        assert init_resp.status_code == 200
+        init_data = init_resp.json()
+        assert init_data["success"] is True
+        assert "01_Сметы_и_Тендеры" in init_data["data"]["folders"]
+        assert "99_Ошибки_парсинга" in init_data["data"]["folders"]
+
+        # 3. POST trigger sync
         with patch.object(drive_sync_service, "sync_company_drive", new_callable=AsyncMock) as mock_sync:
             mock_sync.return_value = {
                 "status": "idle",
@@ -116,6 +124,36 @@ async def test_drive_sync_api_endpoints(test_user):
             mock_sync.assert_called_once()
 
     app.dependency_overrides.clear()
+
+
+def test_google_drive_move_file():
+    """Tests move_file in mock mode."""
+    client = GoogleDriveClient(mock_mode=True)
+    init_res = client.init_folders()
+    assert "01_Сметы_и_Тендеры" in init_res
+    assert "05_Обработано" in init_res
+
+    # Upload test file
+    dummy = b"Move Test Content"
+    upload_res = client.upload_file(
+        folder_name_or_id="01_Сметы_и_Тендеры",
+        filename="move_me.xlsx",
+        content=dummy,
+    )
+
+    # Move file to 05_Обработано
+    moved = client.move_file(
+        file_id=upload_res.id,
+        target_folder_name_or_id="05_Обработано",
+        current_folder_id="01_Сметы_и_Тендеры",
+    )
+    assert moved is True
+
+    # Check that file exists in 05_Обработано
+    dest_file = client.mock_dir / "05_Обработано" / "move_me.xlsx"
+    assert dest_file.exists()
+    assert dest_file.read_bytes() == dummy
+    dest_file.unlink()
 
 
 @pytest.mark.asyncio

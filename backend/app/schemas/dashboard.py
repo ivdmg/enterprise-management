@@ -105,6 +105,8 @@ class ProjectDashboardItem(BaseModel):
     days_overdue: int = 0
     risk_level: ProjectRisk
     penalty_amount_calculated: Decimal
+    bank_guarantee_expiry: Optional[date] = None
+    bg_risk_level: str = Field("ok", description="Bank guarantee risk level: 'critical' | 'warning' | 'ok'")
 
 
 class PayrollDepartmentItem(BaseModel):
@@ -121,3 +123,14 @@ class DashboardPayrollData(BaseModel):
     total_debt: Decimal
     next_payment_deadline: Optional[date] = None
     by_department: List[PayrollDepartmentItem]
+
+
+class UpdateProjectTenderStageRequest(BaseModel):
+    tender_stage: str = Field(..., description="Stage: 'preparation' | 'submitted' | 'bidding' | 'won' | 'contract'")
+
+
+class UpdateProjectTenderStageResponse(BaseModel):
+    id: uuid.UUID
+    tender_stage: str
+    message: str = "Стадия проекта успешно обновлена"
+

@@ -86,8 +86,14 @@ class Settings(BaseSettings):
     # Google Drive Bridge & Mock Settings
     GOOGLE_DRIVE_MOCK: bool = True
     GOOGLE_DRIVE_CREDENTIALS_PATH: Path = Path("credentials.json")
+    GOOGLE_SERVICE_ACCOUNT_JSON: str | None = None  # Base64-encoded or raw JSON string
+    GOOGLE_DRIVE_ROOT_FOLDER_ID: str | None = None   # Parent folder ID on Google Drive
     GOOGLE_DRIVE_MOCK_DIR: Path = Path("storage/mock_drive")
     GOOGLE_DRIVE_SYNC_INTERVAL_HOURS: int = 4
+    SYNC_INTERVAL_SECONDS: int = 120  # Polling interval in seconds (default 120s)
+
+    # 44-FZ statutory key rate percent (default 19.0%)
+    KEY_RATE_PERCENT: float = 19.0
 
 
 settings = Settings()

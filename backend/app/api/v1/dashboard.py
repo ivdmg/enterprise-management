@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,8 +30,11 @@ from app.schemas.dashboard import (
     ProductionHealth,
     ProjectDashboardItem,
     TopFireItem,
+    UpdateProjectTenderStageRequest,
+    UpdateProjectTenderStageResponse,
 )
 from app.services.alerts_engine import alerts_engine
+from app.services.audit import record_audit_log
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard & Executive Analytics"])
 
@@ -480,6 +483,8 @@ async def get_dashboard_projects(
             else 0.0
         )
         days_overdue = (today - p.deadline_date).days if (p.deadline_date and p.deadline_date < today) else 0
+        bg_expiry = getattr(p, "bank_guarantee_expiry", None)
+        bg_risk_level = alerts_engine.calculate_bg_risk_level(bg_expiry, p.status, today)
 
         items.append(
             ProjectDashboardItem(
@@ -498,6 +503,8 @@ async def get_dashboard_projects(
                 days_overdue=max(0, days_overdue),
                 risk_level=p.risk_level,
                 penalty_amount_calculated=p.penalty_amount_calculated,
+                bank_guarantee_expiry=bg_expiry,
+                bg_risk_level=bg_risk_level,
             )
         )
 
@@ -568,3 +575,61 @@ async def get_dashboard_payroll(
         by_department=dept_items,
     )
     return ResponseEnvelope.ok(payroll_data)
+
+
+@router.patch(
+    "/projects/{project_id}/stage",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[UpdateProjectTenderStageResponse],
+    summary="Обновление стадии тендера/проекта со сбором аудит-лога (BE-5.1)",
+)
+async def update_project_tender_stage(
+    project_id: uuid.UUID,
+    payload: UpdateProjectTenderStageRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[UpdateProjectTenderStageResponse]:
+    """
+    Updates the tender stage of a project and logs the change to audit_logs.
+    """
+    q = select(TenderProject).where(
+        TenderProject.id == project_id,
+        TenderProject.company_id == current_user.company_id,
+        TenderProject.deleted_at.is_(None),
+    )
+    res = await db.execute(q)
+    project = res.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Проект не найден в вашей организации",
+        )
+
+    custom_attrs = dict(project.custom_attributes or {})
+    old_stage = custom_attrs.get("tender_stage", project.status)
+    custom_attrs["tender_stage"] = payload.tender_stage
+    project.custom_attributes = custom_attrs
+
+    # Record Audit Log (BE-5.1)
+    await record_audit_log(
+        db=db,
+        company_id=current_user.company_id,
+        entity_type="project",
+        entity_id=project.id,
+        old_status=old_stage,
+        new_status=payload.tender_stage,
+        user_id=current_user.id,
+        request=request,
+    )
+
+    await db.commit()
+
+    return ResponseEnvelope.ok(
+        UpdateProjectTenderStageResponse(
+            id=project.id,
+            tender_stage=payload.tender_stage,
+            message="Стадия проекта успешно обновлена",
+        )
+    )
+

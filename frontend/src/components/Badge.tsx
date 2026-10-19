@@ -12,28 +12,28 @@ export interface BadgeProps {
 const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
   danger: {
     container:
-      'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/50',
-    dot: 'bg-rose-500',
+      'bg-red-50 text-red-800 border-red-300 hover:bg-red-100 dark:bg-red-950/70 dark:text-red-200 dark:border-red-800/80',
+    dot: 'bg-red-600 dark:bg-red-500',
   },
   warning: {
     container:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50',
-    dot: 'bg-amber-500',
+      'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800/80',
+    dot: 'bg-amber-600 dark:bg-amber-500',
   },
   success: {
     container:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50',
-    dot: 'bg-emerald-500',
+      'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800/80',
+    dot: 'bg-emerald-600 dark:bg-emerald-500',
   },
   info: {
     container:
-      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-    dot: 'bg-slate-500',
+      'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    dot: 'bg-slate-600 dark:bg-slate-400',
   },
   neutral: {
     container:
-      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
-    dot: 'bg-slate-400',
+      'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    dot: 'bg-slate-500 dark:bg-slate-400',
   },
 };
 

@@ -22,6 +22,7 @@ from app.models.task import OperationalTask
 from app.models.procurement import ProcurementItem
 from app.models.dispatch import FleetDispatchRecord
 from app.models.alert import SystemAlert, NotificationLog, IntegrationSetting
+from app.models.audit import AuditLog
 
 __all__ = [
     "Base",
@@ -53,4 +54,5 @@ __all__ = [
     "SystemAlert",
     "NotificationLog",
     "IntegrationSetting",
+    "AuditLog",
 ]

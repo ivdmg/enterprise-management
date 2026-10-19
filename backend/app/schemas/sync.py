@@ -20,3 +20,12 @@ class SyncStatusData(BaseModel):
     skipped_files_count: int = Field(0, description="Total unchanged files skipped (0 overhead)")
     last_error: Optional[str] = Field(None, description="Error message if sync failed")
     details: List[Dict[str, Any]] = Field(default_factory=list, description="Recent file sync events")
+
+
+class InitFoldersRequest(BaseModel):
+    root_folder_id: Optional[str] = Field(None, description="Optional Google Drive root or parent folder ID")
+
+
+class InitFoldersResponse(BaseModel):
+    status: str = Field("ok", description="Status of folder initialization")
+    folders: Dict[str, str] = Field(..., description="Map of folder names to Drive folder IDs")

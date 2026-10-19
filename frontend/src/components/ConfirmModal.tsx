@@ -61,15 +61,15 @@ export function ConfirmModal({
   const iconConfig = {
     default: {
       Icon: ShieldCheck,
-      containerClass: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300',
+      containerClass: 'bg-[var(--card-subtle)] text-[var(--text-main)] border border-[var(--card-border)]',
     },
     warning: {
       Icon: AlertTriangle,
-      containerClass: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400',
+      containerClass: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60',
     },
     danger: {
       Icon: AlertOctagon,
-      containerClass: 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400',
+      containerClass: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60',
     },
   }[variant];
 
@@ -84,21 +84,21 @@ export function ConfirmModal({
       }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" />
 
       {/* Modal Dialog */}
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-modal-title"
-        className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-md bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-main)] shadow-2xl rounded-2xl p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors disabled:opacity-50 cursor-pointer"
           aria-label="Закрыть"
         >
           <X className="h-4 w-4" />
@@ -112,11 +112,11 @@ export function ConfirmModal({
           <div className="space-y-1 pr-6">
             <h3
               id="confirm-modal-title"
-              className="text-base font-semibold text-slate-900 dark:text-slate-100 leading-snug"
+              className="text-base font-semibold text-[var(--text-main)] leading-snug"
             >
               {title}
             </h3>
-            <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            <div className="text-xs sm:text-sm text-[var(--text-sub)] leading-relaxed">
               {description}
             </div>
           </div>
@@ -124,25 +124,25 @@ export function ConfirmModal({
 
         {/* Status Transition Visual Widget (Foolproof verification) */}
         {currentStatusLabel && newStatusLabel && (
-          <div className="mt-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between text-xs">
+          <div className="mt-4 p-3 rounded-xl bg-[var(--card-subtle)] border border-[var(--card-border)] flex items-center justify-between text-xs">
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] mb-0.5">
                 Текущий статус
               </span>
-              <span className="font-medium text-slate-700 dark:text-slate-300">
+              <span className="font-medium text-[var(--text-sub)]">
                 {currentStatusLabel}
               </span>
             </div>
 
-            <div className="p-1.5 rounded-full bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 mx-2">
+            <div className="p-1.5 rounded-full bg-[var(--card-bg)] text-[var(--text-muted)] border border-[var(--card-border)] mx-2">
               <ArrowRight className="h-3.5 w-3.5" />
             </div>
 
             <div className="flex flex-col text-right">
-              <span className="text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] mb-0.5">
                 Новый статус
               </span>
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+              <span className="font-semibold text-[var(--text-main)]">
                 {newStatusLabel}
               </span>
             </div>

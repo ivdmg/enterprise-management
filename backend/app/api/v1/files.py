@@ -35,6 +35,8 @@ from app.schemas.files import (
     CanonicalFieldDefinition,
     FileListItem,
     FileUploadResponseData,
+    FileValidationErrorDetail,
+    FileValidationErrorResponse,
     MappingConfirmRequest,
     MappingConfirmResponseData,
     MappingPreviewResponseData,
@@ -44,7 +46,7 @@ from app.services.alerts_engine import alerts_engine
 from app.services.google_drive import get_google_drive_client
 from app.services.parser import CANONICAL_FIELDS, ExcelParserService
 from app.services.storage import build_tenant_storage_key, storage_service
-from app.services.template_parser import StandardTemplateParser
+from app.services.template_parser import DocumentValidationError, StandardTemplateParser
 
 router = APIRouter(prefix="/files", tags=["Files & Excel Ingestion"])
 
@@ -190,12 +192,17 @@ async def upload_excel_file(
     persists bytes to local volume, and registers file in database.
     """
     # 1. Validate file extension
+    # 1. Validate file extension
     orig_name = file.filename or "uploaded_spreadsheet.xlsx"
     ext = os.path.splitext(orig_name)[1].lower()
-    if ext not in (".xlsx", ".xls", ".csv"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Недопустимый формат файла. Поддерживаются только .xlsx, .xls, .csv",
+    if ext not in (".xlsx", ".xls", ".csv", ".txt"):
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "status": "error",
+                "message": "Недопустимый формат файла",
+                "details": [{"error": f"Формат '{ext}' не поддерживается. Разрешены только .xlsx, .xls, .csv, .txt"}],
+            },
         )
 
     # 2. Stream read and enforce 25 MB strict limit
@@ -241,15 +248,14 @@ async def upload_excel_file(
     await storage_service.save_file(content, storage_key)
     local_path = storage_service.get_local_file_path(storage_key)
 
-    # 6. Extract sheets and check template cache
-    try:
-        sheets = ExcelParserService.get_workbook_sheet_names(local_path)
-    except Exception:
-        sheets = ["Лист1"]
-
+    # 6. Extract sheets and check template structure safely
+    sheets = ["Лист1"]
     is_cached_template = False
-    if sheets:
+    validation_err_payload = None
+
+    if ext in (".xlsx", ".xls"):
         try:
+            sheets = ExcelParserService.get_workbook_sheet_names(local_path)
             wb = openpyxl.load_workbook(local_path, data_only=True)
             ws = wb[sheets[0]]
             _, headers, _ = ExcelParserService.detect_table_structure(ws)
@@ -262,8 +268,32 @@ async def upload_excel_file(
                 )
                 tpl_res = await db.execute(tpl_query)
                 is_cached_template = tpl_res.scalar_one_or_none() is not None
-        except Exception:
-            is_cached_template = False
+        except Exception as e:
+            sheets = ["Лист1"]
+            validation_err_payload = {
+                "status": "error",
+                "message": f"Поврежденный или нечитаемый файл: {orig_name}",
+                "details": [{"error": f"Ошибка чтения Excel: {str(e)}"}],
+            }
+    elif ext == ".txt":
+        sheets = ["1CClientBankExchange"]
+
+    # If parsing or structure is corrupted, register error file record and return 422 (Task BE-2.3)
+    if validation_err_payload:
+        uploaded_file = UploadedFile(
+            company_id=current_user.company_id,
+            uploaded_by_user_id=current_user.id,
+            original_name=orig_name,
+            storage_path=storage_key,
+            file_size_bytes=file_size,
+            mime_type=file.content_type or "application/octet-stream",
+            sha256_hash=sha256_hash,
+            status=FileStatus.ERROR,
+            error_message=validation_err_payload["message"],
+        )
+        db.add(uploaded_file)
+        await db.commit()
+        return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=validation_err_payload)
 
     # 7. Create database record
     uploaded_file = UploadedFile(

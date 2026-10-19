@@ -45,10 +45,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware with strict allowed origins
+# CORS middleware with allowed origins and local network IP pattern (BE-5.2)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +90,22 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=envelope.model_dump(mode="json"),
+    )
+
+
+from app.services.template_parser import DocumentValidationError
+
+
+@app.exception_handler(DocumentValidationError)
+async def document_validation_exception_handler(request: Request, exc: DocumentValidationError):
+    """Handles document format/parsing validation errors (Task BE-2.3)."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "status": "error",
+            "message": exc.message,
+            "details": exc.details,
+        },
     )
 
 

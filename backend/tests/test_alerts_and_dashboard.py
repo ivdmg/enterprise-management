@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 from app.main import app
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models.alert import SystemAlert
+from app.models.alert import IntegrationSetting, SystemAlert
 from app.models.company import Company
 from app.models.enums import AlertSeverity, DomainCategory, ProjectRisk, TaskPriority, TaskStatus, UserRole
 from app.models.finance import CashflowOperation
@@ -59,6 +59,10 @@ async def test_44fz_statutory_penalty_calculation():
 
     db_mock = AsyncMock()
     db_mock.add = MagicMock()
+    # Mock settings query (no custom setting)
+    setting_res_mock = MagicMock()
+    setting_res_mock.scalar_one_or_none.return_value = None
+
     # Mock project query
     proj_res_mock = MagicMock()
     proj_res_mock.scalars.return_value.all.return_value = [project]
@@ -67,7 +71,7 @@ async def test_44fz_statutory_penalty_calculation():
     alert_res_mock = MagicMock()
     alert_res_mock.scalar_one_or_none.return_value = None
 
-    db_mock.execute.side_effect = [proj_res_mock, alert_res_mock]
+    db_mock.execute.side_effect = [proj_res_mock, setting_res_mock, alert_res_mock]
 
     alerts = await AlertsEngine.evaluate_tender_penalties(company_id, db_mock)
 
@@ -113,13 +117,16 @@ async def test_5_day_rule_and_bank_guarantee_expiry():
     proj_res = MagicMock()
     proj_res.scalars.return_value.all.return_value = [project]
 
+    setting_res = MagicMock()
+    setting_res.scalar_one_or_none.return_value = None
+
     alert_res1 = MagicMock()
     alert_res1.scalar_one_or_none.return_value = None
 
     alert_res2 = MagicMock()
     alert_res2.scalar_one_or_none.return_value = None
 
-    db_mock.execute.side_effect = [proj_res, alert_res1, alert_res2]
+    db_mock.execute.side_effect = [proj_res, setting_res, alert_res1, alert_res2]
 
     alerts = await AlertsEngine.evaluate_tender_penalties(company_id, db_mock)
     assert len(alerts) == 2
@@ -416,3 +423,128 @@ async def test_dashboard_summary_and_critical_alerts_api(test_user):
         assert crit_cards[0]["responsible"] == "Иванов И.И."
 
     app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_key_rate_settings_api(test_user):
+    """
+    Validates BE-3.1 key rate settings endpoints (GET / PATCH).
+    """
+    db_mock = AsyncMock()
+    async def override_get_db():
+        yield db_mock
+
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # GET default
+        mock_setting_res = MagicMock()
+        mock_setting_res.scalar_one_or_none.return_value = None
+        db_mock.execute.return_value = mock_setting_res
+
+        resp = await client.get("/api/v1/settings/key-rate")
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["key_rate_percent"] == 19.0
+        assert data["daily_penalty_fraction"] == "1/300"
+        assert round(data["daily_rate_percent"], 4) == round(19.0 / 300.0, 4)
+
+        # PATCH update to 21.0%
+        mock_setting_obj = IntegrationSetting(
+            company_id=test_user.company_id,
+            alert_rules={"key_rate_percent": 19.0},
+        )
+        mock_patch_res = MagicMock()
+        mock_patch_res.scalar_one_or_none.return_value = mock_setting_obj
+        db_mock.execute.return_value = mock_patch_res
+
+        patch_resp = await client.patch(
+            "/api/v1/settings/key-rate",
+            json={"key_rate_percent": 21.0},
+        )
+        assert patch_resp.status_code == 200
+        patch_data = patch_resp.json()["data"]
+        assert patch_data["key_rate_percent"] == 21.0
+        assert round(patch_data["daily_rate_percent"], 4) == round(21.0 / 300.0, 4)
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_dashboard_projects_bg_risk_level(test_user):
+    """
+    Validates BE-3.2: bg_risk_level ("critical" | "warning" | "ok") in GET /api/v1/dashboard/projects.
+    """
+    db_mock = AsyncMock()
+    async def override_get_db():
+        yield db_mock
+
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_db] = override_get_db
+
+    today = datetime.now(timezone.utc).date()
+
+    # Project 1: critical BG (< 5 days)
+    p_critical = TenderProject(
+        id=uuid.uuid4(),
+        company_id=test_user.company_id,
+        project_name="ЖК Критический",
+        contract_sum=Decimal("1000000.00"),
+        completed_sum=Decimal("100000.00"),
+        paid_sum=Decimal("0.00"),
+        debt_sum=Decimal("0.00"),
+        status="in_progress",
+        risk_level=ProjectRisk.CRITICAL,
+        penalty_amount_calculated=Decimal("0.00"),
+        bank_guarantee_expiry=today + timedelta(days=3),
+    )
+    # Project 2: warning BG (10 days)
+    p_warning = TenderProject(
+        id=uuid.uuid4(),
+        company_id=test_user.company_id,
+        project_name="ЖК Предупреждение",
+        contract_sum=Decimal("2000000.00"),
+        completed_sum=Decimal("500000.00"),
+        paid_sum=Decimal("0.00"),
+        debt_sum=Decimal("0.00"),
+        status="in_progress",
+        risk_level=ProjectRisk.WARNING,
+        penalty_amount_calculated=Decimal("0.00"),
+        bank_guarantee_expiry=today + timedelta(days=10),
+    )
+    # Project 3: ok BG (30 days)
+    p_ok = TenderProject(
+        id=uuid.uuid4(),
+        company_id=test_user.company_id,
+        project_name="ЖК Спокойный",
+        contract_sum=Decimal("3000000.00"),
+        completed_sum=Decimal("2000000.00"),
+        paid_sum=Decimal("0.00"),
+        debt_sum=Decimal("0.00"),
+        status="in_progress",
+        risk_level=ProjectRisk.NORMAL,
+        penalty_amount_calculated=Decimal("0.00"),
+        bank_guarantee_expiry=today + timedelta(days=30),
+    )
+
+    mock_count = MagicMock()
+    mock_count.scalar_one.return_value = 3
+    mock_items = MagicMock()
+    mock_items.scalars.return_value.all.return_value = [p_critical, p_warning, p_ok]
+
+    db_mock.execute.side_effect = [mock_count, mock_items]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/dashboard/projects")
+        assert resp.status_code == 200
+        items = resp.json()["data"]
+        assert len(items) == 3
+        assert items[0]["bg_risk_level"] == "critical"
+        assert items[1]["bg_risk_level"] == "warning"
+        assert items[2]["bg_risk_level"] == "ok"
+
+    app.dependency_overrides.clear()
+

@@ -83,3 +83,17 @@ class UploadAndAssignResult(BaseModel):
     assigned_to_role: str
     status: str
     message: str
+
+
+class FileValidationErrorDetail(BaseModel):
+    """Detail of a single parsing or format error in a file."""
+    row: Optional[int] = Field(None, description="Row number if error is row-specific")
+    column: Optional[str] = Field(None, description="Column name related to error")
+    error: str = Field(..., description="Description of the validation failure")
+
+
+class FileValidationErrorResponse(BaseModel):
+    """Structured error payload for HTTP 422 document errors (Task BE-2.3)."""
+    status: str = Field("error", description="Error status indicator")
+    message: str = Field(..., description="High-level description of parsing failure")
+    details: List[FileValidationErrorDetail] = Field(default_factory=list, description="List of granular errors")

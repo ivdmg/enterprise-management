@@ -44,7 +44,7 @@ export function FinanceTab() {
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <p className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
             Приходы
@@ -57,7 +57,7 @@ export function FinanceTab() {
           <p className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
             Расходы
           </p>
-          <p className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400 mt-1">
+          <p className="text-xl font-bold font-mono text-red-600 dark:text-red-400 mt-1">
             {formatCurrencyShort(data.total_outgoing)}
           </p>
         </Card>
@@ -65,7 +65,7 @@ export function FinanceTab() {
           <p className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
             Чистый поток
           </p>
-          <p className={`text-xl font-bold font-mono mt-1 ${data.net_cash_flow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+          <p className={`text-xl font-bold font-mono mt-1 ${data.net_cash_flow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
             {formatCurrencyShort(data.net_cash_flow)}
           </p>
         </Card>
@@ -73,59 +73,66 @@ export function FinanceTab() {
 
       {/* Chart */}
       <Card>
-        <h3 className="text-sm font-bold text-[var(--text-main)] mb-4">
-          Динамика движения денежных средств
-        </h3>
-        <div className="h-72">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-sm font-bold text-[var(--text-main)]">
+            Динамика движения денежных средств
+          </h3>
+          <span className="text-[11px] text-[var(--text-muted)] hidden sm:inline">
+            Приходы и расходы по дням
+          </span>
+        </div>
+        <div className="h-60 sm:h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" opacity={0.6} />
+            <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" opacity={0.5} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11, fill: 'var(--text-sub)' }}
+                tick={{ fontSize: 10, fill: 'var(--text-sub)' }}
                 axisLine={{ stroke: 'var(--card-border)' }}
                 tickLine={false}
+                minTickGap={20}
               />
               <YAxis
                 tickFormatter={(v) => formatCurrencyShort(v)}
-                tick={{ fontSize: 11, fill: 'var(--text-sub)' }}
+                tick={{ fontSize: 10, fill: 'var(--text-sub)' }}
                 axisLine={false}
                 tickLine={false}
-                width={70}
+                width={55}
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: 'var(--card-bg)',
                   borderColor: 'var(--card-border)',
-                  borderRadius: '1rem',
+                  borderRadius: '0.75rem',
                   fontSize: '0.75rem',
                   color: 'var(--text-main)',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                  padding: '8px 12px',
                 }}
                 formatter={(value: any, name: any) => [
                   formatCurrency(Number(value) || 0),
                   name === 'incoming' ? 'Приходы' : 'Расходы',
                 ]}
-                labelFormatter={() => ''}
+                labelFormatter={(label) => `Дата: ${label}`}
               />
               <Legend
                 formatter={(value) => (value === 'incoming' ? 'Приходы' : 'Расходы')}
-                wrapperStyle={{ fontSize: '0.75rem' }}
+                wrapperStyle={{ fontSize: '0.75rem', paddingTop: '8px' }}
               />
               <Area
                 type="monotone"
                 dataKey="incoming"
-                stroke="#059669"
-                fill="#059669"
-                fillOpacity={0.1}
+                stroke="#16A34A"
+                fill="#16A34A"
+                fillOpacity={0.15}
                 strokeWidth={2}
               />
               <Area
                 type="monotone"
                 dataKey="outgoing"
-                stroke="#E11D48"
-                fill="#E11D48"
-                fillOpacity={0.1}
+                stroke="#DC2626"
+                fill="#DC2626"
+                fillOpacity={0.15}
                 strokeWidth={2}
               />
             </AreaChart>

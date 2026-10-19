@@ -141,7 +141,7 @@ export function Select({
           ref={listRef}
           role="listbox"
           tabIndex={-1}
-          className="absolute z-50 mt-1.5 w-full min-w-[160px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)]"
+          className="absolute z-[100] mt-1.5 w-full min-w-[160px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)]"
         >
           {options.map((option, idx) => {
             const isSelected = option.value === value;

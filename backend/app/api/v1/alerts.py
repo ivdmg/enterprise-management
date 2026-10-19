@@ -19,9 +19,12 @@ from app.schemas.alerts import (
     SystemAlertItem,
     TelegramIntegrationSettingsData,
     UpdateTelegramSettingsRequest,
+    KeyRateSettingsResponse,
+    UpdateKeyRateRequest,
 )
 from app.schemas.common import MetaModel, ResponseEnvelope
 from app.schemas.dashboard import TopFireItem
+from app.services.alerts_engine import alerts_engine
 
 router = APIRouter(tags=["Alerts & Integrations"])
 
@@ -277,4 +280,71 @@ async def test_send_telegram_notification(
             "status": "delivered",
             "message": "Тестовое сообщение успешно доставлено в Telegram",
         }
+    )
+
+
+@router.get(
+    "/settings/key-rate",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[KeyRateSettingsResponse],
+    summary="Получение актуальной ключевой ставки ЦБ РФ для расчета неустоек 44-ФЗ",
+)
+async def get_key_rate_settings(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[KeyRateSettingsResponse]:
+    """
+    Returns current Central Bank key rate used in 44-FZ statutory penalty calculations.
+    """
+    rate_dec = await alerts_engine.get_effective_key_rate(current_user.company_id, db)
+    key_rate_percent = float(rate_dec * 100)
+    daily_rate_percent = key_rate_percent / 300.0
+
+    return ResponseEnvelope.ok(
+        KeyRateSettingsResponse(
+            key_rate_percent=round(key_rate_percent, 2),
+            daily_penalty_fraction="1/300",
+            daily_rate_percent=round(daily_rate_percent, 5),
+        )
+    )
+
+
+@router.patch(
+    "/settings/key-rate",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseEnvelope[KeyRateSettingsResponse],
+    summary="Обновление ключевой ставки ЦБ РФ для расчета неустоек 44-ФЗ",
+)
+async def update_key_rate_settings(
+    payload: UpdateKeyRateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[KeyRateSettingsResponse]:
+    """
+    Updates the Central Bank key rate for tenant's 44-FZ penalty calculations.
+    """
+    q = select(IntegrationSetting).where(IntegrationSetting.company_id == current_user.company_id)
+    res = await db.execute(q)
+    setting_rec = res.scalar_one_or_none()
+
+    if not setting_rec:
+        setting_rec = IntegrationSetting(
+            company_id=current_user.company_id,
+            alert_rules={"key_rate_percent": payload.key_rate_percent},
+        )
+        db.add(setting_rec)
+    else:
+        rules = dict(setting_rec.alert_rules or {})
+        rules["key_rate_percent"] = payload.key_rate_percent
+        setting_rec.alert_rules = rules
+
+    await db.commit()
+
+    daily_rate_percent = payload.key_rate_percent / 300.0
+    return ResponseEnvelope.ok(
+        KeyRateSettingsResponse(
+            key_rate_percent=round(payload.key_rate_percent, 2),
+            daily_penalty_fraction="1/300",
+            daily_rate_percent=round(daily_rate_percent, 5),
+        )
     )

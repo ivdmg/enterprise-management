@@ -90,7 +90,64 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
         </Card>
       ) : (
         <Card padding="none">
-          <div className="overflow-x-auto">
+          {/* Mobile View: Vertical cards list (md:hidden) */}
+          <div className="md:hidden divide-y divide-[var(--card-border)]" id="files-mobile-list">
+            {files.map((file) => (
+              <div
+                key={file.id}
+                onClick={() => {
+                  if (file.status === 'awaiting_confirmation') {
+                    onFileSelect(file.id, file.original_name);
+                  }
+                }}
+                className={`p-4 transition-colors ${
+                  file.status === 'awaiting_confirmation'
+                    ? 'cursor-pointer active:bg-[var(--card-subtle)]'
+                    : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 shrink-0 mt-0.5">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <h4 className="font-semibold text-sm text-[var(--text-main)] break-words leading-snug">
+                        {file.original_name}
+                      </h4>
+                      <div className="shrink-0">
+                        {getStatusBadge(file.status)}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-sub)] mt-2 pt-2 border-t border-[var(--card-border)]/60">
+                      <div>
+                        <span className="text-[10px] text-[var(--text-muted)] block uppercase tracking-wider">Размер</span>
+                        <span className="font-mono text-[var(--text-main)] font-medium">
+                          {formatFileSize(file.file_size_bytes)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[var(--text-muted)] block uppercase tracking-wider">Дата</span>
+                        <span className="text-[var(--text-main)] font-medium">
+                          {formatDate(file.created_at)}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[10px] text-[var(--text-muted)] block uppercase tracking-wider">Загрузил</span>
+                        <span className="text-[var(--text-main)] font-medium truncate block">
+                          {file.uploaded_by}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Full Data Table (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm" id="files-table">
               <thead>
                 <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)]">

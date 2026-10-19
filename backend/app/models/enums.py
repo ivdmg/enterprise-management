@@ -13,6 +13,7 @@ class FileStatus(str, enum.Enum):
     AWAITING_CONFIRMATION = "awaiting_confirmation"
     PROCESSED = "processed"
     FAILED = "failed"
+    ERROR = "failed"
 
 
 class DomainCategory(str, enum.Enum):
