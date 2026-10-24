@@ -46,3 +46,36 @@ def test_missing_live_credentials_never_fall_back_to_mock(tmp_path):
 def test_money_serializes_as_numbers_and_keeps_zero():
     result = ResponseEnvelope.ok({"amount":Decimal('123.45'),"zero":Decimal('0.00'),"id":"00123"}).model_dump(mode="json")
     assert result['data'] == {"amount":123.45,"zero":0,"id":"00123"}
+
+@pytest.mark.asyncio
+async def test_background_sync_returns_before_job_finishes():
+    import asyncio
+    import uuid
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    from app.api.deps import get_current_user
+    from app.core.database import get_db
+    from app.models.user import User
+    from app.models.enums import UserRole
+    from app.api.v1.sync import _sync_tasks
+    from app.services.drive_sync import drive_sync_service
+    from unittest.mock import AsyncMock
+    user=User(id=uuid.uuid4(), company_id=uuid.uuid4(), email='sync@example.com', role=UserRole.ADMIN)
+    gate=asyncio.Event()
+    async def job(**kwargs):
+        await gate.wait()
+    async def db_override(): yield AsyncMock()
+    app.dependency_overrides[get_current_user]=lambda:user
+    app.dependency_overrides[get_db]=db_override
+    try:
+        with patch.object(drive_sync_service,'sync_company_drive',side_effect=job):
+            async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+                r=await client.post('/api/v1/sync/drive-now?background=true')
+                assert r.status_code==200
+                assert r.json()['data']['status']=='syncing'
+                assert _sync_tasks and not all(task.done() for task in _sync_tasks)
+            gate.set()
+            await asyncio.gather(*tuple(_sync_tasks))
+    finally:
+        gate.set()
+        app.dependency_overrides.clear()

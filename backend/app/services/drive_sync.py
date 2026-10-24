@@ -120,6 +120,7 @@ class GoogleDriveSyncService:
             try:
                 # 1. Discover all files across incoming target folders
                 all_drive_files: List[DriveFileInfo] = []
+                await asyncio.to_thread(google_drive_client.refresh_folder_cache)
                 for folder in self.INCOMING_FOLDERS:
                     if folder == "root" and google_drive_client.is_mock:
                         continue

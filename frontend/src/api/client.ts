@@ -331,9 +331,15 @@ export const apiClient = {
         last_synced_at: updatedTimestamp,
       };
     }
-    return request<DriveSyncResult>('/sync/drive-now', {
+    let result = await request<DriveSyncResult>('/sync/drive-now?background=true', {
       method: 'POST',
     });
+    for (let attempt = 0; result.status === 'syncing' && attempt < 200; attempt++) {
+      await delay(1500);
+      result = await request<DriveSyncResult>('/sync/status');
+    }
+    if (result.status === 'syncing') throw new Error('Синхронизация продолжается в фоне. Проверьте статус через минуту.');
+    return result;
   },
 
   async getDriveSyncStatus(): Promise<DriveSyncStatus> {

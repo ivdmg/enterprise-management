@@ -131,7 +131,7 @@ class GoogleDriveClient:
         if not self.is_mock and not has_sa_json and not credentials_file.is_file():
             raise RuntimeError("Google Drive credentials are missing; live mode cannot use mock data")
         self._service = None
-        self._folder_ids_cache: Dict[str, str] = {}
+        self._folder_ids_cache: Dict[str, Optional[str]] = {}
 
         if self.is_mock:
             logger.info("GoogleDriveClient initialized in MOCK MODE (root: %s)", self.mock_dir)
@@ -239,6 +239,23 @@ class GoogleDriveClient:
                 raise
 
         return folder_mapping
+
+    def refresh_folder_cache(self) -> None:
+        """Discover configured child folders with one request per sync, including absences."""
+        if self.is_mock:
+            return
+        root = settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
+        if not root:
+            raise ValueError("GOOGLE_DRIVE_ROOT_FOLDER_ID is required")
+        names = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS
+        name_filter = " or ".join(f"name = '{name}'" for name in names)
+        result = execute_with_backoff(lambda: self._service.files().list(
+            q=f"'{root}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and ({name_filter})",
+            fields="files(id,name)", pageSize=100,
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute())
+        self._folder_ids_cache = {name: None for name in names}
+        self._folder_ids_cache.update({f['name']: f['id'] for f in result.get('files', [])})
 
     def resolve_folder_id(self, folder: str) -> Optional[str]:
         """Resolve a known folder name under the configured root; never search other Drives."""

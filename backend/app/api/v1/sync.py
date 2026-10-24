@@ -1,7 +1,8 @@
 import logging
+import asyncio
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -17,6 +18,7 @@ from app.services.google_drive import google_drive_client
 logger = logging.getLogger("enterprise_hub.api.sync")
 
 router = APIRouter(prefix="/sync", tags=["Google Drive Synchronization"])
+_sync_tasks: set[asyncio.Task] = set()
 
 
 @router.post(
@@ -61,6 +63,7 @@ async def init_drive_folders(
     summary="Принудительный запуск синхронизации Google Диска для текущей компании",
 )
 async def trigger_drive_sync(
+    background: bool = Query(False),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ResponseEnvelope[SyncStatusData]:
@@ -70,6 +73,16 @@ async def trigger_drive_sync(
     and runs the analytical alert engine.
     """
     logger.info("Manual Drive sync initiated by user %s (company: %s)", current_user.email, current_user.company_id)
+
+    if background:
+        current_status = drive_sync_service.get_status(current_user.company_id).to_dict()
+        if current_status["status"] != "syncing":
+            task = asyncio.create_task(drive_sync_service.sync_company_drive(
+                company_id=current_user.company_id, user_id=current_user.id,
+            ))
+            _sync_tasks.add(task)
+            task.add_done_callback(_sync_tasks.discard)
+        return ResponseEnvelope.ok(SyncStatusData(**{**current_status, "status": "syncing"}))
     
     result = await drive_sync_service.sync_company_drive(
         company_id=current_user.company_id,
