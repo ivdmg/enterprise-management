@@ -682,6 +682,8 @@ async def list_files(
             status=f.status,
             uploaded_by=f.uploader.full_name if f.uploader else None,
             created_at=f.created_at,
+            google_drive_link=f.google_drive_link,
+            error_message=f.error_message,
         )
         for f in files
     ]

@@ -64,14 +64,12 @@ export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTa
 
   // Calculate debtors and creditors sum
   const debtorsSum =
-    financial_health.total_debtors_sum ||
-    financeData?.top_debtors.reduce((acc, d) => acc + d.debt_sum, 0) ||
-    7600000;
+    data.receivables_sum ?? financial_health.total_debtors_sum ??
+    financeData?.top_debtors.reduce((acc, d) => acc + d.debt_sum, 0) ?? 0;
 
   const creditorsSum =
-    financial_health.total_creditors_sum ||
-    financeData?.top_creditors.reduce((acc, c) => acc + c.debt_sum, 0) ||
-    2720000;
+    data.payables_sum ?? financial_health.total_creditors_sum ??
+    financeData?.top_creditors.reduce((acc, c) => acc + c.debt_sum, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -143,7 +141,7 @@ export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTa
 
             <div className="mt-2.5">
               <div className="text-2xl font-bold font-mono text-[var(--text-main)] tracking-tight">
-                {formatCurrency(production_health.total_portfolio_sum || 148500000)}
+                {formatCurrency(production_health.total_portfolio_sum ?? 0)}
               </div>
               <p className="text-[11px] text-[var(--text-sub)] mt-1">
                 Общая сумма активных договоров СМР

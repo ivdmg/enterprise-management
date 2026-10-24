@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -142,6 +143,8 @@ async def health_check() -> ResponseEnvelope[dict]:
 @app.get("/", tags=["Root"])
 async def root() -> ResponseEnvelope[dict]:
     """Root entrypoint with welcome payload."""
+    if (settings.FRONTEND_DIST_DIR / "index.html").is_file():
+        return FileResponse(settings.FRONTEND_DIST_DIR / "index.html")
     return ResponseEnvelope.ok(
         {
             "name": settings.PROJECT_NAME,
@@ -153,3 +156,7 @@ async def root() -> ResponseEnvelope[dict]:
 
 # Mount versioned API routes
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# A single service serves the built React app and API on the same origin.
+if settings.FRONTEND_DIST_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(settings.FRONTEND_DIST_DIR), html=True), name="frontend")

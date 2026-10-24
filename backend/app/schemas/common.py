@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Generic, List, Optional, TypeVar
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 T = TypeVar("T")
 
@@ -38,6 +39,20 @@ class ResponseEnvelope(BaseModel, Generic[T]):
     data: Optional[T] = Field(default=None, description="Payload data or null on failure")
     error: Optional[ErrorDetail] = Field(default=None, description="Error detail or null on success")
     meta: MetaModel = Field(default_factory=MetaModel, description="Response metadata")
+
+    @field_serializer("data", when_used="json")
+    def serialize_data(self, value):
+        def encode(item):
+            if isinstance(item, BaseModel):
+                return encode(item.model_dump(mode="python"))
+            if isinstance(item, Decimal):
+                return float(item)
+            if isinstance(item, dict):
+                return {key: encode(val) for key, val in item.items()}
+            if isinstance(item, (list, tuple)):
+                return [encode(val) for val in item]
+            return item
+        return encode(value)
 
     @classmethod
     def ok(cls, data: T, meta: Optional[MetaModel] = None) -> "ResponseEnvelope[T]":

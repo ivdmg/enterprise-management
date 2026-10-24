@@ -23,6 +23,8 @@ async def sync_google_drive_job() -> None:
         try:
             # Query all active tenant companies
             stmt = select(Company.id).where(Company.is_active == True)  # noqa: E712
+            if settings.GOOGLE_DRIVE_COMPANY_ID:
+                stmt = stmt.where(Company.id == settings.GOOGLE_DRIVE_COMPANY_ID)
             result = await session.execute(stmt)
             company_ids = result.scalars().all()
 

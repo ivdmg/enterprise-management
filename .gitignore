@@ -16,6 +16,10 @@ storage/
 .env
 *.env
 !.env.example
+credentials.json
+*service_account*.json
+.demo/
+!DEMO.md
 
 # Python / Backend
 __pycache__/

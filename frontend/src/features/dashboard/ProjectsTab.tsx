@@ -479,7 +479,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                           )}
                           <span className="text-[var(--text-muted)] text-[10px]">·</span>
                           <a
-                            href="https://drive.google.com/drive/folders/enterprise-hub"
+                            href={project.google_drive_link}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors shrink-0"
@@ -612,7 +612,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                         {project.customer_name ? <span>· {project.customer_name}</span> : ''}
                         <span>·</span>
                         <a
-                          href="https://drive.google.com/drive/folders/enterprise-hub"
+                          href={project.google_drive_link}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium hover:underline"

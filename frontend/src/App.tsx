@@ -25,12 +25,16 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [showAccountantUpload, setShowAccountantUpload] = useState(false);
   const [mappingFile, setMappingFile] = useState<{ id: string; name: string } | null>(null);
-  const [pendingAccountingCount, setPendingAccountingCount] = useState(2);
+  const [pendingAccountingCount, setPendingAccountingCount] = useState(0);
+  const [dataVersion, setDataVersion] = useState(0);
+  const [alertsCount, setAlertsCount] = useState(0);
   const [highlightProjectId, setHighlightProjectId] = useState<string | null>(null);
 
   // Poll/fetch pending accounting tasks count
   useEffect(() => {
+    if (!isAuthenticated) return;
     let mounted = true;
+    apiClient.getAlerts().then((items) => { if (mounted) setAlertsCount(items.length); }).catch(() => {});
     apiClient
       .getTasks({ source: 'accounting', status: 'transferred_to_manager' })
       .then((items) => {
@@ -41,7 +45,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [activeTab]);
+  }, [activeTab, dataVersion, isAuthenticated]);
 
   const tabs: TabItem[] = [
     { id: 'summary', label: 'Сводка', shortLabel: 'Сводка' },
@@ -127,7 +131,8 @@ export default function App() {
       <Header
         period={period}
         onPeriodChange={setPeriod}
-        alertsCount={6}
+        alertsCount={alertsCount}
+        onSyncComplete={() => setDataVersion((v) => v + 1)}
         onAlertsClick={() => setShowAlerts(true)}
         onOpenSettings={() => setActiveTab('settings')}
         onNavigateTab={(tab) => setActiveTab(tab)}
@@ -135,7 +140,7 @@ export default function App() {
       />
       <TabNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      <main className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-8 sm:pb-10">
+      <main key={dataVersion} className="max-w-screen-2xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-8 sm:pb-10">
         {renderTab()}
       </main>
 
@@ -166,7 +171,7 @@ export default function App() {
         fileName={mappingFile?.name || ''}
       />
 
-      <AlertsDrawer isOpen={showAlerts} onClose={() => setShowAlerts(false)} />
+      <AlertsDrawer key={dataVersion} isOpen={showAlerts} onClose={() => setShowAlerts(false)} />
     </div>
   );
 }

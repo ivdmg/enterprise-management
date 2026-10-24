@@ -1,11 +1,13 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.config import settings
+from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.schemas.sync import InitFoldersRequest, InitFoldersResponse, SyncStatusData
@@ -37,6 +39,13 @@ async def init_drive_folders(
     - 99_Ошибки_парсинга
     """
     root_id = payload.root_folder_id if payload else None
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(403, "Инициализировать папки может только администратор")
+    if not google_drive_client.is_mock:
+        if current_user.company_id != settings.GOOGLE_DRIVE_COMPANY_ID:
+            raise HTTPException(403, "Google Диск не подключён к этой организации")
+        if root_id and root_id != settings.GOOGLE_DRIVE_ROOT_FOLDER_ID:
+            raise HTTPException(403, "Используйте настроенную корневую папку")
     logger.info("Initializing Drive folders requested by %s (root_id: %s)", current_user.email, root_id)
     folders = google_drive_client.init_folders(root_folder_id=root_id)
     return ResponseEnvelope.ok(

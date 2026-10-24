@@ -18,6 +18,13 @@ from app.services.audit import record_audit_log
 
 router = APIRouter(prefix="/procurement", tags=["Procurement & Materials Supply"])
 
+def normalize_supply_status(value: str) -> str:
+    value = value.lower().replace("_", " ").strip()
+    if value in ("paid", "оплачено"): return "paid"
+    if value in ("in transit", "в пути", "заказано"): return "in_transit"
+    if value in ("delivered", "на объекте", "на складе", "доставлено"): return "delivered"
+    return "invoice_pending"
+
 
 @router.get(
     "/items",
@@ -81,7 +88,7 @@ async def list_procurement_items(
             unit=item.unit,
             supplier=item.supplier,
             invoice_amount=item.invoice_amount,
-            status=item.status,
+            status=normalize_supply_status(item.status),
             delivery_deadline=item.delivery_deadline,
             invoice_number=getattr(item, "invoice_number", None),
             created_at=item.created_at,

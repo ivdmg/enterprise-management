@@ -34,6 +34,7 @@ interface HeaderProps {
   onOpenSettings?: () => void;
   onNavigateTab?: (tabId: string) => void;
   activeTab?: string;
+  onSyncComplete?: () => void;
 }
 
 const periodOptions = [
@@ -60,6 +61,7 @@ export function Header({
   onOpenSettings,
   onNavigateTab,
   activeTab = 'summary',
+  onSyncComplete,
 }: HeaderProps) {
   const { user, logout } = useAuth();
   const { isDark, toggle } = useTheme();
@@ -82,7 +84,7 @@ export function Header({
       })
       .catch(() => {
         if (mounted) {
-          setLastSyncedAt(new Date(Date.now() - 15 * 60 * 1000).toISOString());
+          setLastSyncedAt(null);
         }
       });
 
@@ -96,7 +98,9 @@ export function Header({
     setIsSyncing(true);
     try {
       const result = await apiClient.syncDriveNow();
+      if (result.status === 'error') throw new Error(result.message || 'Ошибка синхронизации');
       setLastSyncedAt(result.last_synced_at || new Date().toISOString());
+      onSyncComplete?.();
       showToast(
         result.message ||
           `Синхронизация с Google Диском завершена: обновлено ${result.synced_files_count} файлов`,

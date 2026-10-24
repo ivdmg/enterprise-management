@@ -184,6 +184,8 @@ export interface FireItem {
 }
 
 export interface DashboardSummary {
+  receivables_sum?: number;
+  payables_sum?: number;
   financial_health: FinancialHealth;
   production_health: ProductionHealth;
   alerts_overview: AlertsOverview;
@@ -225,6 +227,7 @@ export interface BankGuaranteeInfo {
 }
 
 export interface Project {
+  google_drive_link?: string;
   id: string;
   project_code?: string;
   project_name: string;
@@ -300,6 +303,8 @@ export interface DriveSyncResult {
 }
 
 export interface DriveSyncStatus {
+  root_folder_link?: string;
+  drive_mode?: 'mock' | 'live';
   last_synced_at: string;
   synced_files_count: number;
   status: 'idle' | 'syncing' | 'error';

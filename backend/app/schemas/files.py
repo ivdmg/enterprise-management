@@ -71,6 +71,8 @@ class FileListItem(BaseModel):
     status: FileStatus
     uploaded_by: Optional[str] = None
     created_at: datetime
+    google_drive_link: Optional[str] = None
+    error_message: Optional[str] = None
 
 
 class UploadAndAssignResult(BaseModel):

@@ -16,6 +16,7 @@ from app.models.payroll import PayrollRecord
 from app.models.procurement import ProcurementItem
 from app.models.project import TenderProject
 from app.models.user import User
+from app.models.file import UploadedFile
 from app.schemas.common import MetaModel, ResponseEnvelope
 from app.schemas.dashboard import (
     AlertsOverview,
@@ -475,6 +476,11 @@ async def get_dashboard_projects(
     res = await db.execute(query)
     projects = res.scalars().all()
 
+    source_ids = [p.file_id for p in projects if p.file_id]
+    source_links = dict((await db.execute(select(UploadedFile.id, UploadedFile.google_drive_link).where(
+        UploadedFile.company_id == current_user.company_id, UploadedFile.id.in_(source_ids)
+    ))).all()) if source_ids else {}
+
     items: List[ProjectDashboardItem] = []
     for p in projects:
         comp_pct = (
@@ -505,6 +511,14 @@ async def get_dashboard_projects(
                 penalty_amount_calculated=p.penalty_amount_calculated,
                 bank_guarantee_expiry=bg_expiry,
                 bg_risk_level=bg_risk_level,
+                tender_stage=(p.custom_attributes or {}).get("tender_stage") or {
+                    "Подготовка": "preparation", "Подано": "submitted", "Торги": "bidding",
+                    "Победа": "won", "Контракт": "contract", "Исполнено": "contract",
+                }.get(p.status, "contract"),
+                bank_guarantee={"expiry_date": bg_expiry.isoformat(), "days_remaining": (bg_expiry - today).days,
+                    "is_critical": bg_risk_level == "critical", "amount": float(p.application_guarantee_sum or 0),
+                    "bank_name": "Банк не указан в реестре"} if bg_expiry else None,
+                google_drive_link=source_links.get(p.file_id),
             )
         )
 

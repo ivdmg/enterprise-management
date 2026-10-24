@@ -68,7 +68,7 @@ class GoogleDriveClient:
     """
     Unified Google Drive API v3 Client with zero-dependency Transparent Mock Mode.
     
-    In Mock Mode (GOOGLE_DRIVE_MOCK=True or absent credentials):
+    In explicit Mock Mode (GOOGLE_DRIVE_MOCK=True):
     Emulates Google Drive API by reading and writing files from `storage/mock_drive/`,
     calculating real MD5 checksums, and providing deterministic file IDs.
     """
@@ -121,11 +121,15 @@ class GoogleDriveClient:
         self.mock_dir.mkdir(parents=True, exist_ok=True)
         
         credentials_file = Path(credentials_path or settings.GOOGLE_DRIVE_CREDENTIALS_PATH)
+        if not credentials_file.is_absolute():
+            credentials_file = Path(__file__).resolve().parents[2] / credentials_file
         configured_mock = settings.GOOGLE_DRIVE_MOCK if mock_mode is None else mock_mode
         has_sa_json = bool(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
         
         # Determine whether to use mock mode
-        self.is_mock = configured_mock or (not has_sa_json and not credentials_file.is_file())
+        self.is_mock = configured_mock
+        if not self.is_mock and not has_sa_json and not credentials_file.is_file():
+            raise RuntimeError("Google Drive credentials are missing; live mode cannot use mock data")
         self._service = None
         self._folder_ids_cache: Dict[str, str] = {}
 
@@ -163,11 +167,7 @@ class GoogleDriveClient:
                     self.is_mock = True
                     self._ensure_mock_folders()
             except Exception as e:
-                logger.warning(
-                    "Failed to initialize live Google Drive API (%s). Falling back to MOCK MODE.", e
-                )
-                self.is_mock = True
-                self._ensure_mock_folders()
+                raise RuntimeError("Failed to initialize live Google Drive; check credentials and dependencies") from e
 
     def _ensure_mock_folders(self) -> None:
         """Creates target directory structure in mock storage if not already present."""
@@ -239,6 +239,30 @@ class GoogleDriveClient:
                 raise
 
         return folder_mapping
+
+    def resolve_folder_id(self, folder: str) -> Optional[str]:
+        """Resolve a known folder name under the configured root; never search other Drives."""
+        if folder == "root":
+            if not settings.GOOGLE_DRIVE_ROOT_FOLDER_ID:
+                raise ValueError("GOOGLE_DRIVE_ROOT_FOLDER_ID is required")
+            return settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
+        known = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS
+        if folder not in known:
+            return folder
+        if folder in self._folder_ids_cache:
+            return self._folder_ids_cache[folder]
+        root = settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
+        if not root:
+            raise ValueError("GOOGLE_DRIVE_ROOT_FOLDER_ID is required in live mode")
+        result = execute_with_backoff(lambda: self._service.files().list(
+            q=f"'{root}' in parents and name = '{folder}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+            fields="files(id)", supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute())
+        matches = result.get("files", [])
+        if not matches:
+            return None
+        self._folder_ids_cache[folder] = matches[0]["id"]
+        return matches[0]["id"]
 
     def _get_mock_file_id(self, rel_path: Path) -> str:
         """Generates deterministic mock file ID from relative path."""
@@ -330,8 +354,11 @@ class GoogleDriveClient:
         from googleapiclient.errors import HttpError  # type: ignore
 
         try:
+            folder_id = self.resolve_folder_id(folder_name_or_id)
+            if folder_id is None:
+                return []
             q_parts = [
-                f"'{folder_name_or_id}' in parents",
+                f"'{folder_id}' in parents",
                 "trashed = false",
                 "mimeType != 'application/vnd.google-apps.folder'",
             ]
@@ -341,21 +368,33 @@ class GoogleDriveClient:
 
             q = " and ".join(q_parts)
 
+            page_token = None
             def do_list():
                 return (
                     self._service.files()
                     .list(
                         q=q,
-                        fields="files(id, name, mimeType, size, md5Checksum, modifiedTime, webViewLink, parents)",
+                        fields="nextPageToken,files(id, name, mimeType, size, md5Checksum, modifiedTime, webViewLink, parents)",
                         pageSize=100,
+                        pageToken=page_token,
+                        supportsAllDrives=True,
+                        includeItemsFromAllDrives=True,
                     )
                     .execute()
                 )
 
             response = execute_with_backoff(do_list)
+            all_files = list(response.get("files", []))
+            while response.get("nextPageToken"):
+                page_token = response["nextPageToken"]
+                response = execute_with_backoff(do_list)
+                all_files.extend(response.get("files", []))
+            response["files"] = all_files
             files = response.get("files", [])
             drive_files = []
             for f in files:
+                if f.get("mimeType") != "application/vnd.google-apps.spreadsheet" and not f.get("name", "").lower().endswith(valid_extensions):
+                    continue
                 drive_files.append(
                     DriveFileInfo(
                         id=f.get("id"),
@@ -383,7 +422,14 @@ class GoogleDriveClient:
         from googleapiclient.http import MediaIoBaseDownload  # type: ignore
 
         def do_download():
-            request = self._service.files().get_media(fileId=file_id_or_path)
+            metadata = self._service.files().get(fileId=file_id_or_path, fields="mimeType", supportsAllDrives=True).execute()
+            if metadata.get("mimeType") == "application/vnd.google-apps.spreadsheet":
+                request = self._service.files().export_media(
+                    fileId=file_id_or_path,
+                    mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            else:
+                request = self._service.files().get_media(fileId=file_id_or_path, supportsAllDrives=True)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
             done = False
@@ -425,7 +471,7 @@ class GoogleDriveClient:
 
         file_metadata: Dict[str, Any] = {
             "name": filename,
-            "parents": [folder_name_or_id],
+            "parents": [self.resolve_folder_id(folder_name_or_id) or folder_name_or_id],
         }
         if description:
             file_metadata["description"] = description

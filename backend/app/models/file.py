@@ -58,6 +58,8 @@ class UploadedFile(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         nullable=False,
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_drive_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_drive_link: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     # Relationships
     company: Mapped["Company"] = relationship("Company", back_populates="uploaded_files")
@@ -85,6 +87,7 @@ class UploadedFile(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
 
     __table_args__ = (
+        UniqueConstraint("company_id", "google_drive_id", name="uq_company_drive_file"),
         Index("idx_uploaded_files_company_hash", "company_id", "sha256_hash"),
         Index("idx_uploaded_files_status", "company_id", "status"),
     )

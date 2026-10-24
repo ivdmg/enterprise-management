@@ -107,6 +107,9 @@ class ProjectDashboardItem(BaseModel):
     penalty_amount_calculated: Decimal
     bank_guarantee_expiry: Optional[date] = None
     bg_risk_level: str = Field("ok", description="Bank guarantee risk level: 'critical' | 'warning' | 'ok'")
+    tender_stage: str = "preparation"
+    bank_guarantee: Optional[dict] = None
+    google_drive_link: Optional[str] = None
 
 
 class PayrollDepartmentItem(BaseModel):

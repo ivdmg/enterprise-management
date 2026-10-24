@@ -1,7 +1,10 @@
 from pathlib import Path
-from typing import List, Union
+import json
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+from uuid import UUID
+from typing import Annotated, List, Union
 from pydantic import AnyHttpUrl, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
 
 
 class Settings(BaseSettings):
@@ -10,7 +13,7 @@ class Settings(BaseSettings):
     Follows 12-factor app principles and zero hardcoding security constraints.
     """
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=Path(__file__).resolve().parents[2] / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
@@ -21,6 +24,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
+    ALLOW_REGISTRATION: bool = True
+    GOOGLE_DRIVE_COMPANY_ID: UUID | None = None
+    FRONTEND_DIST_DIR: Path = Path(__file__).resolve().parents[3] / "frontend" / "dist"
 
     # Database Configuration (PostgreSQL 16)
     POSTGRES_SERVER: str = "localhost"
@@ -36,7 +42,9 @@ class Settings(BaseSettings):
     @property
     def async_database_url(self) -> str:
         if self.DATABASE_URL:
-            return self.DATABASE_URL
+            url = urlsplit(self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1).replace("postgresql://", "postgresql+asyncpg://", 1))
+            query = [("ssl" if key == "sslmode" else key, value) for key, value in parse_qsl(url.query) if key != "channel_binding"]
+            return urlunsplit(url._replace(query=urlencode(query)))
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
@@ -62,7 +70,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_BYTES: int = 25 * 1024 * 1024  # Strict OWASP limit: 25 MB max
 
     # CORS Allowed Origins
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = [
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
@@ -74,6 +82,8 @@ class Settings(BaseSettings):
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",") if i.strip()]
+        elif isinstance(v, str):
+            return json.loads(v)
         elif isinstance(v, list):
             return v
         return ["http://localhost:5173", "http://localhost:3000"]

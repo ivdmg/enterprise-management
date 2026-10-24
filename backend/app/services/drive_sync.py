@@ -6,12 +6,20 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_factory
+from app.core.config import settings
 from app.models.enums import FileStatus
 from app.models.file import UploadedFile
+from app.models.finance import CashflowOperation
+from app.models.procurement import ProcurementItem
+from app.models.dispatch import FleetDispatchRecord
+from app.models.task import OperationalTask
+from app.models.payroll import PayrollRecord
+from app.models.alert import SystemAlert
+from app.models.project import TenderProject
 from app.services.alerts_engine import alerts_engine
 from app.services.google_drive import DriveFileInfo, google_drive_client
 from app.services.storage import build_tenant_storage_key, storage_service
@@ -43,12 +51,13 @@ class SyncStatusInfo:
 
 class GoogleDriveSyncService:
     """
-    Orchestrator for automated bidirectional sync between Google Drive (or Mock Drive)
+    Orchestrator for importing editable Google Drive sources (or Mock Drive)
     and the Smart Enterprise Hub database.
     """
 
     # Folders monitored for incoming files
     INCOMING_FOLDERS = [
+        "root",
         "01_Сметы_и_Тендеры",
         "02_Счета_Снабжения",
         "03_Банк_и_Касса",
@@ -81,9 +90,13 @@ class GoogleDriveSyncService:
         """
         Synchronizes incoming folders on Google Drive for the specified company.
         Performs 0-overhead hash skipping when files have not changed.
-        Moves processed documents to '05_Обработано' and failed documents to '99_Ошибки_парсинга'.
+        Retains source documents in place for future edits and retry after errors.
         """
         status_info = self.get_status(company_id)
+        if not google_drive_client.is_mock and settings.GOOGLE_DRIVE_COMPANY_ID != company_id:
+            status_info.status = "error"
+            status_info.last_error = "Google Диск не подключён к этой организации"
+            return status_info.to_dict()
         if status_info.status == "syncing":
             logger.warning("Sync already in progress for company %s", company_id)
             return status_info.to_dict()
@@ -108,11 +121,13 @@ class GoogleDriveSyncService:
                 # 1. Discover all files across incoming target folders
                 all_drive_files: List[DriveFileInfo] = []
                 for folder in self.INCOMING_FOLDERS:
+                    if folder == "root" and google_drive_client.is_mock:
+                        continue
                     try:
-                        folder_files = google_drive_client.list_files_in_folder(folder)
+                        folder_files = await asyncio.to_thread(google_drive_client.list_files_in_folder, folder)
                         all_drive_files.extend(folder_files)
                     except Exception as e:
-                        logger.error("Error reading folder '%s' on Drive: %s", folder, e)
+                        raise RuntimeError(f"Не удалось прочитать папку {folder}: {e}") from e
 
                 logger.info(
                     "Drive sync started for company %s: found %d total files across folders",
@@ -120,28 +135,31 @@ class GoogleDriveSyncService:
                     len(all_drive_files),
                 )
 
+                # A mock root scan and a child scan may return the same document.
+                all_drive_files = list({f.id: f for f in all_drive_files}.values())
                 # 2. Process each file
                 for file_info in all_drive_files:
+                    file_bytes = b""
+                    sha256_hash = ""
                     try:
                         # Download raw file bytes with retry/backoff
-                        file_bytes = google_drive_client.download_file_bytes(file_info.id)
+                        file_bytes = await asyncio.to_thread(google_drive_client.download_file_bytes, file_info.id)
                         sha256_hash = hashlib.sha256(file_bytes).hexdigest()
 
                         # Save copy to local temporary incoming storage (Task BE-1.2)
                         ext = Path(file_info.name).suffix or ".xlsx"
-                        incoming_file_path = incoming_dir / f"{file_info.id}_{file_info.name}"
+                        incoming_file_path = incoming_dir / f"{uuid.uuid4().hex}{ext}"
                         incoming_file_path.write_bytes(file_bytes)
 
                         # Check if this exact file version was already ingested
                         query = select(UploadedFile).where(
                             UploadedFile.company_id == company_id,
-                            UploadedFile.sha256_hash == sha256_hash,
-                            UploadedFile.status == FileStatus.PROCESSED,
+                            UploadedFile.google_drive_id == file_info.id,
                             UploadedFile.deleted_at.is_(None),
                         )
                         existing_file = (await session.execute(query)).scalar_one_or_none()
 
-                        if existing_file:
+                        if existing_file and existing_file.sha256_hash == sha256_hash and existing_file.status == FileStatus.PROCESSED:
                             # 0 overhead: file content has not changed
                             skipped += 1
                             status_info.details.append({
@@ -161,7 +179,7 @@ class GoogleDriveSyncService:
                         await storage_service.save_file(file_bytes, storage_key)
 
                         # Create or update UploadedFile record
-                        uploaded_file = UploadedFile(
+                        uploaded_file = existing_file or UploadedFile(
                             company_id=company_id,
                             uploaded_by_user_id=user_id,
                             original_name=file_info.name,
@@ -171,8 +189,38 @@ class GoogleDriveSyncService:
                             sha256_hash=sha256_hash,
                             status=FileStatus.UPLOADED,
                         )
+                        uploaded_file.original_name = file_info.name
+                        uploaded_file.storage_path = storage_key
+                        uploaded_file.file_size_bytes = len(file_bytes)
+                        uploaded_file.sha256_hash = sha256_hash
+                        uploaded_file.google_drive_id = file_info.id
+                        uploaded_file.google_drive_link = file_info.web_view_link
+                        uploaded_file.error_message = None
                         session.add(uploaded_file)
                         await session.flush()
+
+                        old_project_ids = (await session.execute(select(TenderProject.id).where(
+                            TenderProject.company_id == company_id, TenderProject.file_id == uploaded_file.id,
+                            TenderProject.deleted_at.is_(None),
+                        ))).scalars().all() if existing_file else []
+                        if old_project_ids:
+                            await session.execute(update(TenderProject).where(TenderProject.id.in_(old_project_ids)).values(file_id=None))
+
+                        # Each editable document owns a snapshot. Replace its dependent rows
+                        # in the same transaction, so edits/deletions cannot double totals.
+                        models_to_replace = (CashflowOperation, ProcurementItem, FleetDispatchRecord, OperationalTask, PayrollRecord) if existing_file else ()
+                        for model in models_to_replace:
+                            old_ids = select(model.id).where(model.company_id == company_id, model.file_id == uploaded_file.id, model.deleted_at.is_(None))
+                            await session.execute(update(SystemAlert).where(
+                                SystemAlert.company_id == company_id,
+                                SystemAlert.entity_type == model.__tablename__,
+                                SystemAlert.entity_id.in_(old_ids),
+                                SystemAlert.is_resolved.is_(False),
+                            ).values(is_resolved=True, resolved_at=datetime.now(timezone.utc)))
+                            await session.execute(update(model).where(
+                                model.company_id == company_id, model.file_id == uploaded_file.id,
+                                model.deleted_at.is_(None),
+                            ).values(deleted_at=datetime.now(timezone.utc)))
 
                         # Deterministic parsing into business models
                         tpl_type, count = await standard_template_parser.parse_and_persist(
@@ -183,23 +231,23 @@ class GoogleDriveSyncService:
                             db=session,
                         )
 
+                        await session.flush()
+                        if old_project_ids:
+                            removed = select(TenderProject.id).where(TenderProject.id.in_(old_project_ids), TenderProject.file_id.is_(None))
+                            await session.execute(update(SystemAlert).where(SystemAlert.company_id == company_id,
+                                SystemAlert.entity_type == "tender_projects", SystemAlert.entity_id.in_(removed),
+                                SystemAlert.is_resolved.is_(False)).values(is_resolved=True, resolved_at=datetime.now(timezone.utc)))
+                            await session.execute(update(TenderProject).where(TenderProject.id.in_(old_project_ids),
+                                TenderProject.file_id.is_(None)).values(deleted_at=datetime.now(timezone.utc)))
+
+                        await session.execute(update(OperationalTask).where(
+                            OperationalTask.company_id == company_id, OperationalTask.file_id == uploaded_file.id,
+                            OperationalTask.deleted_at.is_(None),
+                        ).values(google_drive_link=file_info.web_view_link))
+
                         uploaded_file.status = FileStatus.PROCESSED
                         await session.commit()
                         processed += 1
-
-                        # Task BE-1.3: Move to 05_Обработано if file is in active incoming pipeline folders (01_Сметы_и_Тендеры etc.)
-                        active_incoming_roots = [
-                            "01_Сметы_и_Тендеры",
-                            "02_Счета_Снабжения",
-                            "03_Банк_и_Касса",
-                            "04_Путевые_листы",
-                        ]
-                        if file_info.parent_folder in active_incoming_roots:
-                            google_drive_client.move_file(
-                                file_id=file_info.id,
-                                target_folder_name_or_id=self.PROCESSED_FOLDER,
-                                current_folder_id=file_info.parent_folder,
-                            )
 
                         status_info.details.append({
                             "file": file_info.name,
@@ -217,31 +265,30 @@ class GoogleDriveSyncService:
                         # Task BE-1.3 & BE-2.3: Move to 99_Ошибки_парсинга and mark status error
                         try:
                             # Register error record in DB
-                            err_file = UploadedFile(
+                            err_file = (await session.execute(select(UploadedFile).where(
+                                UploadedFile.company_id == company_id,
+                                UploadedFile.google_drive_id == file_info.id,
+                            ))).scalar_one_or_none()
+                            err_file = err_file or UploadedFile(
                                 company_id=company_id,
                                 uploaded_by_user_id=user_id,
                                 original_name=file_info.name,
-                                storage_path=f"storage/incoming/{file_info.id}_{file_info.name}",
+                                storage_path="unavailable",
                                 file_size_bytes=len(file_bytes) if 'file_bytes' in locals() else 0,
                                 mime_type=file_info.mime_type,
                                 sha256_hash=sha256_hash if 'sha256_hash' in locals() else "error",
                                 status=FileStatus.ERROR,
                                 error_message=error_msg,
                             )
+                            err_file.google_drive_id = file_info.id
+                            err_file.google_drive_link = file_info.web_view_link
+                            err_file.status = FileStatus.ERROR
+                            err_file.error_message = error_msg
                             session.add(err_file)
                             await session.commit()
                         except Exception as dbe:
                             await session.rollback()
                             logger.error("Failed to record file error in DB: %s", dbe)
-
-                        # Move file on Google Drive to error folder with description
-                        if file_info.parent_folder not in (self.PROCESSED_FOLDER, self.ERROR_FOLDER):
-                            google_drive_client.move_file(
-                                file_id=file_info.id,
-                                target_folder_name_or_id=self.ERROR_FOLDER,
-                                current_folder_id=file_info.parent_folder,
-                                description=f"Ошибка парсинга: {error_msg[:250]}",
-                            )
 
                         status_info.details.append({
                             "file": file_info.name,
@@ -253,13 +300,19 @@ class GoogleDriveSyncService:
                 # 3. Post-sync risk evaluation and alert updates
                 try:
                     await alerts_engine.run_full_evaluation(company_id, session)
+                    await session.commit()
                 except Exception as ae:
-                    logger.error("Error running alert evaluation after sync: %s", ae)
+                    await session.rollback()
+                    raise RuntimeError(f"Не удалось пересчитать сводку: {ae}") from ae
 
                 status_info.status = "idle"
+                errors = [d for d in status_info.details if d.get("action") == "error"]
+                if errors:
+                    status_info.status = "error"
+                    status_info.last_error = f"Не удалось импортировать файлов: {len(errors)}. {errors[0]['error']}"
                 status_info.last_sync_time = datetime.now(timezone.utc)
-                status_info.processed_files_count += processed
-                status_info.skipped_files_count += skipped
+                status_info.processed_files_count = processed
+                status_info.skipped_files_count = skipped
                 logger.info(
                     "Drive sync completed for company %s: %d processed, %d skipped",
                     company_id,

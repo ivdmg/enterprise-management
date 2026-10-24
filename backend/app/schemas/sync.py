@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+from app.core.config import settings
 
 
 class SyncFileDetail(BaseModel):
@@ -20,6 +21,31 @@ class SyncStatusData(BaseModel):
     skipped_files_count: int = Field(0, description="Total unchanged files skipped (0 overhead)")
     last_error: Optional[str] = Field(None, description="Error message if sync failed")
     details: List[Dict[str, Any]] = Field(default_factory=list, description="Recent file sync events")
+
+    @computed_field
+    @property
+    def last_synced_at(self) -> Optional[str]:
+        return self.last_sync_time
+
+    @computed_field
+    @property
+    def synced_files_count(self) -> int:
+        return self.processed_files_count
+
+    @computed_field
+    @property
+    def message(self) -> str:
+        return self.last_error or f"Обновлено файлов: {self.processed_files_count}, без изменений: {self.skipped_files_count}"
+
+    @computed_field
+    @property
+    def root_folder_link(self) -> Optional[str]:
+        return f"https://drive.google.com/drive/folders/{settings.GOOGLE_DRIVE_ROOT_FOLDER_ID}" if settings.GOOGLE_DRIVE_ROOT_FOLDER_ID else None
+
+    @computed_field
+    @property
+    def drive_mode(self) -> str:
+        return "mock" if settings.GOOGLE_DRIVE_MOCK else "live"
 
 
 class InitFoldersRequest(BaseModel):

@@ -1,0 +1,12 @@
+.git
+.venv
+.demo
+**/node_modules
+**/dist
+**/storage
+**/.env
+**/credentials.json
+**/*service_account*.json
+**/__pycache__
+**/.pytest_cache
+demo-data

@@ -52,6 +52,8 @@ async def register_company_and_admin(
     Registers a new tenant organization along with its initial root Administrator.
     Automatically provisions company entity, admin user, and integration settings.
     """
+    if not settings.ALLOW_REGISTRATION:
+        raise HTTPException(status_code=403, detail="Регистрация отключена на демонстрационном стенде")
     # 1. Check if user email is already registered
     existing_user_query = select(User).where(User.email == payload.email)
     existing_user_res = await db.execute(existing_user_query)

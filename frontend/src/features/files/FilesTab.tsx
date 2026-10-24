@@ -17,6 +17,8 @@ function getStatusBadge(status: string) {
   switch (status) {
     case 'processed':
       return <Badge variant="success">Обработан</Badge>;
+    case 'failed':
+      return <Badge variant="danger">Ошибка импорта</Badge>;
     case 'awaiting_confirmation':
       return <Badge variant="warning">Ожидает подтверждения</Badge>;
     case 'processing':
@@ -29,11 +31,15 @@ function getStatusBadge(status: string) {
 export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick }: FilesTabProps) {
   const [files, setFiles] = useState<FileListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [driveLink, setDriveLink] = useState<string>();
+  const [error, setError] = useState<string>();
 
   useEffect(() => {
+    apiClient.getDriveSyncStatus().then((status) => setDriveLink(status.root_folder_link)).catch(() => {});
     apiClient
       .getFiles()
       .then(setFiles)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Не удалось загрузить файлы'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -60,6 +66,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {driveLink && <a href={driveLink} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-emerald-600 inline-flex items-center gap-1.5 min-h-[40px] px-3 border border-[var(--card-border)] rounded-xl"><ExternalLink className="h-4 w-4" />Папка Google Диска</a>}
           {onAccountantUploadClick && (
             <button
               type="button"
@@ -80,6 +87,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
       </div>
 
       {/* Files list */}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       {files.length === 0 ? (
         <Card className="text-center py-12">
           <FileSpreadsheet className="h-10 w-10 mx-auto text-[var(--text-muted)] mb-3" />
@@ -99,8 +107,8 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
                   if (file.status === 'awaiting_confirmation') {
                     onFileSelect(file.id, file.original_name);
                   } else {
-                    window.open(
-                      file.google_drive_link || 'https://drive.google.com/drive/folders/enterprise-hub',
+                    if (file.google_drive_link) window.open(
+                      file.google_drive_link,
                       '_blank',
                       'noopener,noreferrer'
                     );
@@ -151,7 +159,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
                 {/* Actions row: Direct Google Drive link + Mapping hint */}
                 <div className="mt-2.5 pt-2 border-t border-[var(--card-border)]/60 flex items-center justify-between gap-2">
                   <a
-                    href={file.google_drive_link || 'https://drive.google.com/drive/folders/enterprise-hub'}
+                    href={file.google_drive_link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-xs font-semibold text-[var(--text-main)] transition-colors shadow-2xs"
@@ -215,8 +223,8 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
                       if (file.status === 'awaiting_confirmation') {
                         onFileSelect(file.id, file.original_name);
                       } else {
-                        window.open(
-                          file.google_drive_link || 'https://drive.google.com/drive/folders/enterprise-hub',
+                        if (file.google_drive_link) window.open(
+                          file.google_drive_link,
                           '_blank',
                           'noopener,noreferrer'
                         );
@@ -245,7 +253,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       <a
-                        href={file.google_drive_link || 'https://drive.google.com/drive/folders/enterprise-hub'}
+                        href={file.google_drive_link}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-xs font-semibold text-[var(--text-main)] transition-colors shadow-2xs"

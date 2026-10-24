@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: enterprise-management-demo
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: demo
+      - key: DEBUG
+        value: false
+      - key: ALLOW_REGISTRATION
+        value: false
+      - key: GOOGLE_DRIVE_MOCK
+        value: false
+      - key: SYNC_INTERVAL_SECONDS
+        value: 120
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GOOGLE_DRIVE_ROOT_FOLDER_ID
+        sync: false
+      - key: GOOGLE_DRIVE_COMPANY_ID
+        sync: false

@@ -29,7 +29,7 @@ import type {
 } from '@/types';
 import { mockData } from '@/mocks';
 
-const USE_MOCKS = true; // Switch to false when backend is ready
+const USE_MOCKS = false; // Switch to false when backend is ready
 const BASE_URL = '/api/v1';
 
 function getToken(): string | null {
@@ -99,10 +99,11 @@ export const apiClient = {
       await delay();
       return mockData.authTokens;
     }
-    return request<AuthTokens>('/auth/register', {
+    const result = await request<{ tokens: AuthTokens }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return result.tokens;
   },
 
   async getProfile(): Promise<UserProfile> {
@@ -375,7 +376,8 @@ export const apiClient = {
     if (params?.source) searchParams.set('source', params.source);
     if (params?.status) searchParams.set('status', params.status);
     const qs = searchParams.toString();
-    return request<TaskItem[]>(`/tasks${qs ? `?${qs}` : ''}`);
+    const items = await request<(Omit<TaskItem, 'status'> & { status: TaskWorkflowStatus | 'completed' })[]>(`/tasks${qs ? `?${qs}` : ''}`);
+    return items.map((item) => ({ ...item, status: item.status === 'completed' ? 'approved_closed' : item.status }));
   },
 
   async updateTaskStatus(

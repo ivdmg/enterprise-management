@@ -7,6 +7,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    Numeric,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -44,6 +45,8 @@ class FleetDispatchRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteM
         String(50), default="На_Объекте", nullable=False
     )
     incident_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    downtime_hours: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
+    downtime_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     company: Mapped["Company"] = relationship("Company", back_populates="fleet_dispatch_records")

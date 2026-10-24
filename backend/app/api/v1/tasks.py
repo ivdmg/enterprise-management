@@ -24,6 +24,8 @@ from app.schemas.tasks import (
 from app.services.audit import record_audit_log
 
 router = APIRouter(prefix="/tasks", tags=["Operational Tasks & Smart Register"])
+ROLE_IDS = {"Гендиректор":"ceo", "Замгендиректора":"coo", "Тендерщик":"tender", "Инженер":"engineer",
+    "Диспетчер":"dispatcher", "Менеджер":"manager", "Юрист":"lawyer", "Закупщик":"procurement", "Бухгалтер":"accountant"}
 
 
 def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskItemResponse:
@@ -49,6 +51,9 @@ def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskIte
 
     source = "accounting" if task.file_id else "manual"
     source_label = "Бухгалтерия (1С)" if task.file_id else "Операционный реестр"
+    if getattr(task, "file", None) and task.file.google_drive_id:
+        source = "drive_sync"
+        source_label = "Google Диск"
     doc_name = task.file.original_name if getattr(task, "file", None) else None
 
     return TaskItemResponse(
@@ -56,7 +61,7 @@ def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskIte
         task_title=task.task_title,
         description=task.description,
         related_contract=task.related_contract,
-        responsible_role=task.responsible_role or "manager",
+        responsible_role=ROLE_IDS.get(task.responsible_role, task.responsible_role) or "manager",
         responsible_person=task.responsible_person or "Не назначен",
         due_date=task.due_date.isoformat() if task.due_date else None,
         days_remaining=days_rem,
@@ -120,7 +125,8 @@ async def list_operational_tasks(
     )
 
     if role and role.lower() != "all":
-        base_q = base_q.where(func.lower(OperationalTask.responsible_role) == role.lower().strip())
+        aliases = [role.lower().strip()] + [key.lower() for key, value in ROLE_IDS.items() if value == role.lower().strip()]
+        base_q = base_q.where(func.lower(OperationalTask.responsible_role).in_(aliases))
 
     if status_filter:
         s_norm = status_filter.lower().strip()
