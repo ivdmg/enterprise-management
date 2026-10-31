@@ -1,0 +1,542 @@
+openapi: 3.0.3
+info:
+  title: Smart Enterprise Hub REST API
+  description: API контракт для платформы операционного управления предприятием на базе гибридного парсинга Excel-документов.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local Development Server
+  - url: https://api.enterprise-hub.local/api/v1
+    description: Production VPS Server
+
+paths:
+  # ==========================================
+  # AUTH & COMPANY
+  # ==========================================
+  /auth/register:
+    post:
+      summary: Регистрация новой компании и администратора
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /auth/login:
+    post:
+      summary: Вход в систему по логину и паролю
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      summary: Получение профиля текущего пользователя
+      tags: [Auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  # ==========================================
+  # FILES & PARSER
+  # ==========================================
+  /files/upload:
+    post:
+      summary: Загрузка Excel файла (.xlsx, .xls, .csv)
+      tags: [Files]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Файл успешно загружен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '409':
+          description: Дубликат файла (SHA-256 уже существует)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /files/{file_id}/mapping-preview:
+    get:
+      summary: Получение структуры колонок и предложенного ИИ-маппинга
+      tags: [Files]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sheet_name
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Результаты анализа колонок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingPreviewResponse'
+
+  /files/{file_id}/mapping-confirm:
+    post:
+      summary: Подтверждение схемы сопоставления и запуск импорта
+      tags: [Files]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingConfirmRequest'
+      responses:
+        '200':
+          description: Данные успешно импортированы в целевой домен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingConfirmResponse'
+
+  # ==========================================
+  # DASHBOARD & ANALYTICS
+  # ==========================================
+  /dashboard/summary:
+    get:
+      summary: Главная сводка руководителя (Executive Fire Panel)
+      tags: [Dashboard]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Агрегированные KPI, риски и финансы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+
+  /dashboard/projects:
+    get:
+      summary: Реестр производственных объектов и тендеров
+      tags: [Dashboard]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [in_progress, completed, all]
+        - name: risk_level
+          in: query
+          schema:
+            type: string
+            enum: [critical, warning, normal]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Список объектов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsListResponse'
+
+  # ==========================================
+  # ALERTS & RISKS
+  # ==========================================
+  /alerts:
+    get:
+      summary: Список активных и исторических алертов
+      tags: [Alerts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [CRITICAL, WARNING, INFO]
+        - name: is_resolved
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Реестр алертов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertsListResponse'
+
+  /alerts/{alert_id}/resolve:
+    post:
+      summary: Закрытие / устранение инцидента
+      tags: [Alerts]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution_comment:
+                  type: string
+              required: [resolution_comment]
+      responses:
+        '200':
+          description: Алерт успешно помечен устраненным
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    UnauthorizedError:
+      description: Недействительный или просроченный токен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          type: object
+          nullable: true
+          example: null
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: UNAUTHORIZED
+            message:
+              type: string
+              example: Доступ запрещен. Необходима авторизация.
+        meta:
+          type: object
+
+    RegisterRequest:
+      type: object
+      required: [company_name, full_name, email, password]
+      properties:
+        company_name:
+          type: string
+          example: "ООО ГлавСтрой"
+        inn:
+          type: string
+          example: "7701234567"
+        full_name:
+          type: string
+          example: "Иванов Иван Иванович"
+        email:
+          type: string
+          format: email
+          example: "director@glavstroy.ru"
+        password:
+          type: string
+          format: password
+          example: "SecretPass123!"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+            token_type:
+              type: string
+              example: bearer
+            expires_in:
+              type: integer
+              example: 3600
+
+    UserProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+            full_name:
+              type: string
+            role:
+              type: string
+              example: admin
+            telegram_connected:
+              type: boolean
+
+    FileUploadResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            file_id:
+              type: string
+              format: uuid
+            original_name:
+              type: string
+            file_size_bytes:
+              type: integer
+            status:
+              type: string
+              example: awaiting_confirmation
+            sheets:
+              type: array
+              items:
+                type: string
+
+    MappingPreviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            file_id:
+              type: string
+              format: uuid
+            sheet_name:
+              type: string
+            suggested_domain:
+              type: string
+              example: production_tenders
+            confidence_score:
+              type: number
+              example: 0.96
+            columns_mapping:
+              type: array
+              items:
+                type: object
+                properties:
+                  source_column:
+                    type: string
+                  sample_values:
+                    type: array
+                    items:
+                      type: string
+                  target_field:
+                    type: string
+                    nullable: true
+                  confidence:
+                    type: number
+
+    MappingConfirmRequest:
+      type: object
+      required: [sheet_name, domain_category, mappings]
+      properties:
+        sheet_name:
+          type: string
+        domain_category:
+          type: string
+          enum: [production_tenders, cashflow_debt, payroll_hr, operational_tasks]
+        template_name:
+          type: string
+        mappings:
+          type: object
+          additionalProperties:
+            type: string
+
+    MappingConfirmResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            file_id:
+              type: string
+              format: uuid
+            status:
+              type: string
+              example: processed
+            imported_rows_count:
+              type: integer
+            alerts_triggered_count:
+              type: integer
+
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            financial_health:
+              type: object
+              properties:
+                current_cash_balance:
+                  type: number
+                is_cash_gap_predicted:
+                  type: boolean
+            production_health:
+              type: object
+              properties:
+                total_active_projects:
+                  type: integer
+                projects_at_risk_count:
+                  type: integer
+                total_calculated_penalties:
+                  type: number
+            alerts_overview:
+              type: object
+              properties:
+                critical_count:
+                  type: integer
+                warning_count:
+                  type: integer
+
+    ProjectsListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              project_name:
+                type: string
+              contract_sum:
+                type: number
+              completed_sum:
+                type: number
+              days_overdue:
+                type: integer
+              risk_level:
+                type: string
+
+    AlertsListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              severity:
+                type: string
+              title:
+                type: string
+              calculated_financial_impact:
+                type: number
+              is_resolved:
+                type: boolean

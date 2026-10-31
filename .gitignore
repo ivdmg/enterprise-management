@@ -1,13 +1,4 @@
-# Documentation, tasks and agent instructions
-docs/
-tasks/
-agents/
-# Allow React feature components in frontend/src/features/tasks/
-!frontend/src/features/tasks/
-!frontend/src/features/tasks/**
-
-# Markdown files
-*.md
+# Documentation and source files are versioned; secrets and generated files are not.
 
 # Local storage & uploads
 storage/
@@ -19,7 +10,6 @@ storage/
 credentials.json
 *service_account*.json
 .demo/
-!DEMO.md
 
 # Python / Backend
 __pycache__/
@@ -47,3 +37,7 @@ dist-ssr/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Private migration archives and cached customer workbooks
+private-transfer/
+*.private.zip
