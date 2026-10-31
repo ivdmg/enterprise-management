@@ -8,6 +8,7 @@ import { formatFileSize, formatDate } from '@/utils/format';
 import type { FileListItem } from '@/types';
 
 interface FilesTabProps {
+  readOnly?: boolean;
   onUploadClick: () => void;
   onFileSelect: (fileId: string, fileName: string) => void;
   onAccountantUploadClick?: () => void;
@@ -28,7 +29,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick }: FilesTabProps) {
+export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick, readOnly = false }: FilesTabProps) {
   const [files, setFiles] = useState<FileListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [driveLink, setDriveLink] = useState<string>();
@@ -61,7 +62,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
             Файлы и Google Диск
           </h2>
           <p className="text-xs text-[var(--text-sub)]">
-            Корпоративный реестр выгрузок 1С, актов КС-2 и проектной документации
+            Исходная таблица заказчика: реестр контрактов и ежедневный мониторинг
           </p>
         </div>
 
@@ -79,10 +80,10 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick 
             </button>
           )}
 
-          <Button onClick={onUploadClick} id="upload-file-btn">
+          {!readOnly && <Button onClick={onUploadClick} id="upload-file-btn">
             <Upload className="h-4 w-4" />
             Загрузить файл
-          </Button>
+          </Button>}
         </div>
       </div>
 

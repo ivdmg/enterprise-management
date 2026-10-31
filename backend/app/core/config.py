@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
 
     # Google Drive Bridge & Mock Settings
+    GOOGLE_DRIVE_SOURCE_FILE_ID: str = "1SYlY2lmUHZaLdi5JiK6duwihi1zoMZuPbGzBx4UtfHk"
     GOOGLE_DRIVE_MOCK: bool = True
     GOOGLE_DRIVE_CREDENTIALS_PATH: Path = Path("credentials.json")
     GOOGLE_SERVICE_ACCOUNT_JSON: str | None = None  # Base64-encoded or raw JSON string

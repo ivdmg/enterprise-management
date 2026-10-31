@@ -813,6 +813,15 @@ class StandardTemplateParser:
         db: AsyncSession,
     ) -> Tuple[str, int]:
         """Auto-detects template and parses records directly into database session."""
+        from app.services.customer_tenders import read_customer_workbook, persist_customer_workbook
+        if isinstance(file_source, bytes) and not filename.lower().endswith('.txt'):
+            try:
+                customer_data = read_customer_workbook(file_source)
+            except (__import__("zipfile").BadZipFile, openpyxl.utils.exceptions.InvalidFileException):
+                if filename.lower().endswith(('.xlsx', '.xlsm')): raise
+                customer_data = None
+            if customer_data is not None:
+                return await persist_customer_workbook(file_source, company_id, file_id, db)
         headers: Any = None
         if filename.lower().endswith(".txt"):
             if isinstance(file_source, bytes):

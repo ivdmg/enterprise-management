@@ -21,3 +21,6 @@ api_router.include_router(tasks_router)
 api_router.include_router(procurement_router)
 api_router.include_router(dispatch_router)
 
+
+from app.api.v1.customer_tenders import router as customer_tenders_router
+api_router.include_router(customer_tenders_router)

@@ -1,3 +1,4 @@
+import { CustomerTendersTab } from '@/features/dashboard/CustomerTendersTab';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthPage } from '@/features/auth/AuthPage';
@@ -48,18 +49,10 @@ export default function App() {
   }, [activeTab, dataVersion, isAuthenticated]);
 
   const tabs: TabItem[] = [
-    { id: 'summary', label: 'Сводка', shortLabel: 'Сводка' },
-    { id: 'tenders', label: 'Тендеры и объекты', shortLabel: 'Тендеры' },
-    { id: 'finance', label: 'Финансы и касса', shortLabel: 'Финансы' },
-    { id: 'procurement', label: 'Снабжение и закупки', shortLabel: 'Снабжение' },
-    { id: 'dispatch', label: 'Диспетчерская', shortLabel: 'Диспетчер' },
-    {
-      id: 'tasks',
-      label: 'Смарт-реестр задач',
-      shortLabel: 'Задачи',
-      badge: pendingAccountingCount > 0 ? pendingAccountingCount : undefined,
-    },
-    { id: 'files', label: 'Файлы и Google Диск', shortLabel: 'Файлы' },
+    {id:'summary',label:'Сводка',shortLabel:'Сводка'},
+    {id:'tenders',label:'Реестр контрактов',shortLabel:'Реестр'},
+    {id:'monitoring',label:'Ежедневный мониторинг',shortLabel:'Мониторинг'},
+    {id:'files',label:'Google Диск',shortLabel:'Источник'},
   ];
 
   // Loading state
@@ -77,6 +70,7 @@ export default function App() {
   }
 
   const renderTab = () => {
+    if (activeTab === 'summary' || activeTab === 'tenders' || activeTab === 'monitoring') return <CustomerTendersTab view={activeTab === 'summary' ? 'summary' : activeTab === 'monitoring' ? 'monitoring' : 'registry'} />;
     switch (activeTab) {
       case 'summary':
         return (
@@ -106,8 +100,9 @@ export default function App() {
       case 'files':
         return (
           <FilesTab
+            readOnly
             onUploadClick={() => setShowUpload(true)}
-            onAccountantUploadClick={() => setShowAccountantUpload(true)}
+
             onFileSelect={(id, name) => setMappingFile({ id, name })}
           />
         );
@@ -134,7 +129,6 @@ export default function App() {
         alertsCount={alertsCount}
         onSyncComplete={() => setDataVersion((v) => v + 1)}
         onAlertsClick={() => setShowAlerts(true)}
-        onOpenSettings={() => setActiveTab('settings')}
         onNavigateTab={(tab) => setActiveTab(tab)}
         activeTab={activeTab}
       />

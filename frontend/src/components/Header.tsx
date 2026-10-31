@@ -44,13 +44,10 @@ const periodOptions = [
 ];
 
 const NAVIGATION_SECTIONS = [
-  { id: 'summary', label: 'Сводка и риски', icon: LayoutDashboard },
-  { id: 'tenders', label: 'Тендеры и объекты', icon: Building2 },
-  { id: 'finance', label: 'Финансы и касса', icon: Wallet },
-  { id: 'procurement', label: 'Снабжение и закупки', icon: ShoppingBag },
-  { id: 'dispatch', label: 'Диспетчерская', icon: Radio },
-  { id: 'tasks', label: 'Смарт-реестр задач', icon: CheckSquare },
-  { id: 'files', label: 'Файлы и Google Диск', icon: FolderGit2 },
+ {id:'summary',label:'Сводка',icon:LayoutDashboard},
+ {id:'tenders',label:'Реестр контрактов',icon:Building2},
+ {id:'monitoring',label:'Ежедневный мониторинг',icon:CheckSquare},
+ {id:'files',label:'Google Диск',icon:FolderGit2},
 ];
 
 export function Header({
@@ -173,7 +170,7 @@ export function Header({
               value={period}
               onChange={onPeriodChange}
               size="sm"
-              className="w-24 sm:w-28 hidden lg:block"
+              className="hidden"
               id="header-period-select"
             />
 

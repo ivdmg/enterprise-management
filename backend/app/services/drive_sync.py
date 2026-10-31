@@ -138,6 +138,8 @@ class GoogleDriveSyncService:
 
                 # A mock root scan and a child scan may return the same document.
                 all_drive_files = list({f.id: f for f in all_drive_files}.values())
+                if not google_drive_client.is_mock and settings.GOOGLE_DRIVE_SOURCE_FILE_ID:
+                    all_drive_files = [f for f in all_drive_files if f.id == settings.GOOGLE_DRIVE_SOURCE_FILE_ID]
                 # 2. Process each file
                 for file_info in all_drive_files:
                     file_bytes = b""
@@ -300,7 +302,8 @@ class GoogleDriveSyncService:
 
                 # 3. Post-sync risk evaluation and alert updates
                 try:
-                    await alerts_engine.run_full_evaluation(company_id, session)
+                    if google_drive_client.is_mock or not settings.GOOGLE_DRIVE_SOURCE_FILE_ID:
+                        await alerts_engine.run_full_evaluation(company_id, session)
                     await session.commit()
                 except Exception as ae:
                     await session.rollback()

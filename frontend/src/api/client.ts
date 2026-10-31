@@ -82,6 +82,7 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
+  async getCustomerTenders(): Promise<import('@/features/dashboard/CustomerTendersTab').CustomerTender[]> { return request('/customer-tenders'); },
   // --- Auth ---
   async login(data: LoginRequest): Promise<AuthTokens> {
     if (USE_MOCKS) {
