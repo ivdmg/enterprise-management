@@ -9,6 +9,11 @@ import type { Alert } from '@/types';
 interface AlertsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  penaltiesOnly?: boolean;
+}
+
+export function isContractPenalty(alert: Alert) {
+  return alert.alert_type === 'DEADLINE_BREACH' && alert.calculated_financial_impact > 0;
 }
 
 function getSeverityIcon(severity: string) {
@@ -33,18 +38,21 @@ function getSeverityBadge(severity: string) {
   }
 }
 
-export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
+export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsDrawerProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [comment, setComment] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
+      setError('');
       apiClient
         .getAlerts()
         .then(setAlerts)
+        .catch(() => { setAlerts([]); setError('Не удалось загрузить уведомления.'); })
         .finally(() => setLoading(false));
     }
   }, [isOpen]);
@@ -65,8 +73,9 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
 
   if (!isOpen) return null;
 
-  const unresolvedAlerts = alerts.filter((a) => !a.is_resolved);
-  const resolvedAlerts = alerts.filter((a) => a.is_resolved);
+  const visibleAlerts = penaltiesOnly ? alerts.filter(isContractPenalty) : alerts;
+  const unresolvedAlerts = visibleAlerts.filter((a) => !a.is_resolved);
+  const resolvedAlerts = visibleAlerts.filter((a) => a.is_resolved);
 
   return (
     <>
@@ -78,7 +87,7 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
           <h2 className="text-base font-bold text-[var(--text-main)]">
-            Центр алертов
+            {penaltiesOnly ? 'Штрафы и неустойки' : 'Уведомления'}
           </h2>
           <button
             onClick={onClose}
@@ -95,7 +104,7 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
             <div className="flex items-center justify-center py-16">
               <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : (
+          ) : error ? <p className="p-5" role="alert">{error}</p> : (
             <div className="divide-y divide-[var(--card-border)]">
 
               {/* Active alerts */}
@@ -216,11 +225,11 @@ export function AlertsDrawer({ isOpen, onClose }: AlertsDrawerProps) {
                 </div>
               )}
 
-              {alerts.length === 0 && (
+              {visibleAlerts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center px-4">
                   <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-3" />
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Нет активных уведомлений
+                    {penaltiesOnly ? 'Нет записей с рассчитанной суммой санкций.' : 'Нет активных уведомлений'}
                   </p>
                 </div>
               )}

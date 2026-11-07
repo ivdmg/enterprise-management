@@ -107,9 +107,11 @@ class ProjectDashboardItem(BaseModel):
     penalty_amount_calculated: Decimal
     bank_guarantee_expiry: Optional[date] = None
     bg_risk_level: str = Field("ok", description="Bank guarantee risk level: 'critical' | 'warning' | 'ok'")
-    tender_stage: str = "preparation"
+    tender_stage: Optional[str] = "preparation"
     bank_guarantee: Optional[dict] = None
     google_drive_link: Optional[str] = None
+    imported_registry: bool = False
+    contract_amount_known: bool = True
 
 
 class PayrollDepartmentItem(BaseModel):
@@ -129,7 +131,9 @@ class DashboardPayrollData(BaseModel):
 
 
 class UpdateProjectTenderStageRequest(BaseModel):
-    tender_stage: str = Field(..., description="Stage: 'preparation' | 'submitted' | 'bidding' | 'won' | 'contract'")
+    tender_stage: str = Field(
+        ..., pattern="^(preparation|submitted|bidding|won|guarantee|contract|execution|acceptance)$"
+    )
 
 
 class UpdateProjectTenderStageResponse(BaseModel):

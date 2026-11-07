@@ -17,6 +17,7 @@ from app.models.task import OperationalTask
 from app.models.user import User
 from app.schemas.common import MetaModel, ResponseEnvelope
 from app.schemas.tasks import (
+    CreateTaskRequest,
     TaskItemResponse,
     UpdateTaskStatusRequest,
     UpdateTaskStatusResponse,
@@ -79,6 +80,20 @@ def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskIte
         file_id=str(task.file_id) if task.file_id else None,
         created_at=task.created_at,
     )
+
+
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=ResponseEnvelope[TaskItemResponse])
+async def create_task(
+    payload: CreateTaskRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ResponseEnvelope[TaskItemResponse]:
+    if payload.responsible_role and payload.responsible_role not in ROLE_IDS.values():
+        raise HTTPException(status_code=422, detail="Неизвестная роль исполнителя")
+    task = OperationalTask(company_id=current_user.company_id, file=None, **payload.model_dump())
+    db.add(task)
+    await db.flush()
+    return ResponseEnvelope.ok(map_task_to_response(task, datetime.now(timezone.utc).date()))
 
 
 @router.get(

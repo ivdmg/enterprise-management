@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             icon = <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />;
             borderStyle = 'border-amber-500/30';
           } else if (toast.type === 'info') {
-            icon = <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />;
+            icon = <Info className="h-5 w-5 text-neutral-600 dark:text-neutral-400 shrink-0" />;
           }
 
           return (

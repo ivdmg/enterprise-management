@@ -21,7 +21,7 @@ if (-not $running) {
     $server.Id | Set-Content -LiteralPath $pidFile
 }
 Write-Host 'Application: http://127.0.0.1:8080'
-Write-Host 'Demo credentials: .demo/access.json'
+Write-Host 'Sign in with the active viewer account.'
 if ($Share) {
     Push-Location $runtimeDir
     try {

@@ -28,22 +28,22 @@
 
 /* Light mode (White & Gray Bento-Box from reference screenshots) */
 :root, [data-theme="light"] {
-  --canvas-bg: #f8f9fa;
+  --canvas-bg: #f4f3f1;
   --header-bg: rgba(255, 255, 255, 0.95);
   --card-bg: #ffffff;
-  --card-border: #e4e4e7;
-  --card-subtle: #f4f4f5;
-  --card-subtle-border: #e4e4e7;
+  --card-border: #deddd9;
+  --card-subtle: #eeedea;
+  --card-subtle-border: #deddd9;
   
-  --text-main: #09090b;
-  --text-sub: #71717a;
-  --text-muted: #a1a1aa;
+  --text-main: #242321;
+  --text-sub: #65615b;
+  --text-muted: #77736e;
 
-  --btn-primary-bg: #09090b;
+  --btn-primary-bg: #242321;
   --btn-primary-text: #ffffff;
-  --btn-secondary-bg: #f4f4f5;
+  --btn-secondary-bg: #eeedea;
   --btn-secondary-text: #18181b;
-  --btn-secondary-border: #e4e4e7;
+  --btn-secondary-border: #deddd9;
 
   /* Semantic alert tokens (Dense corporate palette without pink/neon) */
   --semantic-success-bg: #ecfdf5;
@@ -63,22 +63,22 @@
 
 /* Dark mode (Clean corporate graphite & charcoal, zero reddish tint) */
 .dark, [data-theme="dark"] {
-  --canvas-bg: #0d0e11;
+  --canvas-bg: #171716;
   --header-bg: rgba(18, 19, 23, 0.95);
-  --card-bg: #17181c;
-  --card-border: #26272e;
-  --card-subtle: #131417;
-  --card-subtle-border: #222329;
+  --card-bg: #222221;
+  --card-border: #393836;
+  --card-subtle: #1d1d1c;
+  --card-subtle-border: #393836;
 
   --text-main: #f3f4f6;
-  --text-sub: #9ca3af;
-  --text-muted: #6b7280;
+  --text-sub: #b5b3ae;
+  --text-muted: #a09d96;
 
   --btn-primary-bg: #f3f4f6;
-  --btn-primary-text: #0d0e11;
-  --btn-secondary-bg: #1f2025;
+  --btn-primary-text: #171716;
+  --btn-secondary-bg: #292927;
   --btn-secondary-text: #e5e7eb;
-  --btn-secondary-border: #2a2b33;
+  --btn-secondary-border: #3d3b38;
 
   /* Semantic alert tokens (Dense corporate dark shades) */
   --semantic-success-bg: rgba(6, 78, 59, 0.45);

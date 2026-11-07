@@ -27,15 +27,18 @@ interface StageDefinition {
 }
 
 const STAGES: StageDefinition[] = [
-  { id: 'preparation', label: 'Подготовка', stepNumber: 1 },
+  { id: 'preparation', label: 'ТЗ', stepNumber: 1 },
   { id: 'submitted', label: 'Подано', stepNumber: 2 },
   { id: 'bidding', label: 'Торги', stepNumber: 3 },
   { id: 'won', label: 'Победа', stepNumber: 4 },
-  { id: 'contract', label: 'Контракт', stepNumber: 5 },
+  { id: 'guarantee', label: 'БГ', stepNumber: 5 },
+  { id: 'contract', label: 'Контракт', stepNumber: 6 },
+  { id: 'execution', label: 'СМР', stepNumber: 7 },
+  { id: 'acceptance', label: 'КС-2', stepNumber: 8 },
 ];
 
-function getStageIndex(stage?: TenderStage): number {
-  if (!stage) return 0;
+function getStageIndex(stage?: TenderStage | null): number {
+  if (!stage) return -1;
   const idx = STAGES.findIndex((s) => s.id === stage);
   return idx >= 0 ? idx : 0;
 }
@@ -56,7 +59,7 @@ function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
   if (!bg) {
     return (
       <span className="text-xs text-[var(--text-muted)] font-normal">
-        Не требуется
+        Не указана
       </span>
     );
   }
@@ -135,6 +138,7 @@ export interface ProjectsTabProps {
 export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTabProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [riskFilter, setRiskFilter] = useState<string>('all');
@@ -181,6 +185,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
     apiClient
       .getProjects()
       .then(setProjects)
+      .catch(() => setError('Не удалось загрузить объекты.'))
       .finally(() => setLoading(false));
   };
 
@@ -206,6 +211,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
     const { project, targetStage } = pendingStageChange;
     const projectId = project.id;
     const newStage = targetStage.id;
+    setError('');
 
     setUpdatingId(projectId);
     setProjects((prev) =>
@@ -215,8 +221,8 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
 
     try {
       await apiClient.updateProjectTenderStage(projectId, newStage);
-    } catch (err) {
-      console.error('Failed to update stage:', err);
+    } catch {
+      setError('Не удалось изменить этап. Проверьте доступ и попробуйте снова.');
       loadProjects();
     } finally {
       setUpdatingId(null);
@@ -237,7 +243,8 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
     return true;
   });
 
-  const totalContractSum = filteredProjects.reduce((acc, p) => acc + p.contract_sum, 0);
+  const knownAmounts = filteredProjects.filter(project => project.contract_amount_known !== false);
+  const totalContractSum = knownAmounts.reduce((acc, p) => acc + p.contract_sum, 0);
   const criticalBgCount = projects.filter(
     (p) => p.bank_guarantee && p.bank_guarantee.days_remaining < 5
   ).length;
@@ -256,6 +263,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
 
   return (
     <div className="space-y-4" id="projects-tab-section">
+      {error && <p className="workspace-warning" role="alert">{error}</p>}
       {/* Top Header & Summary Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -280,7 +288,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
             </div>
           )}
           <div className="px-3 py-1.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-sub)] text-xs font-medium border border-[var(--card-border)]">
-            Портфель: <span className="font-mono font-semibold text-[var(--text-main)]">{formatCurrency(totalContractSum)}</span>
+            Портфель: <span className="font-mono font-semibold text-[var(--text-main)]">{knownAmounts.length ? formatCurrency(totalContractSum) : '—'}</span>
           </div>
         </div>
       </div>
@@ -498,9 +506,9 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                         )}
                       </td>
 
-                      {/* 2. Linear Stepper (35%) - Все 5 стадий с названиями */}
+                      {/* Tender stage controls */}
                       <td className="px-3 py-3.5 align-middle overflow-hidden max-w-0">
-                        <div className="grid grid-cols-5 gap-1 w-full">
+                        <div className="grid grid-cols-4 gap-1 w-full">
                           {STAGES.map((stage, idx) => {
                             const isCompleted = idx < currentStageIdx;
                             const isCurrent = idx === currentStageIdx;
@@ -539,9 +547,9 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
 
                       {/* 4. Contract Sum (12%) */}
                       <td className="px-3 py-3.5 text-right font-mono text-[var(--text-main)] align-middle">
-                        <p className="font-bold whitespace-nowrap">{formatCurrency(project.contract_sum)}</p>
+                        <p className="font-bold whitespace-nowrap">{project.contract_amount_known === false ? '—' : formatCurrency(project.contract_sum)}</p>
                         <div className="flex items-center justify-end gap-1.5 text-[11px] text-[var(--text-sub)] mt-0.5">
-                          <span>{formatPercent(project.completion_percent || 0)}</span>
+                          <span>{project.imported_registry ? '—' : formatPercent(project.completion_percent || 0)}</span>
                           <span className="text-[var(--text-muted)]">КС-2</span>
                         </div>
                       </td>
@@ -557,7 +565,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                           </p>
                         ) : (
                           <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 whitespace-nowrap">
-                            В графике
+                            {project.deadline_date ? 'В графике' : 'Срок не указан'}
                           </p>
                         )}
                       </td>
@@ -565,7 +573,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                       {/* 6. Risk Badge (7%) - С хорошим отступом от правого края */}
                       <td className="pl-2 pr-6 py-3.5 text-center align-middle">
                         <div className="flex items-center justify-center max-w-[80px] mx-auto">
-                          {getRiskBadge(project.risk_level)}
+                          {project.imported_registry && !project.deadline_date ? <Badge variant='neutral'>Нет даты</Badge> : getRiskBadge(project.risk_level)}
                         </div>
                       </td>
                     </tr>
@@ -625,7 +633,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                         </a>
                       </div>
                     </div>
-                    {getRiskBadge(project.risk_level)}
+                    {project.imported_registry && !project.deadline_date ? <Badge variant='neutral'>Нет даты</Badge> : getRiskBadge(project.risk_level)}
                   </div>
 
                   {/* Stepper in Mobile Card: 5 Equal Columns, No Overflow */}
@@ -633,7 +641,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
                       Стадия закупки (нажмите для смены):
                     </span>
-                    <div className="grid grid-cols-5 gap-1 w-full pt-1">
+                    <div className="grid grid-cols-4 gap-1 w-full pt-1">
                       {STAGES.map((stage, idx) => {
                         const isCompleted = idx < currentStageIdx;
                         const isCurrent = idx === currentStageIdx;
@@ -672,7 +680,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                     <div className="bg-[var(--card-subtle)] p-2.5 rounded-xl border border-[var(--card-border)]">
                       <span className="text-[10px] uppercase font-medium text-[var(--text-muted)]">Сумма договора</span>
                       <p className="text-sm font-semibold font-mono text-[var(--text-main)] mt-0.5">
-                        {formatCurrency(project.contract_sum)}
+                        {project.contract_amount_known === false ? '—' : formatCurrency(project.contract_sum)}
                       </p>
                     </div>
                     <div className="bg-[var(--card-subtle)] p-2.5 rounded-xl border border-[var(--card-border)]">
@@ -692,7 +700,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs text-[var(--text-sub)]">
                       <span>Выполнение работ</span>
-                      <span className="font-mono font-medium text-[var(--text-main)]">{formatPercent(project.completion_percent || 0)}</span>
+                      <span className="font-mono font-medium text-[var(--text-main)]">{project.imported_registry ? '—' : formatPercent(project.completion_percent || 0)}</span>
                     </div>
                     <div className="h-2 bg-[var(--card-subtle)] rounded-full overflow-hidden border border-[var(--card-border)]">
                       <div
@@ -738,10 +746,10 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
               <strong className="text-[var(--text-main)]">
                 «{pendingStageChange.project.project_name}»
               </strong>{' '}
-              на новый этап? Это изменит контрольные сроки и регламентный чек-лист работ.
+              на новый этап? Изменение сохранится в истории объекта.
             </span>
           }
-          currentStatusLabel={currentStageDef?.label || 'Текущая'}
+          currentStatusLabel={currentStageDef?.label || 'Не указана'}
           newStatusLabel={pendingStageChange.targetStage.label}
           confirmText="Перевести этап"
           cancelText="Отмена"

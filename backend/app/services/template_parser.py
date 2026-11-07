@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openpyxl
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.dispatch import FleetDispatchRecord
@@ -671,23 +671,15 @@ class StandardTemplateParser:
         - Matches payroll / cash ('заработная плата / под отчет') -> creates or links to PayrollRecord.
         - Persists all operations into CashflowOperation.
         """
-        raw_text = ""
-        if isinstance(file_source, bytes):
-            # Try Windows-1251 then UTF-8
-            try:
-                raw_text = file_source.decode("cp1251")
-            except UnicodeDecodeError:
-                raw_text = file_source.decode("utf-8", errors="replace")
-        elif isinstance(file_source, (Path, str)):
-            p = Path(file_source)
-            try:
-                raw_text = p.read_text(encoding="cp1251")
-            except UnicodeDecodeError:
-                raw_text = p.read_text(encoding="utf-8", errors="replace")
+        content = file_source if isinstance(file_source, bytes) else Path(file_source).read_bytes()
+        try:
+            raw_text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raw_text = content.decode("cp1251", errors="replace")
 
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
         if not lines:
-            return 0
+            raise DocumentValidationError("Выписка пуста")
 
         # Verify header
         header_found = any("1cclientbankexchange" in line.lower() for line in lines[:10])
@@ -723,19 +715,24 @@ class StandardTemplateParser:
             doc_type = doc.get("_doc_type", "")
             doc_num = doc.get("Номер", "")
             doc_date_str = doc.get("Дата", "")
-            raw_sum = doc.get("Сумма", "0")
+            raw_sum = doc.get("Сумма")
             payer = doc.get("Плательщик", "") or doc.get("Плательщик1", "")
             receiver = doc.get("Получатель", "") or doc.get("Получатель1", "")
             purpose = doc.get("НазначениеПлатежа", "")
             payer_account = doc.get("ПлательщикРасчСчет", "")
 
-            op_date = clean_date(doc_date_str) or date.today()
-            amount = clean_decimal(raw_sum)
+            op_date = clean_date(doc_date_str)
+            try:
+                amount = clean_decimal(raw_sum, raise_on_error=True) if raw_sum else None
+            except ValueError:
+                amount = None
+            if op_date is None or amount is None or amount <= 0:
+                raise DocumentValidationError(f"Проверьте дату и сумму платежа № {doc_num or 'без номера'}")
             purpose_lower = purpose.lower()
 
             # Determine direction: payment order outgoing or incoming
             direction = CashflowDirection.OUTGOING
-            if "аккредитив" in doc_type.lower() or "поступление" in doc_type.lower():
+            if doc.get("ДатаПоступило") or "поступление" in doc_type.lower():
                 direction = CashflowDirection.INCOMING
             counterparty = receiver if direction == CashflowDirection.OUTGOING else payer
 
@@ -764,21 +761,18 @@ class StandardTemplateParser:
 
             elif is_procurement:
                 dds_article = "Оплата ТМЦ и материалов"
-                # Search for invoice number in purpose e.g. "оплата по счету № 123"
-                invoice_match = re.search(r"(?:счет[у]?|счет)\s*(?:№|no\.?|\#)?\s*([A-Za-z0-9\-\/]+)", purpose_lower)
-                supplier_term = counterparty[:50] if counterparty else ""
-
-                # Try updating matching ProcurementItem status to 'Оплачено'
-                stmt = select(ProcurementItem).where(
-                    ProcurementItem.company_id == company_id,
-                    ProcurementItem.deleted_at.is_(None),
-                )
-                if supplier_term:
-                    stmt = stmt.where(ProcurementItem.supplier.ilike(f"%{supplier_term[:20]}%"))
-                proc_items = (await db.execute(stmt)).scalars().all()
-                for item in proc_items:
-                    if item.status != "Оплачено":
-                        item.status = "Оплачено"
+                if direction == CashflowDirection.OUTGOING and counterparty:
+                    stmt = select(ProcurementItem).where(
+                        ProcurementItem.company_id == company_id,
+                        ProcurementItem.deleted_at.is_(None),
+                        func.lower(func.trim(ProcurementItem.supplier)) == counterparty.casefold(),
+                        ProcurementItem.invoice_amount == amount,
+                    ).limit(2).with_for_update()
+                    matches = (await db.execute(stmt)).scalars().all()
+                    if len(matches) == 1 and matches[0].status.lower().replace("_", " ") in {
+                        "счет на оплате", "счёт на оплате", "invoice pending",
+                    }:
+                        matches[0].status = "Оплачено"
 
             # Create CashflowOperation
             new_op = CashflowOperation(

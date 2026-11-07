@@ -57,8 +57,8 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
     id: 'in_transit',
     label: 'В пути',
     badgeClass:
-      'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-900/50',
-    dotColor: 'bg-blue-500',
+      'bg-neutral-50 text-neutral-700 dark:bg-neutral-950/40 dark:text-neutral-300 border-neutral-200 dark:border-neutral-900/50',
+    dotColor: 'bg-neutral-500',
     icon: Truck,
     nextStatus: 'delivered',
     nextLabel: 'Принять на объекте',
@@ -73,10 +73,11 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
   },
 };
 
-export function ProcurementTab() {
+export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) {
   const [items, setItems] = useState<ProcurementItemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deliveryRisk, setDeliveryRisk] = useState(dueOnly);
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
@@ -170,7 +171,10 @@ export function ProcurementTab() {
   ];
 
   // Filtering
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const deadline = new Date(Date.parse(today) + 7 * 86_400_000).toISOString().slice(0, 10);
   const filteredItems = items.filter((item) => {
+    if (deliveryRisk && (item.status !== 'invoice_pending' || !item.delivery_deadline || item.delivery_deadline > deadline)) return false;
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     if (projectFilter !== 'all' && item.project_name !== projectFilter) return false;
     if (searchQuery.trim()) {
@@ -216,6 +220,10 @@ export function ProcurementTab() {
 
   return (
     <div className="space-y-4" id="procurement-tab-section">
+      {deliveryRisk && <div className="workspace-panel flex flex-wrap items-center justify-between gap-3">
+        <div><h2>Счета на оплате · контроль поставки</h2><p>Показаны счета с просроченной поставкой или сроком в ближайшие семь дней.</p></div>
+        <button className="workspace-link" onClick={() => setDeliveryRisk(false)}>Показать все счета</button>
+      </div>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -275,9 +283,9 @@ export function ProcurementTab() {
 
         {/* 3. В пути */}
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] space-y-2">
-          <div className="flex items-center justify-between text-xs text-blue-700 dark:text-blue-400">
+          <div className="flex items-center justify-between text-xs text-neutral-700 dark:text-neutral-400">
             <span className="font-semibold uppercase tracking-wider text-[10px]">3. Логистика</span>
-            <Truck className="h-4 w-4 text-blue-500" />
+            <Truck className="h-4 w-4 text-neutral-500" />
           </div>
           <div>
             <span className="text-2xl font-bold font-mono text-[var(--text-main)]">{transitCount}</span>

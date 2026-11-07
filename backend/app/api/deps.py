@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    request: Request = None,
 ) -> User:
     """
     Core multi-tenancy dependency.
@@ -101,6 +102,12 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Доступ заблокирован: компания деактивирована",
+        )
+
+    if request is not None and user.role == UserRole.VIEWER and request.method not in {"GET", "HEAD", "OPTIONS"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Учётная запись доступна только для просмотра",
         )
 
     return user

@@ -1,8 +1,8 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, Optional
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from app.models.enums import TaskPriority, TaskStatus
 
 
@@ -35,6 +35,15 @@ class TaskItemResponse(BaseModel):
 
 class UpdateTaskStatusRequest(BaseModel):
     status: str = Field(..., description="Новый статус задачи: pending, in_progress, completed, approved_closed")
+
+
+class CreateTaskRequest(BaseModel):
+    task_title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    related_contract: Optional[str] = Field(None, max_length=255)
+    responsible_person: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+    responsible_role: Optional[str] = Field(None, max_length=100)
+    due_date: date
+    estimated_penalty_amount: Decimal = Field(Decimal("0.00"), ge=0, max_digits=15, decimal_places=2)
 
 
 class UpdateTaskStatusResponse(BaseModel):

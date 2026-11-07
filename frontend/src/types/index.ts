@@ -216,7 +216,7 @@ export interface FinanceData {
 }
 
 // --- Projects & Tenders ---
-export type TenderStage = 'preparation' | 'submitted' | 'bidding' | 'won' | 'contract';
+export type TenderStage = 'preparation' | 'submitted' | 'bidding' | 'won' | 'guarantee' | 'contract' | 'execution' | 'acceptance';
 
 export interface BankGuaranteeInfo {
   bank_name: string;
@@ -243,13 +243,16 @@ export interface Project {
   days_overdue: number;
   risk_level: 'critical' | 'warning' | 'normal';
   penalty_amount_calculated?: number;
-  tender_stage?: TenderStage;
+  tender_stage?: TenderStage | null;
+  imported_registry?: boolean;
+  contract_amount_known?: boolean;
   bank_guarantee?: BankGuaranteeInfo;
 }
 
 // --- Alerts ---
 export interface Alert {
   id: string;
+  alert_type?: string;
   severity: 'CRITICAL' | 'WARNING' | 'INFO';
   title: string;
   description?: string;

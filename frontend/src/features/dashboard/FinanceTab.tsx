@@ -11,20 +11,34 @@ import {
 } from 'recharts';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
+import { Select } from '@/components/Select';
 import { apiClient } from '@/api/client';
 import { formatCurrency, formatCurrencyShort, formatShortDate } from '@/utils/format';
 import type { FinanceData } from '@/types';
 
 export function FinanceTab() {
+  const [period, setPeriod] = useState('month');
+  return <div className="space-y-4">
+    <Select ariaLabel="Период финансов" className="workspace-filter" value={period} onChange={setPeriod} options={[
+      { value: 'month', label: 'Этот месяц' },
+      { value: 'quarter', label: 'Последние 90 дней' },
+      { value: 'year', label: 'Этот год' },
+    ]} />
+    <FinancePeriod key={period} period={period} />
+  </div>;
+}
+
+function FinancePeriod({ period }: { period: string }) {
   const [data, setData] = useState<FinanceData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     apiClient
-      .getFinanceData()
+      .getFinanceData(period)
       .then(setData)
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [period]);
 
   if (loading) {
     return (
@@ -34,7 +48,10 @@ export function FinanceTab() {
     );
   }
 
-  if (!data) return null;
+  if (!data) return <Card><p role="alert">Не удалось загрузить финансовые данные.</p></Card>;
+  if (!data.dynamics.length && !data.top_debtors.length && !data.top_creditors.length) {
+    return <Card><h2 className="font-semibold">Нет финансовых данных за выбранный период</h2><p className="mt-1 text-sm text-[var(--text-sub)]">Поступления и расходы появятся после импорта банковской выписки.</p></Card>;
+  }
 
   const chartData = data.dynamics.map((d) => ({
     ...d,
@@ -122,16 +139,17 @@ export function FinanceTab() {
               <Area
                 type="monotone"
                 dataKey="incoming"
-                stroke="#16A34A"
-                fill="#16A34A"
+                stroke="var(--text-main)"
+                fill="var(--text-main)"
                 fillOpacity={0.15}
                 strokeWidth={2}
               />
               <Area
                 type="monotone"
                 dataKey="outgoing"
-                stroke="#DC2626"
-                fill="#DC2626"
+                stroke="var(--text-sub)"
+                fill="var(--text-sub)"
+                strokeDasharray="5 4"
                 fillOpacity={0.15}
                 strokeWidth={2}
               />

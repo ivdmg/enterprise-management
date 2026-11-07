@@ -6,7 +6,7 @@ import { apiClient } from '@/api/client';
 import { formatFileSize } from '@/utils/format';
 import type { FileUploadData } from '@/types';
 
-const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv', '.txt'];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 interface FileUploadModalProps {
@@ -119,12 +119,12 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
               Перетащите файл сюда
             </p>
             <p className="text-xs text-[var(--text-sub)] mt-1">
-              или нажмите для выбора (.xlsx, .xls, .csv, до 25 МБ)
+              или нажмите для выбора (.xlsx, .xls, .csv, .txt до 25 МБ)
             </p>
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.xls,.csv,.txt"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

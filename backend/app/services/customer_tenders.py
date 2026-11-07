@@ -81,5 +81,9 @@ async def persist_customer_workbook(content,company_id,file_id,db):
         project.status=str(values[16] or 'Не указан')[:50] if r else 'Не указан'
         project.deadline_date=None
         project.bank_guarantee_expiry=None
-        project.custom_attributes={'customer_tenders':True,'registry':r,'monitoring':m,'registry_columns':data['Реест Ольга']['columns'],'monitoring_columns':data['Ежедневный мониторинг']['columns'],'contract_amount_known':amount is not None,'source_warnings':{name:sheet['warnings'] for name,sheet in data.items()} if identifier==first_key else {}}
+        attributes = {'customer_tenders':True,'registry':r,'monitoring':m,'registry_columns':data['Реест Ольга']['columns'],'monitoring_columns':data['Ежедневный мониторинг']['columns'],'contract_amount_known':amount is not None,'source_warnings':{name:sheet['warnings'] for name,sheet in data.items()} if identifier==first_key else {}}
+        stage = (project.custom_attributes or {}).get('tender_stage')
+        if stage:
+            attributes['tender_stage'] = stage
+        project.custom_attributes = attributes
     return 'customer_tenders',len(registry.keys() | monitoring.keys())

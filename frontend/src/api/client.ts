@@ -352,6 +352,17 @@ export const apiClient = {
   },
 
   // --- Tasks & Smart Register ---
+  async createTask(data: {
+    task_title: string;
+    related_contract?: string;
+    responsible_person: string;
+    responsible_role?: string;
+    due_date: string;
+    estimated_penalty_amount?: string;
+  }): Promise<TaskItem> {
+    return request<TaskItem>('/tasks', { method: 'POST', body: JSON.stringify(data) });
+  },
+
   async getTasks(params?: {
     role?: string;
     urgent?: boolean;

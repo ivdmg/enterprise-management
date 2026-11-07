@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import {
   CheckSquare,
   Flame,
@@ -20,8 +20,10 @@ import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
 import { Select } from '@/components/Select';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { Modal } from '@/components/Modal';
 import { apiClient } from '@/api/client';
 import { useRole } from '@/context/RoleContext';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { formatDate, formatCurrency } from '@/utils/format';
 import type { TaskItem, TaskWorkflowStatus } from '@/types';
@@ -83,6 +85,7 @@ const WORKFLOW_OPTIONS: { status: TaskWorkflowStatus; label: string }[] = [
 
 export function TasksTab() {
   const { activeRole, currentRoleDef } = useRole();
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -92,6 +95,8 @@ export function TasksTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [taskLoadError, setTaskLoadError] = useState(false);
 
   // Mobile Accordion state: set of expanded task IDs (FE-5.2)
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
@@ -123,6 +128,7 @@ export function TasksTab() {
       .then((data) => {
         if (mounted) setTasks(data);
       })
+      .catch(() => { if (mounted) setTaskLoadError(true); })
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -261,6 +267,7 @@ export function TasksTab() {
 
   return (
     <div className="space-y-4" id="tasks-tab-section">
+      {taskLoadError && <p className="workspace-warning" role="alert">Не удалось загрузить задачи.</p>}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -274,15 +281,19 @@ export function TasksTab() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-sub)]">
-            Активная роль: <strong className="text-[var(--text-main)]">{currentRoleDef.shortName}</strong>
-          </span>
-          <span className="text-xs text-[var(--text-muted)]">·</span>
           <span className="text-xs font-mono font-semibold text-[var(--text-main)]">
             {filteredTasks.length} из {totalCount} задач
           </span>
+          {(user?.role === 'manager' || user?.role === 'admin') && <button className="workspace-link" onClick={() => setCreating(true)}>Новое поручение</button>}
         </div>
       </div>
+      {creating && <NewTaskModal onClose={() => setCreating(false)} onCreated={task => {
+        setTasks(items => [task, ...items]);
+        setQuickFilter('all');
+        setRoleFilter('all');
+        setSearchQuery('');
+        setCreating(false);
+      }} />}
 
       {/* Accounting Pending Alert Box */}
       {accountingPendingTasks.length > 0 && (
@@ -851,4 +862,53 @@ export function TasksTab() {
       )}
     </div>
   );
+}
+
+function NewTaskModal({ onClose, onCreated }: { onClose: () => void; onCreated: (task: TaskItem) => void }) {
+  const [role, setRole] = useState('manager');
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const title = String(form.get('title') ?? '').trim();
+    const person = String(form.get('person') ?? '').trim();
+    if (!title || !person) {
+      setError('Укажите поручение и ответственного.');
+      return;
+    }
+    setPending(true);
+    setError('');
+    try {
+      const task = await apiClient.createTask({
+        task_title: title,
+        related_contract: String(form.get('contract') ?? '').trim() || undefined,
+        responsible_person: person,
+        responsible_role: role,
+        due_date: String(form.get('due') ?? ''),
+        estimated_penalty_amount: String(form.get('penalty') ?? '') || undefined,
+      });
+      onCreated(task);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Не удалось сохранить поручение.');
+      setPending(false);
+    }
+  }
+
+  const input = 'mt-1 block w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2';
+  return <Modal isOpen title="Новое поручение" onClose={() => { if (!pending) onClose(); }}>
+    <form className="space-y-3 p-1 text-sm" onSubmit={submit}>
+      <label className="block">Поручение<input className={input} name="title" maxLength={500} required /></label>
+      <label className="block">Объект или номер контракта<input className={input} name="contract" maxLength={255} /></label>
+      <label className="block">Ответственный<input className={input} name="person" maxLength={255} required /></label>
+      <Select ariaLabel="Роль исполнителя" className="w-full" value={role} onChange={setRole} options={ENTERPRISE_ROLES.map(item => ({ value: item.id, label: item.shortName }))} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">Срок<input className={input} name="due" type="date" required /></label>
+        <label className="block">Оценка штрафа, ₽<input className={input} name="penalty" type="number" min="0" max="9999999999999.99" step="0.01" /></label>
+      </div>
+      {error && <p className="workspace-warning" role="alert">{error}</p>}
+      <button className="workspace-link workspace-auth-submit" type="submit" disabled={pending}>{pending ? 'Сохраняем…' : 'Создать поручение'}</button>
+    </form>
+  </Modal>;
 }

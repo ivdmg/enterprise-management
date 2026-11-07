@@ -14,6 +14,7 @@ export interface SelectProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  ariaLabel?: string;
   disabled?: boolean;
   size?: 'sm' | 'md';
 }
@@ -25,6 +26,7 @@ export function Select({
   placeholder = 'Выберите...',
   className = '',
   id,
+  ariaLabel,
   disabled = false,
   size = 'md',
 }: SelectProps) {
@@ -144,6 +146,8 @@ export function Select({
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label={ariaLabel ? `${ariaLabel}: ${selected?.label ?? placeholder}` : undefined}
+        aria-controls={isOpen ? `${selectId}-options` : undefined}
         className={`w-full flex items-center justify-between gap-2 border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] hover:bg-[var(--card-subtle)] hover:border-[var(--card-subtle-border)] transition-colors focus:outline-none focus:ring-1 focus:ring-[var(--card-border)] shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
           sizeClasses[size]
         }`}
@@ -165,6 +169,8 @@ export function Select({
       {isOpen && (
         <div
           ref={listRef}
+          id={`${selectId}-options`}
+          aria-label={ariaLabel ?? placeholder}
           role="listbox"
           tabIndex={-1}
           className={`absolute z-[100] w-full min-w-[200px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-2xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)] ${
@@ -182,6 +188,7 @@ export function Select({
                 role="option"
                 aria-selected={isSelected}
                 type="button"
+                tabIndex={-1}
                 onClick={() => {
                   onChange(option.value);
                   setIsOpen(false);

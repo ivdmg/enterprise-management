@@ -307,6 +307,16 @@ async def upload_excel_file(
         status=FileStatus.AWAITING_CONFIRMATION,
     )
     db.add(uploaded_file)
+    if ext == ".txt":
+        await db.flush()
+        await StandardTemplateParser.parse_and_persist(
+            file_source=content,
+            filename=orig_name,
+            company_id=current_user.company_id,
+            file_id=uploaded_file.id,
+            db=db,
+        )
+        uploaded_file.status = FileStatus.PROCESSED
     await db.commit()
     await db.refresh(uploaded_file)
 

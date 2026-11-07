@@ -483,6 +483,8 @@ async def get_dashboard_projects(
 
     items: List[ProjectDashboardItem] = []
     for p in projects:
+        attributes = p.custom_attributes or {}
+        imported_registry = bool(attributes.get("customer_tenders"))
         comp_pct = (
             float((p.completed_sum / p.contract_sum) * 100)
             if p.contract_sum > Decimal("0.00")
@@ -511,14 +513,16 @@ async def get_dashboard_projects(
                 penalty_amount_calculated=p.penalty_amount_calculated,
                 bank_guarantee_expiry=bg_expiry,
                 bg_risk_level=bg_risk_level,
-                tender_stage=(p.custom_attributes or {}).get("tender_stage") or {
+                tender_stage=attributes.get("tender_stage") or {
                     "Подготовка": "preparation", "Подано": "submitted", "Торги": "bidding",
                     "Победа": "won", "Контракт": "contract", "Исполнено": "contract",
-                }.get(p.status, "contract"),
+                }.get(p.status, None if imported_registry else "contract"),
                 bank_guarantee={"expiry_date": bg_expiry.isoformat(), "days_remaining": (bg_expiry - today).days,
                     "is_critical": bg_risk_level == "critical", "amount": float(p.application_guarantee_sum or 0),
                     "bank_name": "Банк не указан в реестре"} if bg_expiry else None,
                 google_drive_link=source_links.get(p.file_id),
+                imported_registry=imported_registry,
+                contract_amount_known=not imported_registry or bool(attributes.get("contract_amount_known")),
             )
         )
 
@@ -611,7 +615,7 @@ async def update_project_tender_stage(
         TenderProject.id == project_id,
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
-    )
+    ).with_for_update()
     res = await db.execute(q)
     project = res.scalar_one_or_none()
     if not project:
