@@ -1,6 +1,9 @@
+import { motion, useReducedMotion } from 'motion/react';
+import { BeamInput } from '@/components/FieldBeam';
 import { Activity, ArrowRight, ArrowUpRight, CalendarClock, CircleAlert, Database, FileText, Scale, Search, Workflow } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
+import { demoMode } from '@/api/mode';
 import { Select } from '@/components/Select';
 import type { DriveSyncStatus } from '@/types';
 
@@ -25,6 +28,7 @@ const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'sh
 const syncFormat = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Astrakhan' });
 const money = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 2 });
 const day = 86_400_000;
+const OverviewCharts = lazy(() => import('./OverviewCharts').then(module => ({ default: module.OverviewCharts })));
 
 function field(row: SourceRow | null, index: number) {
   const value = row?.values[index];
@@ -72,18 +76,21 @@ function SourceLink({ href }: { href: string | null | undefined }) {
   return <a className="workspace-link" href={href} target="_blank" rel="noreferrer">Открыть Google Таблицу <ArrowUpRight size={16} /></a>;
 }
 
-export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts, onOpenProcurement }: {
+export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts, onOpenProcurement, onOpenFinance }: {
   view: TenderView;
   onViewChange: (view: TenderView) => void;
   penalties: number | null;
   onOpenAlerts: () => void;
   onOpenProcurement: () => void;
+  onOpenFinance: () => void;
 }) {
+  const reducedMotion = useReducedMotion();
   const [rows, setRows] = useState<CustomerTender[] | null>(null);
   const [error, setError] = useState('');
   const [request, setRequest] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const [limit, setLimit] = useState(12);
   const [sync, setSync] = useState<DriveSyncStatus | null>(null);
 
@@ -95,7 +102,10 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
   }, [request]);
 
   useEffect(() => {
-    if (view !== 'monitoring') setFilter('all');
+    if (view !== 'monitoring') {
+      setFilter('all');
+      setFocusedId(null);
+    }
     setSearch('');
     setLimit(12);
   }, [view]);
@@ -114,11 +124,21 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
   const source = rows?.find(row => row.link)?.link;
   const syncedAt = Date.parse(sync?.last_synced_at ?? '');
   const registryCount = records.filter(({ row }) => row.registry).length;
+  const statusCounts = new Map<string, number>();
+  if (view === 'summary') for (const { row } of records) {
+    if (!row.registry) continue;
+    const status = field(row.registry, 16) || 'Без статуса';
+    statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+  }
+  const statuses = [...statusCounts].sort((a, b) => b[1] - a[1]);
+  const statusChart = statuses.slice(0, 3).map(([name, value]) => ({ name, value }));
+  if (statuses.length > 3) statusChart.push({ name: 'Остальные', value: statuses.slice(3).reduce((sum, [, value]) => sum + value, 0) });
   const deadlineCount = records.filter(({ row }) => dateValue(field(row.registry, 18)) !== null).length;
   const monitoringCount = records.filter(({ row }) => row.monitoring).length;
   const warningCount = records.reduce((sum, { row }) => sum + Object.values(row.source_warnings ?? {}).reduce((n, warnings) => n + warnings.length, 0), 0);
   const monitoring = view === 'monitoring';
   const filtered = records.filter(({ row, flags }) =>
+    (!monitoring || focusedId === null || row.id === focusedId) &&
     (monitoring ? row.monitoring || flags.length : row.registry) &&
     (filter === 'all' || flags.some(flag => flag.kind === filter)) &&
     [row.number, field(row.registry, 9), field(row.registry, 1), field(row.monitoring, 1), field(row.registry, 3), field(row.monitoring, 3)]
@@ -128,41 +148,67 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
       (a.flags.find(flag => flag.date)?.date ?? '9999').localeCompare(b.flags.find(flag => flag.date)?.date ?? '9999')
     : 0);
 
-  function openMonitoring(next: Filter) {
+  function openMonitoring(next: Filter, id: string | null = null) {
     setFilter(next);
+    setFocusedId(id);
     onViewChange('monitoring');
   }
 
-  return <>
-    <header className="workspace-heading">
+  return <div key={view} className="workspace-reveal">
+    {view !== 'summary' && <header className="workspace-heading workspace-pagebar">
       <div><div className="workspace-eyebrow"><span /> УПРАВЛЕНИЕ ТЕНДЕРАМИ</div><h1>{labels[view][0]}</h1><p>{labels[view][1]}</p></div>
-      <SourceLink href={source} />
-    </header>
+      <div className="workspace-pagebar-actions">
+        {(view === 'registry' || monitoring) && rows && rows.length > 0 && <>
+          <div className="workspace-controls">
+          <label className="workspace-search"><Search size={18} /><BeamInput aria-label="Поиск по записям" placeholder="Заказчик, город или номер" value={search} onChange={e => { setSearch(e.target.value); setLimit(12); }} /></label>
+          {monitoring && <Select ariaLabel="Фильтр по сигналам" className="workspace-filter" value={filter} options={Object.entries(filters).map(([value, label]) => ({ value, label }))} onChange={value => { setFilter(value as Filter); setLimit(12); }} />}
+          {monitoring && focusedId && <button className="workspace-link" onClick={() => setFocusedId(null)}>Показать весь список</button>}
+        </div>
+        <p className="workspace-result">Найдено: {filtered.length}</p>
+        </>}
+        <SourceLink href={source} />
+      </div>
+    </header>}
 
     {error ? <div className="workspace-panel" role="alert">{error} <button className="workspace-link" onClick={() => { setError(''); setRequest(value => value + 1); }}>Повторить</button></div>
       : rows === null ? <div className="workspace-panel" role="status">Загружаем сводку…</div>
       : !rows.length ? <div className="workspace-panel">Импортированных записей пока нет.</div>
       : view === 'summary' ? <>
-        <div className="workspace-section-heading">
-          <h2>Контроль обязательств</h2>
-          <p>{deadlineCount ? `Даты исполнения: ${deadlineCount} из ${registryCount}` : 'Сроки исполнения в реестре не заполнены'}</p>
-        </div>
-        <div className="workspace-metrics">
-          {([
-            ['critical', CircleAlert, 'Критические риски', 'Просрочено или осталось до 3 дней'],
-            ['soon', CalendarClock, 'Предупреждения', 'До срока исполнения осталось 4–7 дней'],
-          ] as const).map(([kind, Icon, label, description]) => (
-            <button className={`workspace-metric ${kind}`} key={kind} onClick={() => openMonitoring(kind)}>
-              <span className="metric-icon"><Icon size={20} /></span><ArrowRight className="metric-arrow" size={19} />
-              <strong>{deadlineCount ? count(kind) : '—'}</strong>
-              <b>{label}</b><small>{description}</small>
-            </button>
+        <motion.div className="workspace-metrics" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: reducedMotion ? 0 : 0.13 } } }}>
+          {[
+            { icon: CircleAlert, title: 'Критические риски', value: deadlineCount ? count('critical') : '—',
+              stats: [['Просрочено', deadlineCount ? records.filter(({ flags }) => flags.some(flag => flag.kind === 'critical' && flag.date && Date.parse(flag.date) < today)).length : '—'],
+                ['До трёх дней', deadlineCount ? records.filter(({ flags }) => flags.some(flag => flag.kind === 'critical' && flag.date && Date.parse(flag.date) >= today)).length : '—']],
+              action: () => openMonitoring('critical') },
+            { icon: CalendarClock, title: 'Предупреждения', value: deadlineCount ? count('soon') : '—',
+              stats: [['Горизонт', '4–7 дней'], ['Даты в реестре', deadlineCount]], action: () => openMonitoring('soon') },
+            { icon: Scale, title: 'Штрафы и неустойки', value: penalties === null ? '—' : money.format(penalties),
+              stats: [['Источник', 'Журнал рисков'], ['Статус', 'Открытые']], action: onOpenAlerts },
+            { icon: FileText, title: 'Проверить документы', value: count('review'),
+              stats: [['Реестр', registryCount], ['Мониторинг', monitoringCount]], action: () => openMonitoring('review') },
+          ].map(({ icon: Icon, title, value, stats, action }) => (
+            <motion.article key={title} className="workspace-kpi" variants={{ hidden: { opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 16 }, visible: { opacity: 1, y: 0, transition: { duration: reducedMotion ? 0 : 0.34 } } }}>
+              <div className="workspace-kpi-body">
+                <div className="workspace-kpi-title"><span><Icon size={17} /></span>{title}</div>
+                <strong>{value}</strong>
+                <dl>{stats.map(([label, detail]) => <div key={label}><dt>{label}</dt><dd>{detail}</dd></div>)}</dl>
+              </div>
+              <button type="button" className="workspace-round-action" onClick={action} aria-label={title}><ArrowUpRight size={16} /></button>
+            </motion.article>
           ))}
-          <button className="workspace-metric" onClick={onOpenAlerts}>
-            <span className="metric-icon"><Scale size={20} /></span><ArrowRight className="metric-arrow" size={19} />
-            <strong>{penalties === null ? '—' : money.format(penalties)}</strong><b>Штрафы и неустойки</b><small>{penalties === null ? 'Нет записей с рассчитанной суммой' : 'По открытым уведомлениям о нарушении срока'}</small>
-          </button>
-        </div>
+        </motion.div>
+        <Suspense fallback={<p className="workspace-panel mt-4" role="status">Загружаем аналитику…</p>}>
+          <OverviewCharts statuses={statusChart} onFinance={onOpenFinance} onRegistry={() => onViewChange('registry')}
+            obligations={records.flatMap(({ row, flags }) => {
+              const signal = flags.find(flag => flag.date);
+              return signal?.date ? [{
+                id: row.id, title: field(row.registry, 9) || field(row.registry, 1) || row.number,
+                subtitle: row.curator || field(row.registry, 1), date: signal.date, label: signal.label,
+                action: () => openMonitoring(signal.kind, row.id),
+              }] : [];
+            }).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4)}
+            onMonitoring={() => openMonitoring('all')} />
+        </Suspense>
         <div className="workspace-section-heading workspace-section-spaced"><h2>Контроль данных</h2></div>
         <div className="workspace-overview">
           <section className="workspace-panel"><FileText size={20} /><h2>Проверить документы</h2><p>{count('review')} записей с отметкой о работах и пустыми полями документов</p><button className="workspace-link" onClick={() => openMonitoring('review')}>К записям <ArrowRight size={16} /></button></section>
@@ -172,19 +218,13 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         <div className="workspace-section-heading workspace-section-spaced"><h2>Операции</h2></div>
         <section className="workspace-panel mt-4"><h2>Снабжение и закупки</h2><p>Счета на оплате с просроченной или близкой датой поставки.</p><button className="workspace-link" onClick={onOpenProcurement}>К счетам с риском по сроку <ArrowRight size={16} /></button></section>
       </> : view === 'sources' ? <section className="workspace-panel">
-        <Database size={24} /><h2>Тендеры · Google Drive</h2>
-        <p>Связь по внутреннему номеру. Изменения вносятся в исходный документ.</p>
+        <Database size={24} /><h2>{demoMode ? 'Учебный реестр' : 'Тендеры · Google Drive'}</h2>
+        <p>{demoMode ? 'Синтетические данные в браузере. Google Drive в этом режиме отключён.' : 'Связь по внутреннему номеру. Изменения вносятся в исходный документ.'}</p>
         <p>{sync?.status === 'error' ? 'Последняя попытка синхронизации завершилась ошибкой.' : sync?.status === 'syncing' ? 'Идёт синхронизация.' : null}</p>
-        <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>
+        {!demoMode && <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>}
         <dl className="workspace-facts"><div><dt>Реест Ольга</dt><dd>{registryCount} записей</dd></div><div><dt>Ежедневный мониторинг</dt><dd>{monitoringCount} записей</dd></div></dl>
         {warningCount > 0 && <p className="workspace-warning">Пропущено строк с ошибкой формулы во внутреннем номере: {warningCount}. После исправления в источнике они попадут в следующий импорт.</p>}
-        <SourceLink href={source} />
       </section> : <>
-        <div className="workspace-controls">
-          <label className="workspace-search"><Search size={18} /><input aria-label="Поиск по записям" placeholder="Заказчик, город или номер" value={search} onChange={e => { setSearch(e.target.value); setLimit(12); }} /></label>
-          {monitoring && <Select ariaLabel="Фильтр по сигналам" className="workspace-filter" value={filter} options={Object.entries(filters).map(([value, label]) => ({ value, label }))} onChange={value => { setFilter(value as Filter); setLimit(12); }} />}
-        </div>
-        <p className="workspace-result">Найдено: {filtered.length}</p>
         {!filtered.length && <div className="workspace-panel">{search ? 'По вашему запросу ничего не найдено.' : (filter === 'critical' || filter === 'soon') && !deadlineCount ? 'В реестре нет дат исполнения для оценки сроков.' : 'Записей по этому фильтру нет.'}</div>}
         <div className="workspace-records">
           {filtered.slice(0, limit).map(({ row, flags }) => {
@@ -205,15 +245,12 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
                 {monitoring ? <div><dt>Отметки о работах</dt><dd>{workNotes.length ? workNotes.join(', ') : 'Не указаны'}</dd></div>
                   : <div><dt>Сумма контракта</dt><dd>{row.amount === null ? 'Не указана' : money.format(row.amount)}</dd></div>}
               </dl>
-              <details><summary>Где искать в источнике</summary>
-                {row.registry && <p>Реест Ольга · строка {row.registry.source_row}</p>}
-                {row.monitoring && <p>Ежедневный мониторинг · строка {row.monitoring.source_row}</p>}
-              </details>
+
               <SourceLink href={row.link} />
             </article>;
           })}
         </div>
         {filtered.length > limit && <button className="workspace-link workspace-more" onClick={() => setLimit(value => value + 12)}>Показать ещё <ArrowRight size={16} /></button>}
       </>}
-  </>;
+  </div>;
 }

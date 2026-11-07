@@ -1,3 +1,5 @@
+import { BeamInput } from '@/components/FieldBeam';
+import { demoMode } from '@/api/mode';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
@@ -36,7 +38,7 @@ const STATUS_CONFIGS: Record<DispatchStatus, StatusConfig> = {
     id: 'on_site',
     label: 'На объекте',
     badgeClass:
-      'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60',
+      'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/60',
     activeBtnClass: 'bg-emerald-600 text-white font-semibold shadow-2xs',
     dotColor: 'bg-emerald-500',
   },
@@ -44,15 +46,15 @@ const STATUS_CONFIGS: Record<DispatchStatus, StatusConfig> = {
     id: 'repair',
     label: 'В ремонте',
     badgeClass:
-      'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 border-rose-200 dark:border-rose-800/60',
-    activeBtnClass: 'bg-rose-600 text-white font-semibold shadow-2xs',
-    dotColor: 'bg-rose-500',
+      'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200 border-red-200 dark:border-red-800/60',
+    activeBtnClass: 'bg-red-600 text-white font-semibold shadow-2xs',
+    dotColor: 'bg-red-500',
   },
   downtime: {
     id: 'downtime',
     label: 'Простой',
     badgeClass:
-      'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 border-amber-200 dark:border-amber-800/60',
+      'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 border-amber-200 dark:border-amber-800/60',
     activeBtnClass: 'bg-amber-600 text-white font-semibold shadow-2xs',
     dotColor: 'bg-amber-500',
   },
@@ -82,17 +84,17 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
         <div
           className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
             isOnSite
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200'
+              ? 'bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200'
               : isRepair
-              ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200'
-              : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200'
+              ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800/60 text-red-800 dark:text-red-200'
+              : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200'
           }`}
         >
           <div className="flex items-center gap-2">
             {isOnSite ? (
               <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             ) : isRepair ? (
-              <AlertOctagon className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0" />
+              <AlertOctagon className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
             )}
@@ -156,7 +158,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
 
         {/* Modal Actions */}
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-[var(--card-border)]">
-          <a
+          {!demoMode && <a
             href="https://drive.google.com/drive/folders/enterprise-hub"
             target="_blank"
             rel="noopener noreferrer"
@@ -165,7 +167,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Ведомость в Google Диск</span>
             <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
-          </a>
+          </a>}
 
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -328,7 +330,7 @@ export function DispatchTab() {
           </div>
 
           {/* Google Drive Link Button */}
-          <a
+          {!demoMode && <a
             href="https://drive.google.com/drive/folders/enterprise-hub"
             target="_blank"
             rel="noopener noreferrer"
@@ -338,7 +340,7 @@ export function DispatchTab() {
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="hidden sm:inline">Google Диск</span>
             <ExternalLink className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-          </a>
+          </a>}
 
           {/* Refresh Button */}
           <button
@@ -392,18 +394,18 @@ export function DispatchTab() {
         <div className="bg-[var(--card-bg)] p-4 rounded-2xl border border-[var(--card-border)] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] uppercase font-semibold text-[var(--text-sub)]">В ремонте</span>
-            <div className="w-2 h-2 rounded-full bg-rose-500" />
+            <div className="w-2 h-2 rounded-full bg-red-500" />
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400">
+            <span className="text-2xl font-bold font-mono text-red-600 dark:text-red-400">
               {repairCount}
             </span>
-            <span className="text-xs text-rose-600 flex items-center gap-1 font-semibold">
+            <span className="text-xs text-red-600 flex items-center gap-1 font-semibold">
               <Wrench className="h-3.5 w-3.5" />
               ТО / Поломка
             </span>
           </div>
-          <p className="text-[11px] text-rose-600 dark:text-rose-400">Требуется вмешательство механиков</p>
+          <p className="text-[11px] text-red-600 dark:text-red-400">Требуется вмешательство механиков</p>
         </div>
 
         {/* Downtime */}
@@ -431,7 +433,7 @@ export function DispatchTab() {
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-              <input
+              <BeamInput
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -633,7 +635,7 @@ export function DispatchTab() {
                           <button
                             type="button"
                             onClick={() => setSelectedIncidentSummary(rec)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer group shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors cursor-pointer group shadow-2xs"
                             title="Все системы в норме. Нажмите для сводки"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -643,7 +645,7 @@ export function DispatchTab() {
                           <button
                             type="button"
                             onClick={() => setSelectedIncidentSummary(rec)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer group shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors cursor-pointer group shadow-2xs"
                             title={`${rec.downtime_reason || 'Технический простой'}. Нажмите для подробностей`}
                           >
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -654,12 +656,12 @@ export function DispatchTab() {
                           <button
                             type="button"
                             onClick={() => setSelectedIncidentSummary(rec)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors cursor-pointer group shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200 border border-red-200 dark:border-red-800/60 hover:bg-red-100 dark:hover:bg-red-900 transition-colors cursor-pointer group shadow-2xs"
                             title={`${rec.downtime_reason || 'Аварийный ремонт'}. Нажмите для подробностей`}
                           >
-                            <AlertOctagon className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                            <AlertOctagon className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
                             <span>Поломка</span>
-                            <HelpCircle className="h-3 w-3 text-rose-500 opacity-60 group-hover:opacity-100 shrink-0" />
+                            <HelpCircle className="h-3 w-3 text-red-500 opacity-60 group-hover:opacity-100 shrink-0" />
                           </button>
                         )}
                       </td>
@@ -667,7 +669,7 @@ export function DispatchTab() {
                       {/* Action: Google Drive + Log / Edit incident */}
                       <td className="px-3.5 py-3.5 align-middle text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <a
+                          {!demoMode && <a
                             href="https://drive.google.com/drive/folders/enterprise-hub"
                             target="_blank"
                             rel="noopener noreferrer"
@@ -676,7 +678,7 @@ export function DispatchTab() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                          </a>
+                          </a>}
                           <button
                             type="button"
                             onClick={() => openIncidentModal(rec)}
@@ -776,7 +778,7 @@ export function DispatchTab() {
                   {rec.status !== 'on_site' && (
                     <div
                       onClick={() => setSelectedIncidentSummary(rec)}
-                      className="bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 text-xs space-y-1 cursor-pointer hover:bg-amber-100/60 transition-colors"
+                      className="bg-amber-50 dark:bg-amber-950 p-2.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 text-xs space-y-1 cursor-pointer hover:bg-amber-100 transition-colors"
                     >
                       <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 font-semibold">
                         <span className="flex items-center gap-1">
@@ -800,7 +802,7 @@ export function DispatchTab() {
 
                   {/* Mobile Actions: Google Drive + Зафиксировать поломку / простой */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <a
+                    {!demoMode && <a
                       href="https://drive.google.com/drive/folders/enterprise-hub"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -809,7 +811,7 @@ export function DispatchTab() {
                       <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       <span>Google Диск</span>
                       <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
-                    </a>
+                    </a>}
 
                     <button
                       type="button"

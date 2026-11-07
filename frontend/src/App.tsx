@@ -1,5 +1,6 @@
-import { Activity, Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeft, Settings, Sun, Truck, Wallet, Workflow, Package } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { BeamInput } from '@/components/FieldBeam';
+import { Activity, Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeft, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, ChevronRight, ChevronDown } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { AuthPage } from '@/features/auth/AuthPage';
@@ -15,6 +16,8 @@ import { AccountantUploadModal } from '@/features/files/AccountantUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
 import { AlertsDrawer, isContractPenalty } from '@/features/alerts/AlertsDrawer';
 import { apiClient } from '@/api/client';
+import { demoMode } from '@/api/mode';
+import { Modal } from '@/components/Modal';
 import type { DriveSyncStatus } from '@/types';
 import './workspace.css';
 
@@ -40,6 +43,7 @@ const sections = [
 
 type Section = typeof sections[number]['items'][number]['id'];
 const customerViews: readonly Section[] = ['summary', 'registry', 'monitoring', 'sources'];
+const QuickActions = lazy(() => import('@/components/QuickActions'));
 const FinanceTab = lazy(() => import('@/features/dashboard/FinanceTab').then(module => ({ default: module.FinanceTab })));
 const formatSync = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Astrakhan' });
 
@@ -53,7 +57,9 @@ export default function App() {
   const { isDark, toggle } = useTheme();
   const [view, setView] = useState(readSection);
   const [procurementDue, setProcurementDue] = useState(() => window.location.hash === '#procurement?due');
-  const [sidebar, setSidebar] = useState(() => !window.matchMedia('(max-width: 800px)').matches);
+  const [sidebar, setSidebar] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [sync, setSync] = useState<DriveSyncStatus | null>(null);
   const [showAlerts, setShowAlerts] = useState<'all' | 'penalties' | null>(null);
   const [penalties, setPenalties] = useState<number | null>(null);
@@ -86,9 +92,21 @@ export default function App() {
   }, [isAuthenticated, showAlerts]);
 
   useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        if (isAuthenticated) setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', openSearch);
+    return () => window.removeEventListener('keydown', openSearch);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (!sidebar) return;
+    document.querySelector<HTMLButtonElement>('.workspace-sidebar-head button')?.focus();
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && window.matchMedia('(max-width: 800px)').matches) {
+      if (event.key === 'Escape') {
         setSidebar(false);
         document.getElementById('workspace-menu-toggle')?.focus();
       }
@@ -105,7 +123,7 @@ export default function App() {
       setProcurementDue(due);
       window.scrollTo(0, 0);
     }
-    if (window.matchMedia('(max-width: 800px)').matches) setSidebar(false);
+    setSidebar(false);
   }
 
   if (isLoading) return <main className="workspace-loading" role="status">Открываем рабочее пространство…</main>;
@@ -130,39 +148,88 @@ export default function App() {
 
   return (
     <div className="workspace" data-sidebar={sidebar ? 'open' : 'closed'}>
-      <header className="workspace-topbar">
+      <header className="workspace-topbar" inert={sidebar}>
         <div className="workspace-topbar-start">
-          <button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Скрыть разделы' : 'Показать разделы'} onClick={() => setSidebar(open => !open)}><PanelLeft size={19} /></button>
-          <a href="#summary" className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { event.preventDefault(); navigate('summary'); }}><span><Workflow size={18} /></span><strong>Enterprise Hub</strong></a>
-          <span className="workspace-current">{section.label}</span>
+          <a href="#summary" className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { event.preventDefault(); navigate('summary'); }}>
+            <span className="workspace-brand-mark"><Workflow size={18} />
+
+            </span><strong>Enterprise Hub</strong>
+          </a>
+          <span className="workspace-current"><ChevronRight size={13} />{section.label}</span>
         </div>
         <div className="workspace-topbar-actions">
-          <button className="workspace-sync" onClick={() => navigate('sources')} title={`Состояние Google Drive: ${syncLabel}`} aria-label={`Состояние Google Drive: ${syncLabel}`}><Database size={15} /><span>{syncLabel}</span></button>
+          {demoMode && <span className="workspace-demo" title="Учебные данные"><FlaskConical size={14} />Демо</span>}
+          {!demoMode && <button className="workspace-sync" onClick={() => navigate('sources')} title={`Состояние Google Drive: ${syncLabel}`} aria-label={`Состояние Google Drive: ${syncLabel}`}><Database size={15} /><span>{syncLabel}</span></button>}
           <button className="workspace-icon-button" onClick={() => setShowAlerts('all')} title="Уведомления" aria-label="Уведомления"><Bell size={18} /></button>
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <span className="workspace-user" title={user?.email}><strong>{user?.full_name || 'Руководитель'}</strong><small>Управление компанией</small></span>
-          <button className="workspace-icon-button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); navigate('summary'); logout(); }} title="Выйти" aria-label="Выйти"><LogOut size={18} /></button>
+          <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
+          <div id="workspace-profile" popover="auto" className="workspace-profile">
+            <div className="workspace-profile-account"><strong>{user?.full_name || 'Руководитель'}</strong><small>{user?.email}</small></div>
+            <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>
+            <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); navigate('summary'); logout(); }}><LogOut size={16} />Выйти</button>
+          </div>
         </div>
+        <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'} onClick={() => setSidebar(open => !open)}><PanelLeft size={19} /></button><strong>Панель руководителя</strong></div>
+          {[
+            { label: 'Обзор', ids: ['summary'] },
+            { label: 'Контракты', ids: ['registry', 'projects', 'monitoring'] },
+            { label: 'Финансы', ids: ['finance'] },
+            { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks'] },
+            { label: 'Данные', ids: ['sources', 'files', 'settings'] },
+          ].map(({ label, ids }, index) => {
+            const items = sections.flatMap(group => [...group.items]).filter(item => ids.includes(item.id));
+            const active = ids.includes(view);
+            if (items.length === 1) {
+              const { id } = items[0];
+              return <a key={label} href={`#${id}`} aria-current={active ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}>{label}</a>;
+            }
+            const menuId = `workspace-nav-${index}`;
+            const anchor = `--${menuId}`;
+            return <div key={label} className="workspace-nav-popover">
+              <button type="button" className="workspace-nav-trigger" data-active={active} popoverTarget={menuId} style={{ anchorName: anchor } as CSSProperties}>{label}<ChevronDown size={13} /></button>
+              <div id={menuId} popover="auto" className="workspace-nav-menu" style={{ positionAnchor: anchor } as CSSProperties}>
+                {items.map(({ id, label, icon: Icon }) =>
+                  <button key={id} type="button" aria-current={view === id ? 'page' : undefined} popoverTarget={menuId} popoverTargetAction="hide" onClick={() => navigate(id)}><Icon size={16} />{label}</button>,
+                )}
+              </div>
+            </div>;
+          })}
+          {(canEdit || sync?.root_folder_link) && <Suspense fallback={null}><QuickActions
+            onUpload={canEdit ? () => setUpload('file') : undefined}
+            onAccounting={canEdit ? () => setUpload('accounting') : undefined}
+            driveLink={demoMode ? undefined : sync?.root_folder_link}
+          /></Suspense>}
+        </nav>
       </header>
       {sidebar && <button type="button" className="workspace-scrim" aria-label="Закрыть разделы" onClick={() => { setSidebar(false); document.getElementById('workspace-menu-toggle')?.focus(); }} />}
-      <aside id="workspace-sidebar" className="workspace-sidebar" hidden={!sidebar}>
+      <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Навигация"><div className="workspace-sidebar-head"><span className="workspace-brand"><span><Workflow size={18} /></span><strong>Enterprise Hub</strong></span><button type="button" className="workspace-icon-button" aria-label="Закрыть меню" onClick={() => { setSidebar(false); requestAnimationFrame(() => document.getElementById('workspace-menu-toggle')?.focus()); }}>×</button></div>
         <nav aria-label="Разделы">
           {sections.map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
-            {group.items.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-current={view === id ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}><Icon size={17} />{label}</a>)}
+            {group.items.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-label={label} title={label} aria-current={view === id ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}><Icon size={18} /><span>{label}</span></a>)}
           </div>)}
         </nav>
       </aside>
-      <main className="workspace-main">
-        {customerView ? <CustomerTendersTab view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} />
+      <main className="workspace-main" data-view={view} inert={sidebar}>
+        {customerView ? <CustomerTendersTab view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
-              <header className="workspace-heading"><div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div></header>
-              <div key={`${view}-${version}`} className="workspace-module"><Suspense fallback={<p role="status">Загружаем раздел…</p>}>{renderSection()}</Suspense></div>
+              {view !== 'finance' && <header className="workspace-heading workspace-pagebar"><div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div><button type="button" className="workspace-link" onClick={() => navigate('summary')}>К обзору <ChevronRight size={15} /></button></header>}
+              <div key={`${view}-${version}`} className="workspace-module workspace-reveal"><Suspense fallback={<p role="status">Загружаем раздел…</p>}>{renderSection()}</Suspense></div>
             </>}
       </main>
       <FileUploadModal isOpen={canEdit && upload === 'file'} onClose={() => setUpload(null)} onUploadComplete={data => { setUpload(null); if (data.status === 'awaiting_confirmation') setMapping({ id: data.file_id, name: data.original_name }); setVersion(value => value + 1); }} />
       <AccountantUploadModal isOpen={canEdit && upload === 'accounting'} onClose={() => setUpload(null)} onUploadSuccess={() => { setUpload(null); setVersion(value => value + 1); navigate('tasks'); }} />
       <MappingDrawer isOpen={canEdit && mapping !== null} onClose={() => { setMapping(null); setVersion(value => value + 1); }} fileId={mapping?.id ?? ''} fileName={mapping?.name ?? ''} />
+      {searchOpen && <Modal isOpen title="Быстрый переход" onClose={() => { setSearchOpen(false); setQuery(''); }}>
+        <div className="workspace-search-dialog">
+          <label className="workspace-search"><Search size={18} /><BeamInput autoFocus aria-label="Поиск по разделам" placeholder="Например, финансы" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <div className="workspace-search-results">
+            {sections.flatMap(group => [...group.items]).filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).map(({ id, label, icon: Icon }) =>
+              <button key={id} onClick={() => { navigate(id); setSearchOpen(false); setQuery(''); }}><Icon size={17} />{label}<ChevronRight size={15} /></button>,
+            )}
+          </div>
+        </div>
+      </Modal>}
       <AlertsDrawer isOpen={showAlerts !== null} penaltiesOnly={showAlerts === 'penalties'} onClose={() => setShowAlerts(null)} />
     </div>
   );

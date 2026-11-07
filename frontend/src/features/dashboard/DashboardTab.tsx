@@ -90,14 +90,14 @@ export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTa
           {/* 1. Свободная касса */}
           <div className={`border rounded-2xl p-5 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] transition-all flex flex-col justify-between ${
             financial_health.is_cash_gap_predicted
-              ? 'bg-red-50/90 border-red-300 dark:bg-red-950/60 dark:border-red-800'
+              ? 'bg-red-50 border-red-300 dark:bg-red-950 dark:border-red-800'
               : 'bg-[var(--card-bg)] border-[var(--card-border)] hover:border-slate-300 dark:hover:border-slate-700'
           }`}>
             <div className="flex items-start justify-between gap-2">
               <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Свободная касса
               </span>
-              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+              <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
                 <Wallet className="h-5 w-5" />
               </div>
             </div>
@@ -170,7 +170,7 @@ export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTa
               <span className="text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider">
                 Нам должны (Дебиторка)
               </span>
-              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+              <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400">
                 <TrendingUp className="h-5 w-5" />
               </div>
             </div>

@@ -19,11 +19,11 @@ import type { FinanceData } from '@/types';
 export function FinanceTab() {
   const [period, setPeriod] = useState('month');
   return <div className="space-y-4">
-    <Select ariaLabel="Период финансов" className="workspace-filter" value={period} onChange={setPeriod} options={[
+    <header className="workspace-heading workspace-pagebar"><div><div className="workspace-eyebrow">ОПЕРАЦИИ</div><h1>Финансы</h1><p>Движение денег, поступления и расходы.</p></div><div className="workspace-pagebar-actions"><Select ariaLabel="Период финансов" className="workspace-filter" value={period} onChange={setPeriod} options={[
       { value: 'month', label: 'Этот месяц' },
       { value: 'quarter', label: 'Последние 90 дней' },
       { value: 'year', label: 'Этот год' },
-    ]} />
+    ]} /></div></header>
     <FinancePeriod key={period} period={period} />
   </div>;
 }

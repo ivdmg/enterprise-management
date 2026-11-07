@@ -12,17 +12,17 @@ export interface BadgeProps {
 const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
   danger: {
     container:
-      'bg-red-50 text-red-800 border-red-300 hover:bg-red-100 dark:bg-red-950/70 dark:text-red-200 dark:border-red-800/80',
+      'bg-red-50 text-red-800 border-red-300 hover:bg-red-100 dark:bg-red-950 dark:text-red-200 dark:border-red-800/80',
     dot: 'bg-red-600 dark:bg-red-500',
   },
   warning: {
     container:
-      'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800/80',
+      'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800/80',
     dot: 'bg-amber-600 dark:bg-amber-500',
   },
   success: {
     container:
-      'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800/80',
+      'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800/80',
     dot: 'bg-emerald-600 dark:bg-emerald-500',
   },
   info: {
@@ -41,7 +41,7 @@ export function Badge({ variant = 'neutral', children, className = '', dot = fal
   const styles = variantStyles[variant];
 
   return (
-    <span
+    <span data-workspace-badge={variant}
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border transition-colors ${styles.container} ${className}`}
     >
       {dot && <span className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />}

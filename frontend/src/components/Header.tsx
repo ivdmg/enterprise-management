@@ -252,7 +252,7 @@ export function Header({
                         setProfileOpen(false);
                         logout();
                       }}
-                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50/80 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                      className="min-h-[40px] w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer"
                       id="header-logout-item"
                     >
                       <LogOut className="h-4 w-4" />
@@ -396,7 +396,7 @@ export function Header({
                   setMobileDrawerOpen(false);
                   logout();
                 }}
-                className="w-full min-h-[40px] flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 hover:bg-red-100 transition-colors cursor-pointer"
+                className="w-full min-h-[40px] flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900/50 hover:bg-red-100 transition-colors cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Выйти из аккаунта</span>

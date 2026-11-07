@@ -60,7 +60,7 @@ export function FirePanel({ items, onNavigateToProject, onNavigateTab }: FirePan
       {/* Header and Quick Switch to Full List */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-900/40 shrink-0">
+          <div className="p-2 rounded-xl bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-900/40 shrink-0">
             <Flame className="h-5 w-5" />
           </div>
           <div>
@@ -68,7 +68,7 @@ export function FirePanel({ items, onNavigateToProject, onNavigateTab }: FirePan
               <h2 id="fire-panel-heading" className="text-base sm:text-lg font-bold text-[var(--text-main)]">
                 Оперативный экран «Где горит?»
               </h2>
-              <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200 border border-red-200 dark:border-red-800/60 whitespace-nowrap">
+              <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 border border-red-200 dark:border-red-800/60 whitespace-nowrap">
                 {items.length} активных риска
               </span>
             </div>
@@ -104,15 +104,15 @@ export function FirePanel({ items, onNavigateToProject, onNavigateTab }: FirePan
               setDrillDownCategory('critical');
             }
           }}
-          className="rounded-2xl border p-5 transition-all flex flex-col justify-between gap-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] cursor-pointer select-none bg-red-50/90 border-red-300 hover:bg-red-100/80 hover:-translate-y-0.5 hover:shadow-md dark:bg-red-950/60 dark:border-red-800 dark:hover:bg-red-950/80"
+          className="rounded-2xl border p-5 transition-all flex flex-col justify-between gap-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] cursor-pointer select-none bg-red-50 border-red-300 hover:bg-red-100 hover:-translate-y-0.5 hover:shadow-md dark:bg-red-950 dark:border-red-800 dark:hover:bg-red-950"
           id="fire-card-critical"
         >
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-2">
-              <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+              <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
                 <Flame className="h-5 w-5" />
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200 border border-red-300 dark:border-red-800">
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-800">
                 Дедлайн &le; 3 дн.
               </span>
             </div>
@@ -157,15 +157,15 @@ export function FirePanel({ items, onNavigateToProject, onNavigateTab }: FirePan
               setDrillDownCategory('warning');
             }
           }}
-          className="rounded-2xl border p-5 transition-all flex flex-col justify-between gap-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] cursor-pointer select-none bg-amber-50/90 border-amber-300 hover:bg-amber-100/80 hover:-translate-y-0.5 hover:shadow-md dark:bg-amber-950/60 dark:border-amber-800 dark:hover:bg-amber-950/80"
+          className="rounded-2xl border p-5 transition-all flex flex-col justify-between gap-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] cursor-pointer select-none bg-amber-50 border-amber-300 hover:bg-amber-100 hover:-translate-y-0.5 hover:shadow-md dark:bg-amber-950 dark:border-amber-800 dark:hover:bg-amber-950"
           id="fire-card-warning"
         >
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-2">
-              <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                 <AlertTriangle className="h-5 w-5" />
               </div>
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+              <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
                 Дедлайн 4-5 дн.
               </span>
             </div>

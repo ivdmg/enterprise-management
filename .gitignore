@@ -41,3 +41,4 @@ Thumbs.db
 # Private migration archives and cached customer workbooks
 private-transfer/
 *.private.zip
+dist-demo/

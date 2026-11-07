@@ -1,3 +1,5 @@
+import { FloatingMenu } from '@/components/FloatingMenu';
+import { BeamInput } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
@@ -47,7 +49,7 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
     id: 'paid',
     label: 'Оплачено',
     badgeClass:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/50',
+      'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-900/50',
     dotColor: 'bg-amber-500',
     icon: CreditCard,
     nextStatus: 'in_transit',
@@ -67,7 +69,7 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
     id: 'delivered',
     label: 'На объекте',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50',
+      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50',
     dotColor: 'bg-emerald-500',
     icon: CheckCircle2,
   },
@@ -317,7 +319,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-              <input
+              <BeamInput
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -399,7 +401,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
       </Card>
 
       {/* Main Registry */}
-      <Card padding="none">
+      <Card padding="none" className="workspace-table-card">
         {/* ============================================================ */}
         {/* DESKTOP TABLE VIEW (>= 768px): Zebra Striping & High Contrast (FE-1.3) */}
         {/* ============================================================ */}
@@ -523,7 +525,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
                           </button>
 
                           {isMenuOpen && (
-                            <div className="absolute right-0 mt-1.5 w-52 bg-[var(--card-bg)] rounded-2xl shadow-xl border border-[var(--card-border)] py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
+                            <FloatingMenu className="py-1 text-left">
                               <div className="px-3 py-1 text-[10px] uppercase font-bold text-[var(--text-muted)] border-b border-[var(--card-border)]">
                                 Сменить статус:
                               </div>
@@ -552,7 +554,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
                                   </button>
                                 );
                               })}
-                            </div>
+                            </FloatingMenu>
                           )}
                         </div>
                       </td>
@@ -665,7 +667,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
                           </button>
 
                           {isMenuOpen && (
-                            <div className="absolute left-0 bottom-full mb-1.5 w-52 bg-[var(--card-bg)] rounded-2xl shadow-2xl border border-[var(--card-border)] py-1.5 z-40 animate-in fade-in zoom-in-95 duration-100">
+                            <FloatingMenu className="py-1 text-left">
                               <div className="px-3.5 py-1.5 text-[10px] uppercase font-bold text-[var(--text-muted)] border-b border-[var(--card-border)]">
                                 Выберите статус:
                               </div>
@@ -688,7 +690,7 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
                                   </button>
                                 );
                               })}
-                            </div>
+                            </FloatingMenu>
                           )}
                         </div>
 

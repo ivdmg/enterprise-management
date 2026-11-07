@@ -28,12 +28,13 @@ import type {
   DispatchStatus,
 } from '@/types';
 import { mockData } from '@/mocks';
+import { demoMode as USE_MOCKS, sessionKey } from './mode';
+import { demoDate, demoTenders } from '@/mocks/tenders';
 
-const USE_MOCKS = false; // Switch to false when backend is ready
 const BASE_URL = '/api/v1';
 
 function getToken(): string | null {
-  const saved = localStorage.getItem('seh-tokens');
+  const saved = localStorage.getItem(sessionKey);
   if (!saved) return null;
   try {
     return JSON.parse(saved).access_token;
@@ -46,6 +47,7 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (USE_MOCKS) throw new Error('Операция недоступна в демонстрационном режиме.');
   const token = getToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
@@ -82,7 +84,9 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
-  async getCustomerTenders(): Promise<import('@/features/dashboard/CustomerTendersTab').CustomerTender[]> { return request('/customer-tenders'); },
+  async getCustomerTenders(): Promise<import('@/features/dashboard/CustomerTendersTab').CustomerTender[]> {
+    return USE_MOCKS ? demoTenders() : request('/customer-tenders');
+  },
   // --- Auth ---
   async login(data: LoginRequest): Promise<AuthTokens> {
     if (USE_MOCKS) {
@@ -119,7 +123,10 @@ export const apiClient = {
   async uploadFile(file: File): Promise<FileUploadData> {
     if (USE_MOCKS) {
       await delay(1500);
-      return mockData.fileUpload;
+      const file_id = crypto.randomUUID();
+      const status = file.name.toLowerCase().endsWith('.txt') ? 'processed' : 'awaiting_confirmation';
+      mockData.filesList.unshift({ id: file_id, original_name: file.name, file_size_bytes: file.size, status, uploaded_by: mockData.userProfile.full_name, created_at: new Date().toISOString() });
+      return { ...mockData.fileUpload, file_id, original_name: file.name, file_size_bytes: file.size, status };
     }
     const formData = new FormData();
     formData.append('file', file);
@@ -205,7 +212,7 @@ export const apiClient = {
   async getMappingPreview(fileId: string, sheetName?: string): Promise<MappingPreviewData> {
     if (USE_MOCKS) {
       await delay(600);
-      return mockData.mappingPreview;
+      return { ...mockData.mappingPreview, file_id: fileId };
     }
     const params = sheetName ? `?sheet_name=${encodeURIComponent(sheetName)}` : '';
     return request<MappingPreviewData>(`/files/${fileId}/mapping-preview${params}`);
@@ -214,7 +221,9 @@ export const apiClient = {
   async confirmMapping(fileId: string, data: MappingConfirmRequest): Promise<MappingConfirmData> {
     if (USE_MOCKS) {
       await delay(800);
-      return mockData.mappingConfirm;
+      const file = mockData.filesList.find(item => item.id === fileId);
+      if (file) file.status = 'processed';
+      return { ...mockData.mappingConfirm, file_id: fileId };
     }
     return request<MappingConfirmData>(`/files/${fileId}/mapping-confirm`, {
       method: 'POST',
@@ -234,7 +243,17 @@ export const apiClient = {
   async getFinanceData(period?: string): Promise<FinanceData> {
     if (USE_MOCKS) {
       await delay();
-      return mockData.financeData;
+      const source = mockData.financeData.dynamics;
+      const today = demoDate(0);
+      const start = period === 'year' ? `${today.slice(0, 4)}-01-01` : period === 'quarter' ? demoDate(-90) : `${today.slice(0, 7)}-01`;
+      const historical = Array.from({ length: 14 }, (_, index) => ({
+        ...source[index % source.length], date: demoDate(-160 + index * 11),
+      }));
+      const recent = source.map((point, index) => ({ ...point, date: demoDate(index - source.length + 1) }));
+      const dynamics = [...historical, ...recent].filter(point => point.date >= start);
+      const total_incoming = dynamics.reduce((sum, point) => sum + point.incoming, 0);
+      const total_outgoing = dynamics.reduce((sum, point) => sum + point.outgoing, 0);
+      return { ...mockData.financeData, dynamics, total_incoming, total_outgoing, net_cash_flow: total_incoming - total_outgoing };
     }
     const params = period ? `?period=${period}` : '';
     return request<FinanceData>(`/dashboard/finance${params}`);
@@ -265,7 +284,7 @@ export const apiClient = {
   async getAlerts(severity?: string, isResolved = false): Promise<Alert[]> {
     if (USE_MOCKS) {
       await delay();
-      return mockData.alerts;
+      return mockData.alerts.filter(item => item.is_resolved === isResolved && (!severity || item.severity === severity));
     }
     const searchParams = new URLSearchParams();
     if (severity) searchParams.set('severity', severity);
@@ -277,6 +296,8 @@ export const apiClient = {
   async resolveAlert(alertId: string, comment: string): Promise<void> {
     if (USE_MOCKS) {
       await delay();
+      const alert = mockData.alerts.find(item => item.id === alertId);
+      if (alert) Object.assign(alert, { is_resolved: true, resolution_comment: comment, resolved_at: new Date().toISOString() });
       return;
     }
     await request(`/alerts/${alertId}/resolve`, {
@@ -360,6 +381,14 @@ export const apiClient = {
     due_date: string;
     estimated_penalty_amount?: string;
   }): Promise<TaskItem> {
+    if (USE_MOCKS) {
+      const task: TaskItem = {
+        ...data, id: crypto.randomUUID(), status: 'pending', priority: 'medium', source: 'manual',
+        responsible_role: data.responsible_role ?? 'manager', estimated_penalty_amount: Number(data.estimated_penalty_amount ?? 0),
+      };
+      mockData.tasks.unshift(task);
+      return task;
+    }
     return request<TaskItem>('/tasks', { method: 'POST', body: JSON.stringify(data) });
   },
 
@@ -444,7 +473,7 @@ export const apiClient = {
   }): Promise<ProcurementItemData[]> {
     if (USE_MOCKS) {
       await delay(200);
-      let list = [...mockData.procurementItems];
+      let list = mockData.procurementItems.map((item, index) => ({ ...item, delivery_deadline: demoDate(index - 3) }));
       if (params?.project_name && params.project_name !== 'all') {
         list = list.filter((item) => item.project_name === params.project_name);
       }
@@ -557,5 +586,3 @@ export const apiClient = {
     });
   },
 };
-
-

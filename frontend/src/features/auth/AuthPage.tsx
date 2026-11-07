@@ -1,6 +1,8 @@
+import { BeamInput } from '@/components/FieldBeam';
 import { Workflow } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { demoMode } from '@/api/mode';
 
 export function AuthPage() {
   const { login } = useAuth();
@@ -31,15 +33,17 @@ export function AuthPage() {
           <p>Контракты, документы и сроки в одной сводке.</p>
         </div>
         <form className="workspace-panel rounded-t-none space-y-4" onSubmit={submit}>
-          <h1 className="text-xl font-bold">Вход в рабочее пространство</h1>
+          <h1 className="text-xl font-bold">{demoMode ? 'Демонстрационное пространство' : 'Вход в рабочее пространство'}</h1>
           {error && <p className="workspace-badge late" role="alert">{error}</p>}
+          {demoMode ? <p>Все разделы заполнены учебными данными. Для входа пароль не нужен.</p> : <>
           <label className="block text-sm font-medium">Почта
-            <input className="mt-1 block w-full rounded-lg border border-[var(--card-border)] p-3" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required />
+            <BeamInput className="mt-1 block w-full rounded-lg border border-[var(--card-border)] p-3" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required />
           </label>
           <label className="block text-sm font-medium">Пароль
-            <input className="mt-1 block w-full rounded-lg border border-[var(--card-border)] p-3" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <BeamInput className="mt-1 block w-full rounded-lg border border-[var(--card-border)] p-3" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required />
           </label>
-          <button className="w-full rounded-lg workspace-auth-submit px-4 py-3 font-semibold disabled:opacity-60" disabled={pending}>{pending ? 'Входим…' : 'Войти'}</button>
+          </>}
+          <button className="w-full rounded-lg workspace-auth-submit px-4 py-3 font-semibold disabled:opacity-60" disabled={pending}>{pending ? 'Входим…' : demoMode ? 'Открыть демо' : 'Войти'}</button>
         </form>
       </div>
     </main>

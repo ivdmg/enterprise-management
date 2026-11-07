@@ -274,7 +274,7 @@ export function TabNav({ tabs, activeTab, onChange }: TabNavProps) {
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           isActive
                             ? 'bg-red-600 text-white'
-                            : 'bg-red-100 text-red-800 dark:bg-red-950/70 dark:text-red-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200'
                         }`}
                       >
                         {tab.badge}

@@ -1,3 +1,4 @@
+import { BeamTextarea } from '@/components/FieldBeam';
 import { useState, useCallback, useRef } from 'react';
 import {
   Upload,
@@ -198,7 +199,7 @@ export function AccountantUploadModal({
           ) : (
             <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 shrink-0">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 shrink-0">
                   <FileSpreadsheet className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
@@ -256,7 +257,7 @@ export function AccountantUploadModal({
           <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5">
             Комментарий и поручение менеджеру
           </label>
-          <textarea
+          <BeamTextarea
             rows={3}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -270,7 +271,7 @@ export function AccountantUploadModal({
 
         {/* Error message */}
         {error && (
-          <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>

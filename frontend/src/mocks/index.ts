@@ -27,8 +27,8 @@ export const mockData = {
 
   userProfile: {
     id: 'u0000000-0000-0000-0000-000000000001',
-    email: 'director@glavstroy.ru',
-    full_name: 'Иванов Иван Иванович',
+    email: 'director@example.test',
+    full_name: 'Демо-директор',
     role: 'admin',
     telegram_connected: true,
   } satisfies UserProfile,
@@ -51,7 +51,6 @@ export const mockData = {
       status: 'processed',
       uploaded_by: 'Иванов Иван Иванович',
       created_at: '2026-10-11T14:30:00Z',
-      google_drive_link: 'https://drive.google.com/file/d/demo-smr-august-file/view',
     },
     {
       id: 'c1000000-0000-0000-0000-000000000002',
@@ -60,7 +59,6 @@ export const mockData = {
       status: 'processed',
       uploaded_by: 'Петрова Мария Сергеевна',
       created_at: '2026-10-10T09:15:00Z',
-      google_drive_link: 'https://drive.google.com/file/d/demo-fot-payouts-file/view',
     },
     {
       id: 'c1000000-0000-0000-0000-000000000003',
@@ -69,7 +67,6 @@ export const mockData = {
       status: 'awaiting_confirmation',
       uploaded_by: 'Сидоров Алексей Петрович',
       created_at: '2026-10-09T16:45:00Z',
-      google_drive_link: 'https://drive.google.com/file/d/demo-debt-q3-file/view',
     },
   ] as FileListItem[],
 
@@ -387,6 +384,7 @@ export const mockData = {
   alerts: [
     {
       id: 'a0000000-0000-0000-0000-000000000001',
+      alert_type: 'DEADLINE_BREACH',
       severity: 'CRITICAL',
       title: 'Срыв срока: Кислородный цех №101',
       description: 'Отставание 4 дня. Расчетная неустойка: 48 200 руб.',
@@ -500,7 +498,6 @@ export const mockData = {
       status: 'transferred_to_manager',
       priority: 'high',
       document_name: 'Акт_сверки_взаиморасчетов_Q3_101.xlsx',
-      google_drive_link: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
       created_at: '2026-10-14T09:15:00Z',
     },
     {
@@ -520,7 +517,6 @@ export const mockData = {
       priority: 'urgent',
       estimated_penalty_amount: 350000,
       document_name: 'Протокол_разногласий_Склад4.docx',
-      google_drive_link: 'https://docs.google.com/document/d/1yZ4a9BCKLP784_protocol_disagreement/edit',
       created_at: '2026-10-13T11:00:00Z',
     },
     {
@@ -540,7 +536,6 @@ export const mockData = {
       priority: 'urgent',
       estimated_penalty_amount: 48200,
       document_name: 'Акт_КС2_ИД_Кислородный_цех_101.xlsx',
-      google_drive_link: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
       created_at: '2026-10-12T16:20:00Z',
     },
     {
@@ -559,7 +554,6 @@ export const mockData = {
       status: 'in_progress',
       priority: 'high',
       document_name: 'Заявка_БГ_Сбербанк_БМК12.pdf',
-      google_drive_link: 'https://drive.google.com/file/d/demo-bg-sberbank-file/view',
       created_at: '2026-10-15T08:00:00Z',
     },
     {
@@ -578,7 +572,6 @@ export const mockData = {
       status: 'transferred_to_manager',
       priority: 'medium',
       document_name: 'Счет_Северсталь_Арматура_449.pdf',
-      google_drive_link: 'https://drive.google.com/file/d/demo-invoice-severstal/view',
       created_at: '2026-10-14T14:10:00Z',
     },
     {
@@ -597,7 +590,6 @@ export const mockData = {
       status: 'approved_closed',
       priority: 'medium',
       document_name: 'Путевой_лист_Кран_Liebherr_094.pdf',
-      google_drive_link: 'https://drive.google.com/file/d/demo-waybill-crane/view',
       created_at: '2026-10-11T10:00:00Z',
     },
     {
@@ -615,7 +607,6 @@ export const mockData = {
       status: 'approved_closed',
       priority: 'low',
       document_name: 'Выписка_1С_Платежи_Сентябрь_2026.xlsx',
-      google_drive_link: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
       created_at: '2026-10-10T12:00:00Z',
     },
     {
@@ -634,7 +625,6 @@ export const mockData = {
       status: 'in_progress',
       priority: 'high',
       document_name: 'Смета_Допработы_Котлован_ОЧС03.xlsx',
-      google_drive_link: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
       created_at: '2026-10-15T09:00:00Z',
     },
   ] as TaskItem[],
@@ -830,5 +820,3 @@ export const mockData = {
     },
   ] as DispatchRecordData[],
 };
-
-

@@ -1,3 +1,4 @@
+import { BeamInput } from '@/components/FieldBeam';
 import { useState, useMemo } from 'react';
 import {
   Flame,
@@ -282,7 +283,7 @@ export function FireDetailView({
               className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 categoryFilter === 'critical'
                   ? 'bg-red-600 text-white shadow-2xs'
-                  : 'bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300 hover:bg-red-100 border border-red-200 dark:border-red-900/50'
+                  : 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-300 hover:bg-red-100 border border-red-200 dark:border-red-900/50'
               }`}
             >
               Критические ({criticalCount})
@@ -293,7 +294,7 @@ export function FireDetailView({
               className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                 categoryFilter === 'warning'
                   ? 'bg-amber-600 text-white shadow-2xs'
-                  : 'bg-amber-50 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/50'
+                  : 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-100 border border-amber-200 dark:border-amber-900/50'
               }`}
             >
               Внимание ({warningCount})
@@ -317,7 +318,7 @@ export function FireDetailView({
           {/* Search Input */}
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
+            <BeamInput
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -400,8 +401,8 @@ export function FireDetailView({
                 key={item.id}
                 className={`rounded-2xl border border-l-4 p-5 transition-all flex flex-col justify-between gap-4 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] ${
                   isCritical
-                    ? 'border-l-red-600 bg-red-50/60 border-red-200/90 hover:bg-red-50 dark:bg-red-950/30 dark:border-red-900/60 dark:hover:bg-red-950/40'
-                    : 'border-l-amber-500 bg-amber-50/60 border-amber-200/90 hover:bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/60 dark:hover:bg-amber-950/40'
+                    ? 'border-l-red-600 bg-red-50 border-red-200/90 hover:bg-red-50 dark:bg-red-950 dark:border-red-900/60 dark:hover:bg-red-950'
+                    : 'border-l-amber-500 bg-amber-50 border-amber-200/90 hover:bg-amber-50 dark:bg-amber-950 dark:border-amber-900/60 dark:hover:bg-amber-950'
                 }`}
               >
                 {/* Card Top: Severity Badge, Title, Category Icon */}
@@ -416,13 +417,13 @@ export function FireDetailView({
                       </Badge>
 
                       {isOverdue && (
-                        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200 border border-red-300 dark:border-red-800">
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-300 dark:border-red-800">
                           Просрочка +{item.days_overdue} дн.
                         </span>
                       )}
 
                       {!isOverdue && item.days_remaining !== undefined && item.days_remaining > 0 && (
-                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
                           Осталось {item.days_remaining} дн.
                         </span>
                       )}
@@ -451,8 +452,8 @@ export function FireDetailView({
                     <div
                       className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border text-xs ${
                         isCritical
-                          ? 'bg-red-100/70 dark:bg-red-900/50 border-red-300 dark:border-red-800/60'
-                          : 'bg-amber-100/70 dark:bg-amber-900/50 border-amber-300 dark:border-amber-800/60'
+                          ? 'bg-red-100 dark:bg-red-900 border-red-300 dark:border-red-800/60'
+                          : 'bg-amber-100 dark:bg-amber-900 border-amber-300 dark:border-amber-800/60'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 text-[var(--text-sub)]">

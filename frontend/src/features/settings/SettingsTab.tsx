@@ -1,3 +1,4 @@
+import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect } from 'react';
 import {
   Building2,
@@ -205,7 +206,7 @@ export function SettingsTab() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <input
+              <BeamInput
                 type="time"
                 value={settings.daily_digest_time}
                 onChange={(e) =>
@@ -276,7 +277,7 @@ export function SettingsTab() {
               Предупреждение о дедлайне (дней до срока)
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <BeamInput
                 type="number"
                 min={1}
                 max={30}
@@ -301,7 +302,7 @@ export function SettingsTab() {
               Горизонт прогнозирования кассового разрыва
             </label>
             <div className="flex items-center gap-2">
-              <input
+              <BeamInput
                 type="number"
                 min={7}
                 max={60}

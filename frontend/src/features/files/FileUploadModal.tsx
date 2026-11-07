@@ -183,7 +183,7 @@ export function FileUploadModal({ isOpen, onClose, onUploadComplete }: FileUploa
 
         {/* Error */}
         {error && (
-          <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-rose-500/10 border border-rose-500/20">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-rose-100 border border-rose-500/20">
             <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0" />
             <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>
           </div>

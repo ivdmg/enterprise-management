@@ -1,3 +1,4 @@
+import { BeamInput, BeamTextarea } from '@/components/FieldBeam';
 import { useState } from 'react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
@@ -98,11 +99,11 @@ export function LogIncidentModal({
               onClick={() => setIncidentType('repair')}
               className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all min-h-[44px] cursor-pointer ${
                 incidentType === 'repair'
-                  ? 'bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 ring-1 ring-rose-400'
+                  ? 'bg-red-50 border-red-300 text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-300 ring-1 ring-red-400'
                   : 'bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--text-sub)] hover:text-[var(--text-main)]'
               }`}
             >
-              <Wrench className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+              <Wrench className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <span>Поломка / Ремонт</span>
             </button>
 
@@ -111,7 +112,7 @@ export function LogIncidentModal({
               onClick={() => setIncidentType('downtime')}
               className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all min-h-[44px] cursor-pointer ${
                 incidentType === 'downtime'
-                  ? 'bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 ring-1 ring-amber-400'
+                  ? 'bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-300 ring-1 ring-amber-400'
                   : 'bg-[var(--card-bg)] border-[var(--card-border)] text-[var(--text-sub)] hover:text-[var(--text-main)]'
               }`}
             >
@@ -136,7 +137,7 @@ export function LogIncidentModal({
           />
 
           {reason === 'custom' && (
-            <input
+            <BeamInput
               type="text"
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}
@@ -152,7 +153,7 @@ export function LogIncidentModal({
           <label className="text-xs font-semibold text-[var(--text-main)] block">
             Продолжительность простоя (часов)
           </label>
-          <input
+          <BeamInput
             type="number"
             step="0.5"
             min="0.5"
@@ -169,7 +170,7 @@ export function LogIncidentModal({
           <label className="text-xs font-semibold text-[var(--text-main)] block">
             Принятые меры / комментарий диспетчера
           </label>
-          <textarea
+          <BeamTextarea
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}

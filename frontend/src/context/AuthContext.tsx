@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { UserProfile, AuthTokens } from '@/types';
 import { apiClient } from '@/api/client';
+import { sessionKey } from '@/api/mode';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -25,7 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(() => {
-    const saved = localStorage.getItem('seh-tokens');
+    const saved = localStorage.getItem(sessionKey);
     return saved ? JSON.parse(saved) : null;
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then((profile) => setUser(profile))
         .catch(() => {
           setTokens(null);
-          localStorage.removeItem('seh-tokens');
+          localStorage.removeItem(sessionKey);
         })
         .finally(() => setIsLoading(false));
     } else {
@@ -47,19 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await apiClient.login({ email, password });
     setTokens(response);
-    localStorage.setItem('seh-tokens', JSON.stringify(response));
+    localStorage.setItem(sessionKey, JSON.stringify(response));
   };
 
   const register = async (data: { company_name: string; inn?: string; full_name: string; email: string; password: string }) => {
     const response = await apiClient.register(data);
     setTokens(response);
-    localStorage.setItem('seh-tokens', JSON.stringify(response));
+    localStorage.setItem(sessionKey, JSON.stringify(response));
   };
 
   const logout = () => {
     setUser(null);
     setTokens(null);
-    localStorage.removeItem('seh-tokens');
+    localStorage.removeItem(sessionKey);
   };
 
   return (

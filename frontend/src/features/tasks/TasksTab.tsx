@@ -1,3 +1,5 @@
+import { FloatingMenu } from '@/components/FloatingMenu';
+import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import {
   CheckSquare,
@@ -51,14 +53,14 @@ const STATUS_CONFIG: Record<
     label: 'Передано менеджеру',
     variant: 'warning',
     badgeClass:
-      'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800/60',
+      'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800/60',
     dotClass: 'bg-amber-500',
   },
   approved_closed: {
     label: 'Согласовано / Закрыто',
     variant: 'success',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
+      'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
     dotClass: 'bg-emerald-500',
   },
   pending: {
@@ -72,7 +74,7 @@ const STATUS_CONFIG: Record<
     label: 'Просрочено',
     variant: 'danger',
     badgeClass:
-      'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800/60',
+      'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800/60',
     dotClass: 'bg-rose-500',
   },
 };
@@ -297,10 +299,10 @@ export function TasksTab() {
 
       {/* Accounting Pending Alert Box */}
       {accountingPendingTasks.length > 0 && (
-        <div className="bg-amber-50/75 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-900/50 rounded-2xl p-4 space-y-3">
+        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 shrink-0">
+              <div className="p-2 rounded-xl bg-amber-100 text-amber-700 dark:text-amber-400 shrink-0">
                 <FileSpreadsheet className="h-4.5 w-4.5" />
               </div>
               <div>
@@ -308,7 +310,7 @@ export function TasksTab() {
                   <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200 leading-snug">
                     Требуется согласование отчетов с заказчиком
                   </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/90 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 shrink-0">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200 shrink-0">
                     {accountingPendingTasks.length} новых
                   </span>
                 </div>
@@ -319,7 +321,7 @@ export function TasksTab() {
             </div>
 
             {activeRole === 'manager' && (
-              <span className="text-[11px] font-semibold text-amber-900 dark:text-amber-200 bg-amber-100/70 dark:bg-amber-900/40 px-2.5 py-1 rounded-xl shrink-0">
+              <span className="text-[11px] font-semibold text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-900 px-2.5 py-1 rounded-xl shrink-0">
                 Ваша зона ответственности (Менеджер)
               </span>
             )}
@@ -431,13 +433,13 @@ export function TasksTab() {
               className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
                 quickFilter === 'urgent'
                   ? 'bg-rose-600 text-white font-semibold shadow-2xs'
-                  : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 hover:bg-rose-500/20'
+                  : 'bg-rose-100 text-rose-700 dark:text-rose-400 hover:bg-rose-100'
               }`}
               id="filter-urgent-tasks"
             >
               <Flame className="h-3.5 w-3.5" />
               <span>Горящие (&le; 5 дн.)</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-200 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-200">
                 {urgentCount}
               </span>
             </button>
@@ -448,13 +450,13 @@ export function TasksTab() {
               className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
                 quickFilter === 'accounting'
                   ? 'bg-amber-600 text-white font-semibold shadow-2xs'
-                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
+                  : 'bg-amber-100 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
               }`}
               id="filter-accounting-tasks"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               <span>От бухгалтерии</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
                 {accountingCount}
               </span>
             </button>
@@ -465,7 +467,7 @@ export function TasksTab() {
             {/* Search input */}
             <div className="relative flex-1 sm:w-60">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-muted)] pointer-events-none" />
-              <input
+              <BeamInput
                 type="text"
                 placeholder="Поиск по задачам..."
                 value={searchQuery}
@@ -490,7 +492,7 @@ export function TasksTab() {
       </Card>
 
       {/* Task List / Smart Register Table */}
-      <Card padding="none">
+      <Card padding="none" className="workspace-table-card">
         {filteredTasks.length === 0 ? (
           <div className="py-16 text-center space-y-2">
             <CheckCircle2 className="h-8 w-8 text-[var(--text-muted)] mx-auto" />
@@ -544,7 +546,7 @@ export function TasksTab() {
                         key={task.id}
                         className={`transition-colors ${
                           isUrgent
-                            ? 'bg-rose-50/20 dark:bg-rose-950/10 hover:bg-rose-50/35 dark:hover:bg-rose-950/20'
+                            ? 'bg-rose-50 dark:bg-rose-950 hover:bg-rose-50 dark:hover:bg-rose-950'
                             : isEven
                             ? 'bg-[var(--card-subtle)]/40 hover:bg-[var(--card-subtle)]/80'
                             : 'bg-[var(--card-bg)] hover:bg-[var(--card-subtle)]/60'
@@ -631,7 +633,7 @@ export function TasksTab() {
 
                             {/* Dropdown Menu */}
                             {isDropdownOpen && (
-                              <div className="absolute right-0 mt-1.5 w-52 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl py-1.5 z-40 text-left animate-in fade-in zoom-in-95 duration-100">
+                              <FloatingMenu className="py-1 text-left">
                                 <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--card-border)]">
                                   Сменить статус:
                                 </p>
@@ -660,7 +662,7 @@ export function TasksTab() {
                                     </button>
                                   );
                                 })}
-                              </div>
+                              </FloatingMenu>
                             )}
                           </div>
                         </td>
@@ -899,13 +901,13 @@ function NewTaskModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const input = 'mt-1 block w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2';
   return <Modal isOpen title="Новое поручение" onClose={() => { if (!pending) onClose(); }}>
     <form className="space-y-3 p-1 text-sm" onSubmit={submit}>
-      <label className="block">Поручение<input className={input} name="title" maxLength={500} required /></label>
-      <label className="block">Объект или номер контракта<input className={input} name="contract" maxLength={255} /></label>
-      <label className="block">Ответственный<input className={input} name="person" maxLength={255} required /></label>
+      <label className="block">Поручение<BeamInput className={input} name="title" maxLength={500} required /></label>
+      <label className="block">Объект или номер контракта<BeamInput className={input} name="contract" maxLength={255} /></label>
+      <label className="block">Ответственный<BeamInput className={input} name="person" maxLength={255} required /></label>
       <Select ariaLabel="Роль исполнителя" className="w-full" value={role} onChange={setRole} options={ENTERPRISE_ROLES.map(item => ({ value: item.id, label: item.shortName }))} />
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">Срок<input className={input} name="due" type="date" required /></label>
-        <label className="block">Оценка штрафа, ₽<input className={input} name="penalty" type="number" min="0" max="9999999999999.99" step="0.01" /></label>
+        <label className="block">Срок<BeamInput className={input} name="due" type="date" required /></label>
+        <label className="block">Оценка штрафа, ₽<BeamInput className={input} name="penalty" type="number" min="0" max="9999999999999.99" step="0.01" /></label>
       </div>
       {error && <p className="workspace-warning" role="alert">{error}</p>}
       <button className="workspace-link workspace-auth-submit" type="submit" disabled={pending}>{pending ? 'Сохраняем…' : 'Создать поручение'}</button>

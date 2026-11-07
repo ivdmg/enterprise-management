@@ -1,3 +1,4 @@
+import { BeamInput } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
@@ -71,9 +72,9 @@ function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
     <div
       className={`group relative p-2 rounded-xl border text-xs transition-all max-w-full overflow-hidden ${
         isCritical
-          ? 'bg-red-50/80 border-red-300 text-red-900 dark:bg-red-950/40 dark:border-red-800/80 dark:text-red-200'
+          ? 'bg-red-50 border-red-300 text-red-900 dark:bg-red-950 dark:border-red-800/80 dark:text-red-200'
           : isWarning
-          ? 'bg-amber-50/80 border-amber-300 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/80 dark:text-amber-200'
+          ? 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-800/80 dark:text-amber-200'
           : 'bg-[var(--card-subtle)] border-[var(--card-border)] text-[var(--text-main)]'
       }`}
     >
@@ -92,7 +93,7 @@ function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
         <span
           className={`font-mono text-[10px] font-semibold px-1.5 py-0.2 rounded shrink-0 ${
             isCritical
-              ? 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200'
+              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
               : 'bg-[var(--card-bg)] text-[var(--text-sub)]'
           }`}
         >
@@ -279,7 +280,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
         {/* Quick summary metrics */}
         <div className="flex flex-wrap items-center gap-2">
           {criticalBgCount > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900/60 text-red-900 dark:text-red-200 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-900/60 text-red-900 dark:text-red-200 text-xs font-semibold">
               <ShieldAlert className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
               <span>
                 Риск РНП по БГ: {criticalBgCount}{' '}
@@ -300,7 +301,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
             {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-              <input
+              <BeamInput
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -413,12 +414,12 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
       </Card>
 
       {/* Main Content Area */}
-      <Card padding="none">
+      <Card padding="none" className="workspace-table-card">
         {/* ============================================================ */}
         {/* DESKTOP TABLE VIEW (>= 768px): All 5 Stage Names Visible, No Vertical Lines */}
         {/* Proportions: Объект 21%, Степпер 35%, БГ 17%, Сумма 12%, Срок 8%, Риск 7% */}
         {/* ============================================================ */}
-        <div className="hidden md:block overflow-x-hidden">
+        <div className="hidden md:block overflow-x-auto rounded-[inherit]">
           <table className="w-full text-sm table-fixed" id="projects-table">
             <thead>
               <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
@@ -467,9 +468,9 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                       id={`project-row-${project.id}`}
                       className={`transition-all duration-300 ${
                         isHighlighted
-                          ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-500 ring-inset shadow-md'
+                          ? 'bg-amber-100 dark:bg-amber-950 ring-2 ring-amber-500 ring-inset shadow-md'
                           : isRowCritical
-                          ? 'bg-red-50/25 dark:bg-red-950/15 hover:bg-red-50/40 dark:hover:bg-red-950/25'
+                          ? 'bg-red-50 dark:bg-red-950 hover:bg-red-50 dark:hover:bg-red-950'
                           : 'hover:bg-[var(--card-subtle)]/70'
                       }`}
                     >
@@ -485,7 +486,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                               · {project.customer_name}
                             </span>
                           )}
-                          <span className="text-[var(--text-muted)] text-[10px]">·</span>
+                          {project.google_drive_link && <><span className="text-[var(--text-muted)] text-[10px]">·</span>
                           <a
                             href={project.google_drive_link}
                             target="_blank"
@@ -497,7 +498,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                             <FileSpreadsheet className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                             <span>Диск</span>
                             <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                          </a>
+                          </a></>}
                         </div>
                         {project.curator_name && (
                           <p className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
@@ -524,7 +525,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                                   isCurrent
                                     ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold shadow-2xs ring-1 ring-slate-900 dark:ring-slate-100'
                                     : isCompleted
-                                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200/80 dark:border-emerald-800/60'
+                                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800/60'
                                     : 'bg-[var(--card-subtle)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)] border border-[var(--card-border)]'
                                 }`}
                               >
@@ -605,7 +606,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                   id={`project-card-${project.id}`}
                   className={`p-4 space-y-3 transition-all duration-300 ${
                     isHighlighted
-                      ? 'bg-amber-100/90 dark:bg-amber-950/70 ring-2 ring-amber-500 rounded-xl shadow-md'
+                      ? 'bg-amber-100 dark:bg-amber-950 ring-2 ring-amber-500 rounded-xl shadow-md'
                       : ''
                   }`}
                 >
@@ -618,7 +619,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                       <div className="flex items-center gap-1.5 flex-wrap text-xs text-[var(--text-sub)] mt-0.5">
                         <span className="font-mono text-[var(--text-muted)]">{project.project_code}</span>
                         {project.customer_name ? <span>· {project.customer_name}</span> : ''}
-                        <span>·</span>
+                        {project.google_drive_link && <><span>·</span>
                         <a
                           href={project.google_drive_link}
                           target="_blank"
@@ -630,7 +631,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                           <FileSpreadsheet className="h-3 w-3" />
                           <span>Google Диск</span>
                           <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
+                        </a></>}
                       </div>
                     </div>
                     {project.imported_registry && !project.deadline_date ? <Badge variant='neutral'>Нет даты</Badge> : getRiskBadge(project.risk_level)}
@@ -656,7 +657,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
                               isCurrent
                                 ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs font-bold ring-1 ring-slate-900 dark:ring-slate-100'
                                 : isCompleted
-                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
+                                ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800/60'
                                 : 'bg-[var(--card-subtle)] text-[var(--text-muted)] border border-[var(--card-border)]'
                             }`}
                           >
@@ -718,7 +719,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
 
                   {/* Penalty Alert */}
                   {project.penalty_amount_calculated && project.penalty_amount_calculated > 0 ? (
-                    <div className="flex items-center justify-between text-xs bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-300 dark:border-red-900/60 text-red-900 dark:text-red-200">
+                    <div className="flex items-center justify-between text-xs bg-red-50 dark:bg-red-950 p-2.5 rounded-xl border border-red-300 dark:border-red-900/60 text-red-900 dark:text-red-200">
                       <span className="flex items-center gap-1.5 font-medium">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
                         Расчетный штраф (44-ФЗ):

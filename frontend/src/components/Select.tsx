@@ -1,3 +1,4 @@
+import { FloatingMenu } from './FloatingMenu';
 import { useState, useRef, useEffect, useId, type KeyboardEvent } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -31,7 +32,6 @@ export function Select({
   size = 'md',
 }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -65,17 +65,6 @@ export function Select({
   }, [isOpen, focusedIndex]);
 
   const openSelect = () => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      // Flip upward if space below is limited (< 250px) and there is more room above
-      if (spaceBelow < 250 && spaceAbove > spaceBelow) {
-        setOpenUpward(true);
-      } else {
-        setOpenUpward(false);
-      }
-    }
     setIsOpen(true);
     setFocusedIndex(selectedIndex >= 0 ? selectedIndex : 0);
   };
@@ -167,15 +156,12 @@ export function Select({
 
       {/* Popover Menu */}
       {isOpen && (
-        <div
-          ref={listRef}
+        <FloatingMenu menuRef={listRef}
           id={`${selectId}-options`}
           aria-label={ariaLabel ?? placeholder}
           role="listbox"
           tabIndex={-1}
-          className={`absolute z-[100] w-full min-w-[200px] bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl shadow-2xl p-1 max-h-60 overflow-y-auto scrollbar-none animate-in fade-in zoom-in-95 duration-100 text-[var(--text-main)] ${
-            openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-          }`}
+          className="p-1"
         >
           {options.map((option, idx) => {
             const isSelected = option.value === value;
@@ -212,7 +198,7 @@ export function Select({
               </button>
             );
           })}
-        </div>
+        </FloatingMenu>
       )}
     </div>
   );

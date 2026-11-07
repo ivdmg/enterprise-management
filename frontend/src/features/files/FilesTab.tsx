@@ -72,7 +72,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick,
             <button
               type="button"
               onClick={onAccountantUploadClick}
-              className="min-h-[40px] px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              className="min-h-[40px] px-3.5 py-2 rounded-xl workspace-solid-success border text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
               id="accountant-upload-btn"
             >
               <Upload className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick,
           </p>
         </Card>
       ) : (
-        <Card padding="none">
+        <Card padding="none" className="workspace-table-card">
           {/* Mobile View: Vertical cards list (md:hidden) */}
           <div className="md:hidden divide-y divide-[var(--card-border)]" id="files-mobile-list">
             {files.map((file) => (
@@ -120,7 +120,7 @@ export function FilesTab({ onUploadClick, onFileSelect, onAccountantUploadClick,
                 {/* Top Row: File icon + Date on the left, Status Badge on the right */}
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 shrink-0">
+                    <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 shrink-0">
                       <FileSpreadsheet className="h-4 w-4" />
                     </div>
                     <span className="text-[11px] font-mono text-[var(--text-muted)] truncate">

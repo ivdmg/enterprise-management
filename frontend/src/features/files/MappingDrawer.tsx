@@ -1,3 +1,4 @@
+import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect } from 'react';
 import { X, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/Button';
@@ -281,7 +282,7 @@ export function MappingDrawer({ isOpen, onClose, fileId, fileName }: MappingDraw
                 <label className="block text-xs font-semibold text-[var(--text-main)] mb-1.5">
                   Название шаблона (необязательно)
                 </label>
-                <input
+                <BeamInput
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}

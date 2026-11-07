@@ -1,3 +1,4 @@
+import { BeamTextarea } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
 import { X, AlertTriangle, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/Badge';
@@ -83,7 +84,7 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
       <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-2xl flex flex-col transition-colors duration-150">
+      <div className="workspace-alert-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-2xl flex flex-col transition-colors duration-150">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
           <h2 className="text-base font-bold text-[var(--text-main)]">
@@ -122,9 +123,9 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
                         key={alert.id}
                         className={`p-3.5 rounded-xl border space-y-2 transition-colors ${
                           isCritical
-                            ? 'bg-rose-50/75 dark:bg-rose-950/30 border-rose-200/90 dark:border-rose-900/60'
+                            ? 'bg-rose-50 dark:bg-rose-950 border-rose-200/90 dark:border-rose-900/60'
                             : isWarning
-                            ? 'bg-amber-50/75 dark:bg-amber-950/30 border-amber-200/90 dark:border-amber-900/60'
+                            ? 'bg-amber-50 dark:bg-amber-950 border-amber-200/90 dark:border-amber-900/60'
                             : 'bg-[var(--card-subtle)] border-[var(--card-border)]'
                         }`}
                       >
@@ -156,7 +157,7 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
                       {/* Resolve form */}
                       {resolvingId === alert.id ? (
                         <div className="space-y-2 pt-1">
-                          <textarea
+                          <BeamTextarea
                             value={comment}
                             onChange={(e) => setComment(e.target.value)}
                             placeholder="Комментарий по решению..."

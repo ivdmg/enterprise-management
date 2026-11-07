@@ -65,11 +65,11 @@ export function ConfirmModal({
     },
     warning: {
       Icon: AlertTriangle,
-      containerClass: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60',
+      containerClass: 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60',
     },
     danger: {
       Icon: AlertOctagon,
-      containerClass: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60',
+      containerClass: 'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/60',
     },
   }[variant];
 

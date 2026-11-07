@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -13,11 +13,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
+    proxy: mode === 'demo' ? undefined : {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },
   },
-})
+}))
