@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -10,26 +10,20 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!isOpen || !dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
-
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -41,19 +35,14 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   };
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
-      }}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+    <dialog ref={dialogRef} className="workspace-confirm-dialog" aria-labelledby={titleId}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
       <div
-        className={`relative w-full ${sizes[size]} bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl transition-colors duration-150 animate-in fade-in duration-200`}
+        className={`relative w-full ${sizes[size]} bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl shadow-xl max-h-full overflow-y-auto`}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
-          <h2 className="text-base font-bold text-[var(--text-main)]">{title}</h2>
+          <h2 id={titleId} className="text-base font-bold text-[var(--text-main)]">{title}</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors"
@@ -65,6 +54,6 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         <div className="px-6 py-5">{children}</div>
       </div>
 
-    </div>
+    </dialog>
   );
 }

@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { BeamInput } from '@/components/FieldBeam';
+import { FieldBeam } from '@/components/FieldBeam';
 import { Activity, ArrowRight, ArrowUpRight, CalendarClock, CircleAlert, Database, FileText, Scale, Search, Workflow } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
@@ -160,7 +160,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
       <div className="workspace-pagebar-actions">
         {(view === 'registry' || monitoring) && rows && rows.length > 0 && <>
           <div className="workspace-controls">
-          <label className="workspace-search"><Search size={18} /><BeamInput aria-label="Поиск по записям" placeholder="Заказчик, город или номер" value={search} onChange={e => { setSearch(e.target.value); setLimit(12); }} /></label>
+          <FieldBeam className="workspace-search-beam"><label className="workspace-search"><Search size={18} /><input aria-label="Поиск по записям" placeholder="Заказчик, город или номер" value={search} onChange={e => { setSearch(e.target.value); setLimit(12); }} /></label></FieldBeam>
           {monitoring && <Select ariaLabel="Фильтр по сигналам" className="workspace-filter" value={filter} options={Object.entries(filters).map(([value, label]) => ({ value, label }))} onChange={value => { setFilter(value as Filter); setLimit(12); }} />}
           {monitoring && focusedId && <button className="workspace-link" onClick={() => setFocusedId(null)}>Показать весь список</button>}
         </div>

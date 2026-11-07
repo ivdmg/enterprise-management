@@ -1,5 +1,5 @@
-import { BeamInput } from '@/components/FieldBeam';
-import { Activity, Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeft, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, ChevronRight, ChevronDown } from 'lucide-react';
+import { FieldBeam } from '@/components/FieldBeam';
+import { Activity, Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -104,6 +104,9 @@ export default function App() {
 
   useEffect(() => {
     if (!sidebar) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = 'hidden';
     document.querySelector<HTMLButtonElement>('.workspace-sidebar-head button')?.focus();
     const close = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -112,7 +115,10 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
+    return () => {
+      root.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', close);
+    };
   }, [sidebar]);
 
   function navigate(next: Section, due = false) {
@@ -149,7 +155,7 @@ export default function App() {
   return (
     <div className="workspace" data-sidebar={sidebar ? 'open' : 'closed'}>
       <header className="workspace-topbar" inert={sidebar}>
-        <div className="workspace-topbar-start">
+        <div className="workspace-topbar-strip"><div className="workspace-topbar-start">
           <a href="#summary" className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { event.preventDefault(); navigate('summary'); }}>
             <span className="workspace-brand-mark"><Workflow size={18} />
 
@@ -169,7 +175,8 @@ export default function App() {
             <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); navigate('summary'); logout(); }}><LogOut size={16} />Выйти</button>
           </div>
         </div>
-        <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'} onClick={() => setSidebar(open => !open)}><PanelLeft size={19} /></button><strong>Панель руководителя</strong></div>
+        </div>
+        <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'} onClick={() => setSidebar(open => !open)}><PanelLeftOpen size={19} /></button><strong>Панель руководителя</strong></div>
           {[
             { label: 'Обзор', ids: ['summary'] },
             { label: 'Контракты', ids: ['registry', 'projects', 'monitoring'] },
@@ -213,7 +220,7 @@ export default function App() {
       <main className="workspace-main" data-view={view} inert={sidebar}>
         {customerView ? <CustomerTendersTab view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
-              {view !== 'finance' && <header className="workspace-heading workspace-pagebar"><div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div><button type="button" className="workspace-link" onClick={() => navigate('summary')}>К обзору <ChevronRight size={15} /></button></header>}
+              {view !== 'finance' && <header className="workspace-heading workspace-pagebar"><div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div><button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={() => navigate('summary')}><House size={17} /></button></header>}
               <div key={`${view}-${version}`} className="workspace-module workspace-reveal"><Suspense fallback={<p role="status">Загружаем раздел…</p>}>{renderSection()}</Suspense></div>
             </>}
       </main>
@@ -222,7 +229,7 @@ export default function App() {
       <MappingDrawer isOpen={canEdit && mapping !== null} onClose={() => { setMapping(null); setVersion(value => value + 1); }} fileId={mapping?.id ?? ''} fileName={mapping?.name ?? ''} />
       {searchOpen && <Modal isOpen title="Быстрый переход" onClose={() => { setSearchOpen(false); setQuery(''); }}>
         <div className="workspace-search-dialog">
-          <label className="workspace-search"><Search size={18} /><BeamInput autoFocus aria-label="Поиск по разделам" placeholder="Например, финансы" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <FieldBeam className="workspace-search-beam"><label className="workspace-search"><Search size={18} /><input autoFocus aria-label="Поиск по разделам" placeholder="Например, финансы" value={query} onChange={event => setQuery(event.target.value)} /></label></FieldBeam>
           <div className="workspace-search-results">
             {sections.flatMap(group => [...group.items]).filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).map(({ id, label, icon: Icon }) =>
               <button key={id} onClick={() => { navigate(id); setSearchOpen(false); setQuery(''); }}><Icon size={17} />{label}<ChevronRight size={15} /></button>,

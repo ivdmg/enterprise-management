@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useId, useRef, type ReactNode } from 'react';
 import { Button } from './Button';
 import { ShieldCheck, AlertTriangle, AlertOctagon, ArrowRight, X } from 'lucide-react';
 
@@ -29,32 +29,21 @@ export function ConfirmModal({
   onCancel,
   isLoading = false,
 }: ConfirmModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
-  // Lock scroll
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.body.style.overflow = '';
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
-
-  // Escape listener
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isLoading) {
-        onCancel();
-      }
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleEsc);
-    }
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onCancel, isLoading]);
 
   if (!isOpen) return null;
 
@@ -74,24 +63,16 @@ export function ConfirmModal({
   }[variant];
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === overlayRef.current && !isLoading) {
-          onCancel();
-        }
-      }}
+    <dialog
+      ref={dialogRef}
+      role="alertdialog"
+      aria-labelledby={titleId}
+      className="workspace-confirm-dialog"
+      onCancel={event => { event.preventDefault(); if (!isLoading) onCancel(); }}
+      onClick={event => { if (event.target === event.currentTarget && !isLoading) onCancel(); }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-150" />
-
-      {/* Modal Dialog */}
       <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-modal-title"
-        className="relative w-full max-w-md bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-main)] shadow-2xl rounded-2xl p-5 sm:p-6 z-10 animate-in fade-in zoom-in-95 duration-150"
+        className="relative w-full max-w-md bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-main)] shadow-2xl rounded-2xl p-5 sm:p-6 max-h-full overflow-y-auto"
       >
         {/* Close Button */}
         <button
@@ -111,7 +92,7 @@ export function ConfirmModal({
           </div>
           <div className="space-y-1 pr-6">
             <h3
-              id="confirm-modal-title"
+              id={titleId}
               className="text-base font-semibold text-[var(--text-main)] leading-snug"
             >
               {title}
@@ -171,6 +152,6 @@ export function ConfirmModal({
           </Button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

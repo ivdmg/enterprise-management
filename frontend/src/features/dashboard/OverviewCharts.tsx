@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowUpRight, PieChart as PieIcon, Wallet } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiClient } from '@/api/client';
 import type { FinanceData } from '@/types';
 
+const donutHeight = 180;
 const compact = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 });
 const shortDay = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const colors = ['var(--chart-primary)', 'var(--chart-secondary)', 'var(--chart-tertiary)', 'var(--chart-muted)'];
@@ -16,6 +17,8 @@ export function OverviewCharts({ statuses, onFinance, onRegistry, obligations, o
   obligations: { id: string; title: string; subtitle: string; date: string; label: string; action: () => void }[];
   onMonitoring: () => void;
 }) {
+  const donutRef = useRef<HTMLDivElement>(null);
+  const [sectorTip, setSectorTip] = useState<{ index: number; x: number; y: number } | null>(null);
   const [period, setPeriod] = useState('month');
   const [finance, setFinance] = useState<FinanceData | null>();
   useEffect(() => {
@@ -77,13 +80,31 @@ export function OverviewCharts({ statuses, onFinance, onRegistry, obligations, o
         <div className="workspace-chart-title"><span><PieIcon size={17} /></span><div><h2>Портфель контрактов</h2><p>По статусам реестра</p></div></div>
         <button className="workspace-icon-button" aria-label="Открыть контракты" onClick={onRegistry}><ArrowUpRight size={17} /></button>
       </div>
-      <div className="workspace-donut" role="img" aria-label={statuses.map(status => `${status.name}: ${status.value}`).join(', ')}>
+      <div ref={donutRef} className="workspace-donut" style={{ height: donutHeight }} role="img" aria-label={statuses.map(status => `${status.name}: ${status.value}`).join(', ')}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <PieChart><Pie isAnimationActive="auto" animationDuration={1100} data={statuses} dataKey="value" nameKey="name" innerRadius="65%" outerRadius="93%" paddingAngle={statuses.length > 1 ? 4 : 0} stroke="none">
+          <PieChart accessibilityLayer={false}><Pie isAnimationActive="auto" animationDuration={1100} data={statuses} dataKey="value" nameKey="name" innerRadius="65%" outerRadius="93%" paddingAngle={statuses.length > 1 ? 4 : 0} stroke="none"
+            onMouseEnter={(sector, index) => {
+              const width = donutRef.current?.clientWidth ?? 0;
+              const angle = -(sector.midAngle ?? 0) * Math.PI / 180;
+              const dx = Math.cos(angle);
+              const dy = Math.sin(angle);
+              const radius = sector.outerRadius + 5;
+              const tipWidth = 120;
+              const x = sector.cx + dx * radius - (dx < 0 ? tipWidth : 0);
+              setSectorTip({
+                index,
+                x: Math.max(0, Math.min(width - tipWidth, x)),
+                y: Math.max(0, Math.min(donutHeight - 44, sector.cy + dy * radius - 22)),
+              });
+            }}
+            onMouseLeave={() => setSectorTip(null)}>
             {statuses.map((status, index) => <Cell key={status.name} fill={colors[index % colors.length]} />)}
-          </Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+          </Pie></PieChart>
         </ResponsiveContainer>
         <div className="workspace-donut-label"><strong>{total}</strong><span>контрактов</span></div>
+        {sectorTip && statuses[sectorTip.index] && <div className="workspace-donut-tip" style={{ left: sectorTip.x, top: sectorTip.y }}>
+          {statuses[sectorTip.index].name}: <b>{statuses[sectorTip.index].value}</b>
+        </div>}
       </div>
       <ul className="workspace-donut-legend">{statuses.map((status, index) => <li key={status.name}><i style={{ background: colors[index % colors.length] }} />{status.name}<b>{status.value}</b></li>)}</ul>
     </section>

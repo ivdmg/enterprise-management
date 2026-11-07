@@ -1,3 +1,4 @@
+import { Select } from '@/components/Select';
 import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect } from 'react';
 import {
@@ -15,6 +16,13 @@ import { Badge } from '@/components/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/api/client';
 import type { TelegramSettings } from '@/types';
+
+const timeOptions = (length: number) => Array.from({ length }, (_, index) => {
+  const value = String(index).padStart(2, '0');
+  return { value, label: value };
+});
+const hours = timeOptions(24);
+const minutes = timeOptions(60);
 
 export function SettingsTab() {
   const { user } = useAuth();
@@ -201,19 +209,18 @@ export function SettingsTab() {
                   Ежедневный утренний дайджест
                 </p>
                 <p className="text-xs text-[var(--text-sub)]">
-                  Краткая сводка рисков и финансового состояния в 08:30
+                  Краткая сводка рисков и финансового состояния в {settings.daily_digest_time.slice(0, 5)}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <BeamInput
-                type="time"
-                value={settings.daily_digest_time}
-                onChange={(e) =>
-                  setSettings({ ...settings, daily_digest_time: e.target.value })
-                }
-                className="px-2.5 py-1 text-sm rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)]"
-              />
+              <div className="workspace-time-picker" role="group" aria-label="Время утреннего дайджеста">
+                <Select ariaLabel="Часы" size="sm" options={hours} value={settings.daily_digest_time.slice(0, 2)}
+                  onChange={hour => setSettings({ ...settings, daily_digest_time: `${hour}:${settings.daily_digest_time.slice(3, 5) || '00'}` })} />
+                <span aria-hidden="true">:</span>
+                <Select ariaLabel="Минуты" size="sm" options={minutes} value={settings.daily_digest_time.slice(3, 5)}
+                  onChange={minute => setSettings({ ...settings, daily_digest_time: `${settings.daily_digest_time.slice(0, 2) || '08'}:${minute}` })} />
+              </div>
               <input
                 type="checkbox"
                 checked={settings.daily_digest_enabled}

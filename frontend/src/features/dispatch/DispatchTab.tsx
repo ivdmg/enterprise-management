@@ -1,4 +1,4 @@
-import { BeamInput } from '@/components/FieldBeam';
+import { FieldBeam } from '@/components/FieldBeam';
 import { demoMode } from '@/api/mode';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
@@ -431,16 +431,16 @@ export function DispatchTab() {
         <div className="space-y-3">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             {/* Search Input */}
-            <div className="relative flex-1">
+            <div className="relative flex-1"><FieldBeam><label className="workspace-search-control">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-              <BeamInput
+              <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по технике, бригаде, ответственному или объекту..."
                 className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-slate-100 placeholder:text-[var(--text-muted)]"
               />
-            </div>
+            </label></FieldBeam></div>
 
             {/* Object Filter Dropdown */}
             <div className="w-full sm:w-64">

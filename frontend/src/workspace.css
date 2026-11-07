@@ -203,7 +203,7 @@
 .workspace-chart-legend span + span i { background: #7893bd; }
 .workspace-plot { height: 205px; }
 .workspace-chart-empty { min-height: 235px; display: grid; align-content: center; justify-items: center; gap: 8px; }
-.workspace-donut { height: 180px; position: relative; margin: 8px 0; }
+.workspace-donut { position: relative; margin: 8px 0; }
 .workspace-donut-label { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; pointer-events: none; font-size: 12px; color: var(--text-sub); }
 .workspace-donut-label strong { font-size: 34px; line-height: 1.1; color: var(--text-main); }
 .workspace-donut-legend { display: grid; gap: 5px; font-size: 12px; }
@@ -514,7 +514,7 @@
 .workspace-quick-trigger[aria-expanded="true"] svg { rotate: 45deg; }
 .workspace-quick-actions button:disabled { pointer-events: none; }
 .workspace-quick-item:has(button:disabled) { visibility: hidden; }
-.workspace-module > :first-child > :not(script),
+.workspace-module > :first-child > :not(script, dialog),
 .workspace-reveal > :is(.workspace-pagebar, .workspace-records, .workspace-analytics, .workspace-overview) { animation: workspace-reveal .32s ease-out both; }
 .workspace-module > :first-child > :nth-child(2), .workspace-reveal > .workspace-analytics { animation-delay: 70ms; }
 .workspace-module > :first-child > :nth-child(3), .workspace-reveal > .workspace-overview { animation-delay: 140ms; }
@@ -640,3 +640,122 @@
   .workspace-quick-actions { width: 28px; }
   .workspace-quick-actions button { width: 28px; }
 }
+
+/* Shared opaque semantic surfaces, including legacy Tailwind status controls. */
+[data-theme="dark"] .workspace {
+  --semantic-danger-bg: #442c2a;
+  --semantic-danger-text: #fecaca;
+  --semantic-warning-bg: #423626;
+  --semantic-warning-text: #fde68a;
+  --semantic-success-bg: #243a30;
+  --semantic-success-text: #b9dfc5;
+}
+.workspace :is([class*="text-red-"], [class*="text-rose-"]) { color: var(--semantic-danger-text); }
+.workspace :is([class*="text-yellow-"], [class*="text-amber-"]) { color: var(--semantic-warning-text); }
+.workspace :is([class*="text-green-"], [class*="text-emerald-"]) { color: var(--semantic-success-text); }
+.workspace :is([data-workspace-badge="danger"], .workspace-badge.critical, [class*="bg-red-"], [class*="bg-rose-"]) {
+  --workspace-status-bg: var(--semantic-danger-bg);
+  --workspace-status-fg: var(--semantic-danger-text);
+}
+.workspace :is([data-workspace-badge="warning"], .workspace-badge.soon, [class*="bg-yellow-"], [class*="bg-amber-"]) {
+  --workspace-status-bg: var(--semantic-warning-bg);
+  --workspace-status-fg: var(--semantic-warning-text);
+}
+.workspace :is([data-workspace-badge="success"], .workspace-solid-success, [class*="bg-green-"], [class*="bg-emerald-"]) {
+  --workspace-status-bg: var(--semantic-success-bg);
+  --workspace-status-fg: var(--semantic-success-text);
+}
+.workspace :is([data-workspace-badge], .workspace-solid-success, .workspace-badge.critical, .workspace-badge.soon,
+  [class*="bg-red-"], [class*="bg-rose-"], [class*="bg-yellow-"], [class*="bg-amber-"], [class*="bg-green-"], [class*="bg-emerald-"]) {
+  background-color: var(--workspace-status-bg, var(--card-subtle));
+  color: var(--workspace-status-fg, var(--text-main));
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.workspace :is(button, a):is(.workspace-solid-success, [class*="bg-red-"], [class*="bg-rose-"], [class*="bg-yellow-"], [class*="bg-amber-"], [class*="bg-green-"], [class*="bg-emerald-"]):hover {
+  background-color: var(--workspace-status-bg);
+  filter: brightness(1.12);
+}
+.workspace-search-control { display: block; position: relative; }
+.workspace-search-control > svg { z-index: 1; }
+.workspace-search-beam { width: clamp(175px, 24vw, 350px); max-width: 100%; }
+.workspace-search-dialog .workspace-search-beam { width: 100%; }
+.workspace-search-beam .workspace-search { width: 100%; }
+.workspace-search-beam input { flex: 1; min-width: 0; }
+.workspace-field-beam :is(input, textarea):focus {
+  outline: none; box-shadow: none;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+.workspace :is([data-workspace-badge="neutral"], [data-workspace-badge="info"]) {
+  --workspace-status-bg: var(--card-subtle);
+  --workspace-status-fg: var(--text-main);
+}
+.workspace :is([data-workspace-badge], .workspace-solid-success, .workspace-badge.critical, .workspace-badge.soon,
+  [class*="bg-red-"], [class*="bg-rose-"], [class*="bg-yellow-"], [class*="bg-amber-"], [class*="bg-green-"], [class*="bg-emerald-"]) {
+  border-width: 0;
+}
+.workspace :is(span,div).rounded-full:empty:is([class*="bg-red-"], [class*="bg-rose-"], [class*="bg-yellow-"], [class*="bg-amber-"], [class*="bg-green-"], [class*="bg-emerald-"]) {
+  background-color: var(--workspace-status-fg);
+}
+.workspace-donut-tip { position: absolute; z-index: 2; width: 120px; padding: 6px 8px; border: 1px solid var(--card-border); border-radius: 9px; background: var(--card-bg); color: var(--text-main); font-size: 12px; pointer-events: none; }
+
+/* The dialog lives in the browser top layer, above animated page sections. */
+.workspace-confirm-dialog {
+  position: fixed; inset: 0; margin: 0; width: 100%; height: 100%;
+  max-width: none; max-height: none; padding: 16px; border: 0;
+  background: transparent; color: var(--text-main);
+}
+.workspace-confirm-dialog[open] { display: grid; place-items: center; }
+.workspace-confirm-dialog::backdrop { background: rgb(0 0 0 / .59); backdrop-filter: blur(2px); }
+
+.workspace-topbar, [data-theme="dark"] .workspace-topbar { background: transparent; backdrop-filter: none; }
+.workspace-topbar-strip {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center;
+  min-width: 0; gap: 8px; margin-inline: -9px; padding-inline: 9px; background: var(--card-bg);
+}
+.workspace-tabs {
+  background: color-mix(in srgb, var(--card-bg) 72%, transparent);
+  backdrop-filter: blur(17px);
+}
+.workspace-main[data-view="registry"] .workspace-search-beam { width: min(360px, 100%); }
+.workspace-main[data-view="registry"] .workspace-controls { flex: 0 1 360px; min-width: 0; }
+.workspace-main[data-view="registry"] .workspace-pagebar-actions { width: min(430px, 100%); }
+.workspace-main[data-view="projects"] .workspace-pagebar { padding: 12px 16px; margin-bottom: 14px; }
+.workspace-main[data-view="projects"] .workspace-pagebar h1 { font-size: clamp(22px, 2vw, 29px); }
+.workspace-home-button { border: 1px solid var(--card-border); background: var(--card-subtle); }
+@media (max-width: 800px) {
+  .workspace-main[data-view="projects"] .workspace-pagebar { grid-template-columns: minmax(0,1fr) auto; }
+}
+
+.workspace-donut { user-select: none; }
+.workspace-donut :is(svg, path):focus { outline: none; }
+.workspace-donut-legend li { gap: 7px; }
+.workspace-donut-legend b { margin-left: 3px; }
+.workspace-sidebar { overscroll-behavior-y: contain; }
+.workspace-main[data-view="monitoring"] .workspace-search-beam { width: clamp(260px, 28vw, 380px); }
+.workspace-time-picker { display: flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.workspace-time-picker > div { min-width: 55px; }
+@media (max-width: 520px) {
+  .workspace-main[data-view="monitoring"] .workspace-search-beam { width: 100%; }
+  .workspace-main[data-view="monitoring"] .workspace-pagebar-actions,
+  .workspace-main[data-view="monitoring"] .workspace-controls { width: 100%; }
+}
+
+.workspace-field-beam:focus-within { outline: 1px solid var(--workspace-accent); outline-offset: 0; }
+.workspace-field-beam :is(input, textarea):focus { outline: none; box-shadow: none; }
+.workspace-field-beam:has(.workspace-caret-glow[data-visible]) :is(input, textarea):focus { caret-color: transparent; }
+.workspace-caret-glow {
+  position: absolute; z-index: 2; width: 2px; pointer-events: none; visibility: hidden;
+  transform: translate(-50%, -50%); border-radius: 999px; color: var(--workspace-accent);
+  background: currentColor; box-shadow: 0 0 4px 1px currentColor, 0 0 9px 2px currentColor;
+  animation: workspace-caret-glow 1.8s ease-in-out infinite;
+}
+.workspace-caret-glow[data-visible] { visibility: visible; }
+@keyframes workspace-caret-glow {
+  0%, 100% { opacity: .08; }
+  50% { opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) { .workspace-caret-glow { animation: none; } }

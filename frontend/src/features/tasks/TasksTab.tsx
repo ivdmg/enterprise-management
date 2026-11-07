@@ -1,5 +1,5 @@
 import { FloatingMenu } from '@/components/FloatingMenu';
-import { BeamInput } from '@/components/FieldBeam';
+import { BeamInput, FieldBeam } from '@/components/FieldBeam';
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import {
   CheckSquare,
@@ -465,16 +465,16 @@ export function TasksTab() {
           {/* Search Bar & Custom Role Select (FE-5.1) */}
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             {/* Search input */}
-            <div className="relative flex-1 sm:w-60">
+            <div className="relative flex-1 sm:w-60"><FieldBeam><label className="workspace-search-control">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-muted)] pointer-events-none" />
-              <BeamInput
+              <input
                 type="text"
                 placeholder="Поиск по задачам..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs bg-[var(--card-subtle)] border border-[var(--card-border)] rounded-xl text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--card-border)] min-h-[38px]"
               />
-            </div>
+            </label></FieldBeam></div>
 
             {/* Custom Styled Role Select Component (FE-5.1) */}
             <div className="w-full sm:w-56">
