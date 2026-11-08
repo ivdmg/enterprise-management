@@ -44,10 +44,7 @@ async def init_drive_folders(
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(403, "Инициализировать папки может только администратор")
     if not google_drive_client.is_mock:
-        if current_user.company_id != settings.GOOGLE_DRIVE_COMPANY_ID:
-            raise HTTPException(403, "Google Диск не подключён к этой организации")
-        if root_id and root_id != settings.GOOGLE_DRIVE_ROOT_FOLDER_ID:
-            raise HTTPException(403, "Используйте настроенную корневую папку")
+        raise HTTPException(403, "Google Диск подключён только для чтения")
     logger.info("Initializing Drive folders requested by %s (root_id: %s)", current_user.email, root_id)
     folders = google_drive_client.init_folders(root_folder_id=root_id)
     return ResponseEnvelope.ok(
@@ -73,6 +70,9 @@ async def trigger_drive_sync(
     and runs the analytical alert engine.
     """
     logger.info("Manual Drive sync initiated by user %s (company: %s)", current_user.email, current_user.company_id)
+
+    if not google_drive_client.is_mock and current_user.company_id != settings.GOOGLE_DRIVE_COMPANY_ID:
+        raise HTTPException(403, "Google Диск не подключён к этой организации")
 
     if background:
         current_status = drive_sync_service.get_status(current_user.company_id).to_dict()

@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { useEffect, useRef, useState } from 'react';
 import { Activity, ArrowUpRight, PieChart as PieIcon, Wallet } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -57,7 +58,7 @@ export function OverviewCharts({ statuses, onFinance, onRegistry, obligations, o
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </> : <div className="workspace-chart-empty"><Wallet size={24} /><p>{finance === undefined ? 'Загружаем операции…' : finance === null ? 'Не удалось загрузить операции' : 'За этот период операций нет'}</p></div>}
+      </> : <div className="workspace-chart-empty"><Wallet size={24} />{finance === undefined ? <DataLoading /> : <p>{finance === null ? 'Не удалось загрузить операции' : 'За этот период операций нет'}</p>}</div>}
     </section>
     <section className="workspace-panel workspace-chart">
       <div className="workspace-chart-head">

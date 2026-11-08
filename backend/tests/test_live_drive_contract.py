@@ -68,7 +68,10 @@ async def test_background_sync_returns_before_job_finishes():
     app.dependency_overrides[get_current_user]=lambda:user
     app.dependency_overrides[get_db]=db_override
     try:
-        with patch.object(drive_sync_service,'sync_company_drive',side_effect=job):
+        with (
+            patch.object(settings, "GOOGLE_DRIVE_COMPANY_ID", user.company_id),
+            patch.object(drive_sync_service, "sync_company_drive", side_effect=job),
+        ):
             async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
                 r=await client.post('/api/v1/sync/drive-now?background=true')
                 assert r.status_code==200

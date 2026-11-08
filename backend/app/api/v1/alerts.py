@@ -13,6 +13,7 @@ from app.models.alert import IntegrationSetting, SystemAlert
 from app.models.enums import AlertSeverity, DomainCategory
 from app.models.user import User
 from app.models.project import TenderProject
+from app.services.tender_source import active_tender_source
 from app.schemas.alerts import (
     ResolveAlertRequest,
     ResolveAlertResponseData,
@@ -46,6 +47,7 @@ async def list_critical_alerts(
     proj_q = select(TenderProject).where(
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
+        active_tender_source(current_user.company_id),
     )
     projects = (await db.execute(proj_q)).scalars().all()
     projects_map = {p.id: p for p in projects}

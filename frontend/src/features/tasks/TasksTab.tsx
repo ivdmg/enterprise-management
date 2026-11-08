@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
+import { DataLoading } from '@/components/DataLoading';
 import { FloatingMenu } from '@/components/FloatingMenu';
 import { BeamInput, FieldBeam } from '@/components/FieldBeam';
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import {
-  CheckSquare,
   Flame,
   Clock,
   ExternalLink,
@@ -85,7 +86,7 @@ const WORKFLOW_OPTIONS: { status: TaskWorkflowStatus; label: string }[] = [
   { status: 'approved_closed', label: 'Согласовано / Закрыто' },
 ];
 
-export function TasksTab() {
+export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode) => ReactNode } = {}) {
   const { activeRole, currentRoleDef } = useRole();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -254,9 +255,10 @@ export function TasksTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        {renderHeader?.()}
+        <DataLoading className="py-20" />
+      </>
     );
   }
 
@@ -270,25 +272,10 @@ export function TasksTab() {
   return (
     <div className="space-y-4" id="tasks-tab-section">
       {taskLoadError && <p className="workspace-warning" role="alert">Не удалось загрузить задачи.</p>}
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
-            <CheckSquare className="h-5 w-5 text-[var(--text-main)]" />
-            Смарт-реестр операционных задач
-          </h2>
-          <p className="text-xs text-[var(--text-sub)]">
-            Сквозной контроль чек-листов, интеграция с Google Диском и защита от срыва регламентов
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-semibold text-[var(--text-main)]">
-            {filteredTasks.length} из {totalCount} задач
-          </span>
-          {(user?.role === 'manager' || user?.role === 'admin') && <button className="workspace-link" onClick={() => setCreating(true)}>Новое поручение</button>}
-        </div>
-      </div>
+      {renderHeader?.(<>
+        <span className="workspace-catalog-button workspace-page-stat">{filteredTasks.length} из {totalCount} задач</span>
+        {(user?.role === 'manager' || user?.role === 'admin') && <button type="button" className="workspace-catalog-button" onClick={() => setCreating(true)}>Новое поручение</button>}
+      </>)}
       {creating && <NewTaskModal onClose={() => setCreating(false)} onCreated={task => {
         setTasks(items => [task, ...items]);
         setQuickFilter('all');

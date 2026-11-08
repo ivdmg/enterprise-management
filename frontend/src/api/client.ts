@@ -84,6 +84,14 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
+  getDriveCatalog(signal: AbortSignal) {
+    return request<import('@/features/files/DriveCatalog').DriveNode[]>('/drive-catalog', { signal, cache: 'no-store' });
+  },
+  getEngineerDocuments(signal: AbortSignal) {
+    return request<{ register: import('@/features/dashboard/EngineerDocumentsTab').EngineerRegister | null }>(
+      '/engineer-documents', { signal, cache: 'no-store' },
+    );
+  },
   async getCustomerTenders(): Promise<import('@/features/dashboard/CustomerTendersTab').CustomerTender[]> {
     return USE_MOCKS ? demoTenders() : request('/customer-tenders');
   },
@@ -201,12 +209,17 @@ export const apiClient = {
     });
   },
 
-  async getFiles(): Promise<FileListItem[]> {
+  async getFiles(signal?: AbortSignal): Promise<FileListItem[]> {
     if (USE_MOCKS) {
       await delay();
       return mockData.filesList;
     }
-    return request<FileListItem[]>('/files');
+    const files: FileListItem[] = [];
+    for (let page = 1; ; page++) {
+      const batch = await request<FileListItem[]>(`/files?page=${page}&limit=100`, { signal });
+      files.push(...batch);
+      if (batch.length < 100) return files;
+    }
   },
 
   async getMappingPreview(fileId: string, sheetName?: string): Promise<MappingPreviewData> {

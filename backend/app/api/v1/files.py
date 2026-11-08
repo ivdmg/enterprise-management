@@ -92,6 +92,8 @@ async def upload_and_assign_document(
 
     # 1. Upload to Google Drive (Mock / API v3)
     gdrive_client = get_google_drive_client()
+    if not gdrive_client.is_mock:
+        raise HTTPException(403, "Google Диск подключён только для чтения")
     drive_upload = gdrive_client.upload_file(
         folder_name_or_id=target_folder,
         filename=orig_name,
@@ -692,6 +694,7 @@ async def list_files(
             status=f.status,
             uploaded_by=f.uploader.full_name if f.uploader else None,
             created_at=f.created_at,
+            google_drive_id=f.google_drive_id,
             google_drive_link=f.google_drive_link,
             error_message=f.error_message,
         )

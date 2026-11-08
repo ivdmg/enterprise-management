@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { DataLoading } from '@/components/DataLoading';
 import { FloatingMenu } from '@/components/FloatingMenu';
 import { FieldBeam } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
@@ -75,7 +77,7 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
   },
 };
 
-export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) {
+export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: boolean; renderHeader?: (actions?: ReactNode) => ReactNode } = {}) {
   const [items, setItems] = useState<ProcurementItemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -207,9 +209,10 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        {renderHeader?.()}
+        <DataLoading className="py-20" />
+      </>
     );
   }
 
@@ -222,32 +225,12 @@ export function ProcurementTab({ dueOnly = false }: { dueOnly?: boolean } = {}) 
 
   return (
     <div className="space-y-4" id="procurement-tab-section">
-      {deliveryRisk && <div className="workspace-panel flex flex-wrap items-center justify-between gap-3">
-        <div><h2>Счета на оплате · контроль поставки</h2><p>Показаны счета с просроченной поставкой или сроком в ближайшие семь дней.</p></div>
-        <button className="workspace-link" onClick={() => setDeliveryRisk(false)}>Показать все счета</button>
-      </div>}
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5 text-[var(--text-main)]" />
-            Снабжение и закупки ТМЦ
-          </h2>
-          <p className="text-xs text-[var(--text-sub)]">
-            Операционный контроль поставок материалов, оплат счетов и логистики на строительные объекты
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--text-sub)]">
-            Всего ТМЦ: <strong className="font-mono text-[var(--text-main)]">{items.length}</strong> поз.
-          </span>
-          <span className="text-xs text-[var(--text-muted)]">|</span>
-          <span className="text-xs font-mono font-bold text-[var(--text-main)]">
-            {formatCurrency(totalSum)}
-          </span>
-        </div>
-      </div>
+      {renderHeader?.(<>
+        <span className="workspace-catalog-button workspace-page-stat">Всего ТМЦ · <strong>{items.length}</strong></span>
+        {items.length > 0 && <span className="workspace-catalog-button workspace-page-stat">{formatCurrency(totalSum)}</span>}
+        {deliveryRisk && <button type="button" className="workspace-catalog-button" onClick={() => setDeliveryRisk(false)}>Срок поставки до 7 дней · сбросить</button>}
+      </>)}
+      {deliveryRisk && <p className="text-sm text-[var(--text-sub)]">Показаны счета с просроченной поставкой или сроком в ближайшие семь дней.</p>}
 
       {/* 4 Pipeline Stage KPI Cards (Bento-Box) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

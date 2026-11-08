@@ -42,3 +42,10 @@ Thumbs.db
 private-transfer/
 *.private.zip
 dist-demo/
+
+# Local spreadsheets, exports and demo workbooks
+*.xlsx
+*.xls
+*.xlsm
+demo-data/
+outputs/

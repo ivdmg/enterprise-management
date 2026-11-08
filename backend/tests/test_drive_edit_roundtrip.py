@@ -1,5 +1,6 @@
 """Exercise repeated edits, deletions and failed imports against real PostgreSQL."""
 import io
+import os
 from pathlib import Path
 from unittest.mock import patch
 import uuid
@@ -21,12 +22,18 @@ from app.services.google_drive import GoogleDriveClient
 
 @pytest.mark.asyncio
 async def test_edit_delete_and_invalid_source_are_atomic(tmp_path):
+    test_url = os.getenv("DRIVE_TEST_DATABASE_URL")
+    assets_dir = os.getenv("DRIVE_TEST_WORKBOOKS_DIR")
+    if not test_url or not assets_dir:
+        pytest.skip("Configure a separate DRIVE_TEST_DATABASE_URL and DRIVE_TEST_WORKBOOKS_DIR")
+    if test_url == settings.async_database_url:
+        pytest.fail("Drive tests require a separate database")
     drive = GoogleDriveClient(mock_mode=True, mock_dir=tmp_path)
-    assets = sorted((Path(__file__).resolve().parents[2] / "demo-data").glob("*.xlsx"))
+    assets = sorted(Path(assets_dir).glob("*.xlsx"))
     assert len(assets) == 5
     for file in assets:
         drive.upload_file("01_Сметы_и_Тендеры", file.name, file.read_bytes())
-    engine = create_async_engine(settings.async_database_url, poolclass=NullPool)
+    engine = create_async_engine(test_url, poolclass=NullPool)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     service = GoogleDriveSyncService()
     async with factory() as db:

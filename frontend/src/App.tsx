@@ -1,10 +1,12 @@
+import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
-import { Activity, Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
+import { Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { CustomerTendersTab, type TenderView } from '@/features/dashboard/CustomerTendersTab';
+import { EngineerDocumentsTab } from '@/features/dashboard/EngineerDocumentsTab';
 import { ProjectsTab } from '@/features/dashboard/ProjectsTab';
 import { ProcurementTab } from '@/features/procurement/ProcurementTab';
 import { DispatchTab } from '@/features/dispatch/DispatchTab';
@@ -24,8 +26,8 @@ import './workspace.css';
 const sections = [
   { title: 'Контроль', items: [
     { id: 'summary', label: 'Где горит?', icon: LayoutDashboard, description: 'Сроки и обязательства, которые стоит проверить в первую очередь.' },
-    { id: 'registry', label: 'Контракты', icon: FileStack, description: 'Заказчики, статусы и сроки из реестра.' },
-    { id: 'monitoring', label: 'Документы и сроки', icon: Activity, description: 'Контроль исполнения и отметок о документах.' },
+    { id: 'registry', label: 'Контракты', icon: FileStack, description: 'Реестр контрактов, сроки исполнения и контроль документов.' },
+    { id: 'engineers', label: 'Документы инженеров', icon: FileStack, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
   ] },
   { title: 'Операции', items: [
     { id: 'projects', label: 'Тендеры и объекты', icon: Building2, description: 'Этапы контрактов и сроки банковских гарантий.' },
@@ -42,13 +44,14 @@ const sections = [
 ] as const;
 
 type Section = typeof sections[number]['items'][number]['id'];
-const customerViews: readonly Section[] = ['summary', 'registry', 'monitoring', 'sources'];
+const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
 const FinanceTab = lazy(() => import('@/features/dashboard/FinanceTab').then(module => ({ default: module.FinanceTab })));
 const formatSync = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Astrakhan' });
 
 function readSection(): Section {
   const hash = window.location.hash.slice(1).split('?')[0];
+  if (hash === 'monitoring') return 'registry';
   return sections.flatMap(group => [...group.items]).find(item => item.id === hash)?.id ?? 'summary';
 }
 
@@ -60,6 +63,8 @@ export default function App() {
   const [sidebar, setSidebar] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [manualSync, setManualSync] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
   const [sync, setSync] = useState<DriveSyncStatus | null>(null);
   const [showAlerts, setShowAlerts] = useState<'all' | 'penalties' | null>(null);
   const [penalties, setPenalties] = useState<number | null>(null);
@@ -132,21 +137,47 @@ export default function App() {
     setSidebar(false);
   }
 
-  if (isLoading) return <main className="workspace-loading" role="status">Открываем рабочее пространство…</main>;
+  async function syncNow() {
+    setManualSync(true);
+    setSyncMessage('');
+    try {
+      const result = await apiClient.syncDriveNow();
+      setSync(await apiClient.getDriveSyncStatus());
+      setSyncMessage(result.message ?? 'Синхронизация завершена');
+      setVersion(value => value + 1);
+    } catch (error) {
+      setSyncMessage(error instanceof Error ? error.message : 'Не удалось запустить синхронизацию');
+    } finally {
+      setManualSync(false);
+    }
+  }
+
+  if (isLoading) return <main className="workspace-loading"><DataLoading /></main>;
   if (!isAuthenticated) return <AuthPage />;
 
   const lastSync = Date.parse(sync?.last_synced_at ?? '');
   const syncLabel = sync?.status === 'syncing' ? 'Идёт импорт' : sync?.status === 'error' ? 'Ошибка импорта' : Number.isFinite(lastSync) ? formatSync.format(lastSync) : 'Google Drive';
   const customerView = customerViews.includes(view);
 
+  function renderPageHeader(actions?: ReactNode) {
+    return <header className="workspace-heading workspace-pagebar">
+      <div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div>
+      <div className="workspace-pagebar-actions">
+        {actions}
+        <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={() => navigate('summary')}><House size={17} /></button>
+      </div>
+    </header>;
+  }
+
   function renderSection() {
     switch (view) {
-      case 'projects': return <ProjectsTab />;
+      case 'engineers': return demoMode ? <p>Реестр доступен в рабочей организации.</p> : canEdit ? <EngineerDocumentsTab refreshAt={sync?.last_synced_at} onHome={() => navigate('summary')} /> : <p>Раздел доступен руководителям организации.</p>;
+      case 'projects': return <ProjectsTab renderHeader={renderPageHeader} />;
       case 'finance': return <FinanceTab />;
-      case 'procurement': return <ProcurementTab key={String(procurementDue)} dueOnly={procurementDue} />;
-      case 'dispatch': return <DispatchTab />;
-      case 'tasks': return <TasksTab />;
-      case 'files': return <FilesTab readOnly={!canEdit} onUploadClick={() => setUpload('file')} onAccountantUploadClick={canEdit ? () => setUpload('accounting') : undefined} onFileSelect={(id, name) => setMapping({ id, name })} />;
+      case 'procurement': return <ProcurementTab key={String(procurementDue)} dueOnly={procurementDue} renderHeader={renderPageHeader} />;
+      case 'dispatch': return <DispatchTab renderHeader={renderPageHeader} driveLink={demoMode ? undefined : sync?.root_folder_link} />;
+      case 'tasks': return <TasksTab renderHeader={renderPageHeader} />;
+      case 'files': return <FilesTab showDrive={canEdit && !demoMode && sync?.drive_mode !== 'mock'} onFileSelect={canEdit ? (id, name) => setMapping({ id, name }) : undefined} />;
       case 'settings': return <SettingsTab />;
       default: return null;
     }
@@ -165,7 +196,7 @@ export default function App() {
         </div>
         <div className="workspace-topbar-actions">
           {demoMode && <span className="workspace-demo" title="Учебные данные"><FlaskConical size={14} />Демо</span>}
-          {!demoMode && <button className="workspace-sync" onClick={() => navigate('sources')} title={`Состояние Google Drive: ${syncLabel}`} aria-label={`Состояние Google Drive: ${syncLabel}`}><Database size={15} /><span>{syncLabel}</span></button>}
+          {!demoMode && <button className="workspace-sync" onClick={syncNow} disabled={manualSync || sync?.status === 'syncing'} title={syncMessage || syncLabel} aria-label="Синхронизировать Google Диск"><Database size={15} /><span>{manualSync || sync?.status === 'syncing' ? 'Синхронизация…' : 'Синхронизировать'}</span></button>}
           <button className="workspace-icon-button" onClick={() => setShowAlerts('all')} title="Уведомления" aria-label="Уведомления"><Bell size={18} /></button>
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
@@ -179,9 +210,9 @@ export default function App() {
         <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'} onClick={() => setSidebar(open => !open)}><PanelLeftOpen size={19} /></button><strong>Панель руководителя</strong></div>
           {[
             { label: 'Обзор', ids: ['summary'] },
-            { label: 'Контракты', ids: ['registry', 'projects', 'monitoring'] },
+            { label: 'Контракты', ids: ['registry', 'projects'] },
             { label: 'Финансы', ids: ['finance'] },
-            { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks'] },
+            { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks', ...(!demoMode && canEdit ? ['engineers'] : [])] },
             { label: 'Данные', ids: ['sources', 'files', 'settings'] },
           ].map(({ label, ids }, index) => {
             const items = sections.flatMap(group => [...group.items]).filter(item => ids.includes(item.id));
@@ -203,7 +234,7 @@ export default function App() {
           })}
           {(canEdit || sync?.root_folder_link) && <Suspense fallback={null}><QuickActions
             onUpload={canEdit ? () => setUpload('file') : undefined}
-            onAccounting={canEdit ? () => setUpload('accounting') : undefined}
+            onAccounting={canEdit && (demoMode || sync?.drive_mode === 'mock') ? () => setUpload('accounting') : undefined}
             driveLink={demoMode ? undefined : sync?.root_folder_link}
           /></Suspense>}
         </nav>
@@ -218,10 +249,14 @@ export default function App() {
         </nav>
       </aside>
       <main className="workspace-main" data-view={view} inert={sidebar}>
-        {customerView ? <CustomerTendersTab view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
+        {syncMessage && <p role="status">{syncMessage}</p>}
+        {customerView ? <CustomerTendersTab key={version} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
-              {view !== 'finance' && <header className="workspace-heading workspace-pagebar"><div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{section.label}</h1><p>{section.description}</p></div><button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={() => navigate('summary')}><House size={17} /></button></header>}
-              <div key={`${view}-${version}`} className="workspace-module workspace-reveal"><Suspense fallback={<p role="status">Загружаем раздел…</p>}>{renderSection()}</Suspense></div>
+              {view === 'files' ? renderPageHeader(<>
+                {!demoMode && canEdit && sync?.root_folder_link && <a className="workspace-catalog-button" href={sync.root_folder_link} target="_blank" rel="noreferrer"><ExternalLink size={16} />Папка Google Диска</a>}
+                {canEdit && <button type="button" className="workspace-catalog-button" onClick={() => setUpload('file')}><Upload size={16} />Загрузить файл</button>}
+              </>) : (view === 'settings' || (view === 'engineers' && (demoMode || !canEdit))) && renderPageHeader()}
+              <div key={`${view}-${version}`} className="workspace-module workspace-reveal"><Suspense fallback={<DataLoading />}>{renderSection()}</Suspense></div>
             </>}
       </main>
       <FileUploadModal isOpen={canEdit && upload === 'file'} onClose={() => setUpload(null)} onUploadComplete={data => { setUpload(null); if (data.status === 'awaiting_confirmation') setMapping({ id: data.file_id, name: data.original_name }); setVersion(value => value + 1); }} />

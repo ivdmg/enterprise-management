@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import async_session_factory
 from app.core.config import settings
+from app.models.company import Company
+from app.services.engineer_documents import SOURCE_NAME, is_engineer_source, read_engineer_documents
 from app.models.enums import FileStatus
 from app.models.file import UploadedFile
 from app.models.finance import CashflowOperation
@@ -136,10 +138,43 @@ class GoogleDriveSyncService:
                     len(all_drive_files),
                 )
 
+                if not google_drive_client.is_mock:
+                    sources = [f for f in all_drive_files if f.parent_folder == "root"
+                               and is_engineer_source(f.name, f.mime_type)]
+                    if sources:
+                        try:
+                            if len(sources) != 1:
+                                raise ValueError("В корневой папке несколько таблиц документов инженеров")
+                            register = await asyncio.to_thread(read_engineer_documents, google_drive_client, sources[0])
+                            await session.execute(
+                                update(Company).where(Company.id == company_id).values(engineer_documents=register)
+                            )
+                            await session.commit()
+                            processed += 1
+                            status_info.details.append({"file": SOURCE_NAME, "folder": "root", "action": "imported"})
+                        except Exception:
+                            await session.rollback()
+                            status_info.details.append({
+                                "file": SOURCE_NAME, "folder": "root", "action": "error",
+                                "error": "Не удалось обновить документы инженеров. Сохранён последний доступный реестр.",
+                            })
+                    elif await session.scalar(select(Company.engineer_documents).where(Company.id == company_id)):
+                        status_info.details.append({
+                            "file": SOURCE_NAME, "folder": "root", "action": "error",
+                            "error": "Таблица документов инженеров недоступна. Сохранён последний доступный реестр.",
+                        })
+                    all_drive_files = [f for f in all_drive_files if f not in sources]
+
                 # A mock root scan and a child scan may return the same document.
                 all_drive_files = list({f.id: f for f in all_drive_files}.values())
-                if not google_drive_client.is_mock and settings.GOOGLE_DRIVE_SOURCE_FILE_ID:
-                    all_drive_files = [f for f in all_drive_files if f.id == settings.GOOGLE_DRIVE_SOURCE_FILE_ID]
+                if not google_drive_client.is_mock:
+                    source_id = settings.GOOGLE_DRIVE_SOURCE_FILE_ID
+                    all_drive_files = [f for f in all_drive_files if source_id and f.id == source_id]
+                    if source_id and not all_drive_files:
+                        status_info.details.append({
+                            "file": "Тендеры", "folder": "root", "action": "error",
+                            "error": "Настроенный источник тендеров недоступен в подключённой папке.",
+                        })
                 # 2. Process each file
                 for file_info in all_drive_files:
                     file_bytes = b""
@@ -207,7 +242,10 @@ class GoogleDriveSyncService:
                             TenderProject.deleted_at.is_(None),
                         ))).scalars().all() if existing_file else []
                         if old_project_ids:
-                            await session.execute(update(TenderProject).where(TenderProject.id.in_(old_project_ids)).values(file_id=None))
+                            await session.execute(update(TenderProject).where(
+                                TenderProject.id.in_(old_project_ids),
+                                TenderProject.custom_attributes["customer_tenders"].as_boolean().is_not(True),
+                            ).values(file_id=None))
 
                         # Each editable document owns a snapshot. Replace its dependent rows
                         # in the same transaction, so edits/deletions cannot double totals.
@@ -236,7 +274,7 @@ class GoogleDriveSyncService:
 
                         await session.flush()
                         if old_project_ids:
-                            removed = select(TenderProject.id).where(TenderProject.id.in_(old_project_ids), TenderProject.file_id.is_(None))
+                            removed = select(TenderProject.id).where(TenderProject.id.in_(old_project_ids), (TenderProject.file_id.is_(None) | TenderProject.deleted_at.is_not(None)))
                             await session.execute(update(SystemAlert).where(SystemAlert.company_id == company_id,
                                 SystemAlert.entity_type == "tender_projects", SystemAlert.entity_id.in_(removed),
                                 SystemAlert.is_resolved.is_(False)).values(is_resolved=True, resolved_at=datetime.now(timezone.utc)))
@@ -302,7 +340,7 @@ class GoogleDriveSyncService:
 
                 # 3. Post-sync risk evaluation and alert updates
                 try:
-                    if google_drive_client.is_mock or not settings.GOOGLE_DRIVE_SOURCE_FILE_ID:
+                    if google_drive_client.is_mock:
                         await alerts_engine.run_full_evaluation(company_id, session)
                     await session.commit()
                 except Exception as ae:

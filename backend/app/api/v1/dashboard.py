@@ -15,6 +15,7 @@ from app.models.finance import CashflowOperation
 from app.models.payroll import PayrollRecord
 from app.models.procurement import ProcurementItem
 from app.models.project import TenderProject
+from app.services.tender_source import active_tender_source
 from app.models.user import User
 from app.models.file import UploadedFile
 from app.schemas.common import MetaModel, ResponseEnvelope
@@ -147,6 +148,7 @@ async def get_dashboard_summary(
     proj_q = select(TenderProject).where(
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
+        active_tender_source(current_user.company_id),
     )
     proj_res = await db.execute(proj_q)
     projects = proj_res.scalars().all()
@@ -279,6 +281,7 @@ async def get_dashboard_critical_alerts(
     proj_q = select(TenderProject).where(
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
+        active_tender_source(current_user.company_id),
     )
     projects = (await db.execute(proj_q)).scalars().all()
     projects_map = {p.id: p for p in projects}
@@ -454,6 +457,7 @@ async def get_dashboard_projects(
     base_q = select(TenderProject).where(
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
+        active_tender_source(current_user.company_id),
     )
     if status_filter and status_filter != "all":
         base_q = base_q.where(TenderProject.status == status_filter)
@@ -615,6 +619,7 @@ async def update_project_tender_stage(
         TenderProject.id == project_id,
         TenderProject.company_id == current_user.company_id,
         TenderProject.deleted_at.is_(None),
+        active_tender_source(current_user.company_id),
     ).with_for_update()
     res = await db.execute(q)
     project = res.scalar_one_or_none()

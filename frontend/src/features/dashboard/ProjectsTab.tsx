@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
@@ -14,7 +16,6 @@ import {
   Search,
   CheckCircle2,
   AlertTriangle,
-  Building2,
   Layers,
   Info,
   FileSpreadsheet,
@@ -132,11 +133,12 @@ function BankGuaranteeWidget({ bg }: { bg?: Project['bank_guarantee'] }) {
 }
 
 export interface ProjectsTabProps {
+  renderHeader?: (actions?: ReactNode) => ReactNode;
   highlightProjectId?: string | null;
   onClearHighlight?: () => void;
 }
 
-export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTabProps = {}) {
+export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader }: ProjectsTabProps = {}) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -252,9 +254,10 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        {renderHeader?.()}
+        <DataLoading className="py-20" />
+      </>
     );
   }
 
@@ -265,19 +268,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
   return (
     <div className="space-y-4" id="projects-tab-section">
       {error && <p className="workspace-warning" role="alert">{error}</p>}
-      {/* Top Header & Summary Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-[var(--text-main)]" />
-            Тендеры и объекты строительства
-          </h2>
-          <p className="text-xs text-[var(--text-sub)]">
-            Линейный контроль стадий 44-ФЗ / 223-ФЗ, банковские гарантии и исполнение контрактов
-          </p>
-        </div>
-
-        {/* Quick summary metrics */}
+      {renderHeader?.(
         <div className="flex flex-wrap items-center gap-2">
           {criticalBgCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-900/60 text-red-900 dark:text-red-200 text-xs font-semibold">
@@ -292,7 +283,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight }: ProjectsTa
             Портфель: <span className="font-mono font-semibold text-[var(--text-main)]">{knownAmounts.length ? formatCurrency(totalContractSum) : '—'}</span>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Filter and Search Bar */}
       <Card padding="sm">

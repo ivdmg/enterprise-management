@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect } from 'react';
 import { X, CheckCircle2, ArrowRight } from 'lucide-react';
@@ -114,7 +115,7 @@ export function MappingDrawer({ isOpen, onClose, fileId, fileName }: MappingDraw
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-4 sm:pt-5 pb-28 sm:pb-32 space-y-4 sm:space-y-5">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+              <DataLoading />
             </div>
           ) : confirmed ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">

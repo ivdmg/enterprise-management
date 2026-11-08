@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
 import { demoMode } from '@/api/mode';
 import { useEffect, useState } from 'react';
@@ -9,7 +11,6 @@ import { apiClient } from '@/api/client';
 import type { DispatchRecordData, DispatchStatus } from '@/types';
 import { LogIncidentModal } from './LogIncidentModal';
 import {
-  Radio,
   Truck,
   Users,
   Wrench,
@@ -189,9 +190,10 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
   );
 }
 
-export function DispatchTab() {
+export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actions?: ReactNode) => ReactNode; driveLink?: string } = {}) {
   const [records, setRecords] = useState<DispatchRecordData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -204,9 +206,11 @@ export function DispatchTab() {
 
   const loadRecords = () => {
     setLoading(true);
+    setLoadError(false);
     apiClient
       .getDispatchRecords()
       .then(setRecords)
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   };
 
@@ -302,59 +306,25 @@ export function DispatchTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        {renderHeader?.()}
+        <DataLoading className="py-20" />
+      </>
     );
   }
 
+  const latestShift = records.map(record => record.shift_date).filter(Boolean).sort().at(-1);
+
   return (
     <div className="space-y-4">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[var(--text-main)] flex items-center gap-2">
-            <Radio className="h-5 w-5 text-[var(--text-main)]" />
-            Диспетчерская служба и суточный график
-          </h2>
-          <p className="text-xs text-[var(--text-sub)]">
-            Мобильный чеклист техники и строительных бригад, оперативная фиксация поломок и простоев
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Shift Date Badge styled identically to the Refresh button */}
-          <div className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
-            <span className="text-[10px] uppercase text-[var(--text-muted)] font-medium">Смена:</span>
-            <span className="font-mono">16.10.2026</span>
-          </div>
-
-          {/* Google Drive Link Button */}
-          {!demoMode && <a
-            href="https://drive.google.com/drive/folders/enterprise-hub"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="min-h-[38px] px-3.5 py-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] hover:bg-[var(--card-bg)] text-[var(--text-main)] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-            title="Открыть суточный график и ведомость смены в Google Диск"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden sm:inline">Google Диск</span>
-            <ExternalLink className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-          </a>}
-
-          {/* Refresh Button */}
-          <button
-            type="button"
-            onClick={loadRecords}
-            title="Обновить суточный статус"
-            className="min-h-[38px] min-w-[38px] p-2 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
-            id="dispatch-refresh-btn"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
+      {renderHeader?.(<>
+        <span className="workspace-catalog-button workspace-page-stat">
+          Смена · {latestShift ? latestShift.slice(0, 10).split('-').reverse().join('.') : 'Нет данных'}
+        </span>
+        {driveLink && <a className="workspace-catalog-button" href={driveLink} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} />Google Диск</a>}
+        <button type="button" className="workspace-catalog-button" onClick={loadRecords} id="dispatch-refresh-btn"><RefreshCw size={16} />Обновить статус</button>
+      </>)}
+      {loadError && <p role="alert">Не удалось загрузить суточный статус.</p>}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

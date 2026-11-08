@@ -2,7 +2,7 @@
 
 ## Что находится в GitHub
 
-Исходники, миграции, Docker/Render-конфигурация, синтетические примеры, docs/, tasks/, agents/, PROJECT_CONTEXT.md и AGENTS.md. Зависимости фронтенда зафиксированы package-lock.json; рабочие версии бэкенда — backend/requirements.lock.txt. Python 3.12 (на исходном компьютере 3.12.14), Node.js 24 (24.13.0).
+Исходники, миграции, Docker/Render-конфигурация, docs/, tasks/, agents/, PROJECT_CONTEXT.md и AGENTS.md. Зависимости фронтенда зафиксированы package-lock.json; рабочие версии бэкенда — backend/requirements.lock.txt. Python 3.12 (на исходном компьютере 3.12.14), Node.js 24 (24.13.0).
 
 Git не переносит историю переписки приложения, настройки редактора и установленные плагины. Для нового чата используйте PROJECT_CONTEXT.md; исходные требования сохранены в docs/. Общее состояние продукта сохраняется через ту же облачную базу Neon и ту же папку Google Drive.
 
@@ -29,7 +29,7 @@ npm.cmd --prefix frontend ci
 npm.cmd --prefix frontend run build
 ```
 
-Не копируйте `.venv` или `node_modules` со старого компьютера: их нужно создать заново. Не запускайте seed и setup_demo: облачная база уже содержит компанию, пользователей и реальные записи. Не меняйте DATABASE_URL, GOOGLE_DRIVE_COMPANY_ID и корневую папку Drive на новые.
+Не копируйте `.venv` или `node_modules` со старого компьютера: их нужно создать заново. Не запускайте seed и setup_demo: облачная база уже содержит компанию, пользователей и реальные записи. Для того же рабочего контура сохраните DATABASE_URL, GOOGLE_DRIVE_COMPANY_ID, GOOGLE_DRIVE_ROOT_FOLDER_ID и GOOGLE_DRIVE_SOURCE_FILE_ID из локального файла настроек.
 
 Для локального запуска:
 

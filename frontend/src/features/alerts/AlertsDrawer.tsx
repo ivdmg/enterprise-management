@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { BeamTextarea } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
 import { X, AlertTriangle, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
@@ -103,7 +104,7 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+              <DataLoading />
             </div>
           ) : error ? <p className="p-5" role="alert">{error}</p> : (
             <div className="divide-y divide-[var(--card-border)]">

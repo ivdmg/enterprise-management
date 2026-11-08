@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { useEffect, useState } from 'react';
 import {
   ResponsiveContainer,
@@ -43,7 +44,7 @@ function FinancePeriod({ period }: { period: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+        <DataLoading />
       </div>
     );
   }

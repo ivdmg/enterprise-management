@@ -152,12 +152,12 @@ class GoogleDriveClient:
                         info = json.loads(raw_val)
                     creds = service_account.Credentials.from_service_account_info(
                         info,
-                        scopes=["https://www.googleapis.com/auth/drive"],
+                        scopes=["https://www.googleapis.com/auth/drive.readonly"],
                     )
                 elif credentials_file.is_file():
                     creds = service_account.Credentials.from_service_account_file(
                         str(credentials_file),
-                        scopes=["https://www.googleapis.com/auth/drive"],
+                        scopes=["https://www.googleapis.com/auth/drive.readonly"],
                     )
 
                 if creds:
@@ -247,7 +247,7 @@ class GoogleDriveClient:
         root = settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
         if not root:
             raise ValueError("GOOGLE_DRIVE_ROOT_FOLDER_ID is required")
-        names = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS
+        names = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS + ["удостоверения"]
         name_filter = " or ".join(f"name = '{name}'" for name in names)
         result = execute_with_backoff(lambda: self._service.files().list(
             q=f"'{root}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and ({name_filter})",
@@ -263,7 +263,7 @@ class GoogleDriveClient:
             if not settings.GOOGLE_DRIVE_ROOT_FOLDER_ID:
                 raise ValueError("GOOGLE_DRIVE_ROOT_FOLDER_ID is required")
             return settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
-        known = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS
+        known = self.STANDARD_FOLDERS + self.LEGACY_FOLDERS + ["удостоверения"]
         if folder not in known:
             return folder
         if folder in self._folder_ids_cache:
@@ -316,6 +316,8 @@ class GoogleDriveClient:
         Filters by modified_after if provided.
         """
         valid_extensions = (".xlsx", ".xls", ".txt", ".pdf")
+        if folder_name_or_id == "удостоверения":
+            valid_extensions += (".docx",)
 
         if self.is_mock:
             results: List[DriveFileInfo] = []

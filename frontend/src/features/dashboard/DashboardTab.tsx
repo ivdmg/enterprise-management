@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { useEffect, useState } from 'react';
 import {
   Wallet,
@@ -49,7 +50,7 @@ export function DashboardTab({ onNavigateTab, onNavigateToProject }: DashboardTa
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 space-y-3">
-        <div className="h-8 w-8 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+        <DataLoading />
         <p className="text-xs text-[var(--text-sub)]">
           Загрузка оперативной сводки...
         </p>

@@ -1,3 +1,4 @@
+import { DataLoading } from '@/components/DataLoading';
 import { Select } from '@/components/Select';
 import { BeamInput } from '@/components/FieldBeam';
 import { useState, useEffect } from 'react';
@@ -84,13 +85,15 @@ export function SettingsTab() {
     }
   };
 
-  if (loading || !settings) {
+  if (loading) {
     return (
       <div className="py-12 flex justify-center">
-        <div className="h-6 w-6 border-2 border-[var(--text-main)] border-t-transparent rounded-full animate-spin" />
+        <DataLoading />
       </div>
     );
   }
+
+  if (!settings) return <p role="alert">Не удалось загрузить настройки.</p>;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

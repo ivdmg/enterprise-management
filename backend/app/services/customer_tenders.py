@@ -1,6 +1,6 @@
 """Import the customer's two-sheet register without inventing missing figures."""
 import io
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import openpyxl
 from sqlalchemy import select
@@ -55,10 +55,14 @@ def read_customer_workbook(content):
 async def persist_customer_workbook(content,company_id,file_id,db):
     data=read_customer_workbook(content)
     if data is None: raise ValueError('Не найдены оба листа реестра заказчика')
-    existing=(await db.execute(select(TenderProject).where(TenderProject.company_id==company_id,TenderProject.deleted_at.is_(None)))).scalars().all()
+    existing=(await db.execute(select(TenderProject).where(TenderProject.company_id==company_id,TenderProject.file_id==file_id,TenderProject.deleted_at.is_(None)))).scalars().all()
     by_key={p.project_code:p for p in existing if (p.custom_attributes or {}).get('customer_tenders')}
     registry={r['key']:r for r in data['Реест Ольга']['rows']}
     monitoring={r['key']:r for r in data['Ежедневный мониторинг']['rows']}
+    identifiers = registry.keys() | monitoring.keys()
+    for identifier, project in by_key.items():
+        if identifier not in identifiers:
+            project.deleted_at = datetime.now(timezone.utc)
     first_key=min(registry.keys() | monitoring.keys(),key=lambda k:(registry.get(k) or monitoring[k])['source_row']) if registry or monitoring else None
     for identifier in registry.keys() | monitoring.keys():
         r=registry.get(identifier)

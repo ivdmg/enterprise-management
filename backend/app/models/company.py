@@ -1,5 +1,5 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import Boolean, String
+from sqlalchemy import JSON, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
@@ -26,6 +26,8 @@ class Company(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     kpp: Mapped[str | None] = mapped_column(String(9), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Moscow", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    engineer_documents: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Relationships with CASCADE delete
     users: Mapped[List["User"]] = relationship(

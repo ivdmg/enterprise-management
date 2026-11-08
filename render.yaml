@@ -27,3 +27,5 @@ services:
         sync: false
       - key: GOOGLE_DRIVE_COMPANY_ID
         sync: false
+      - key: GOOGLE_DRIVE_SOURCE_FILE_ID
+        sync: false
