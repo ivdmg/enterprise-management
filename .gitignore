@@ -31,6 +31,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+.vercel/
 
 # IDE & System files
 .vscode/

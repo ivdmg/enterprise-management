@@ -31,7 +31,19 @@ import { mockData } from '@/mocks';
 import { demoMode as USE_MOCKS, sessionKey } from './mode';
 import { demoDate, demoTenders } from '@/mocks/tenders';
 
-const BASE_URL = '/api/v1';
+const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
+const BASE_URL = `${API_ORIGIN}/api/v1`;
+const sectionData = new Map<string, { promise: Promise<unknown>; expiresAt: number }>();
+const sectionEndpoints = new Set([
+  '/customer-tenders', '/engineer-documents', '/drive-catalog', '/dashboard/projects',
+  '/dashboard/finance', '/procurement/items', '/dispatch/records', '/tasks', '/files',
+  '/integrations/telegram',
+]);
+let sectionToken: string | null = null;
+
+export function clearSectionData() {
+  sectionData.clear();
+}
 
 function getToken(): string | null {
   const saved = localStorage.getItem(sessionKey);
@@ -43,12 +55,48 @@ function getToken(): string | null {
   }
 }
 
-async function request<T>(
+function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  if (sectionToken !== token) {
+    clearSectionData();
+    sectionToken = token;
+  }
+  const method = options.method ?? 'GET';
+  if (method !== 'GET') {
+    return fetchData<T>(endpoint, options, token).then(data => {
+      clearSectionData();
+      return data;
+    });
+  }
+  if (!token || !sectionEndpoints.has(endpoint.split('?')[0])) {
+    return fetchData<T>(endpoint, options, token);
+  }
+
+  const { signal, ...sharedOptions } = options;
+  signal?.throwIfAborted();
+  let entry = sectionData.get(endpoint);
+  if (!entry || entry.expiresAt <= Date.now()) {
+    const promise = fetchData<T>(endpoint, sharedOptions, token);
+    const pending = { promise, expiresAt: Infinity };
+    sectionData.set(endpoint, pending);
+    void promise.then(
+      () => { pending.expiresAt = Date.now() + 120_000; },
+      () => { if (sectionData.get(endpoint) === pending) sectionData.delete(endpoint); },
+    );
+    entry = pending;
+  }
+  return (entry.promise as Promise<T>).then(data => {
+    signal?.throwIfAborted();
+    return data;
+  });
+}
+
+async function fetchData<T>(
   endpoint: string,
-  options: RequestInit = {},
+  options: RequestInit,
+  token: string | null,
 ): Promise<T> {
   if (USE_MOCKS) throw new Error('Операция недоступна в демонстрационном режиме.');
-  const token = getToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
@@ -84,10 +132,10 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
-  getDriveCatalog(signal: AbortSignal) {
+  getDriveCatalog(signal?: AbortSignal) {
     return request<import('@/features/files/DriveCatalog').DriveNode[]>('/drive-catalog', { signal, cache: 'no-store' });
   },
-  getEngineerDocuments(signal: AbortSignal) {
+  getEngineerDocuments(signal?: AbortSignal) {
     return request<{ register: import('@/features/dashboard/EngineerDocumentsTab').EngineerRegister | null }>(
       '/engineer-documents', { signal, cache: 'no-store' },
     );

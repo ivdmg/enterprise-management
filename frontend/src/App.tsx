@@ -1,23 +1,16 @@
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
-import { Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LogOut, Moon, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UserRound } from 'lucide-react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { AuthPage } from '@/features/auth/AuthPage';
 import { CustomerTendersTab, type TenderView } from '@/features/dashboard/CustomerTendersTab';
-import { EngineerDocumentsTab } from '@/features/dashboard/EngineerDocumentsTab';
-import { ProjectsTab } from '@/features/dashboard/ProjectsTab';
-import { ProcurementTab } from '@/features/procurement/ProcurementTab';
-import { DispatchTab } from '@/features/dispatch/DispatchTab';
-import { TasksTab } from '@/features/tasks/TasksTab';
-import { FilesTab } from '@/features/files/FilesTab';
-import { SettingsTab } from '@/features/settings/SettingsTab';
 import { FileUploadModal } from '@/features/files/FileUploadModal';
 import { AccountantUploadModal } from '@/features/files/AccountantUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
 import { AlertsDrawer, isContractPenalty } from '@/features/alerts/AlertsDrawer';
-import { apiClient } from '@/api/client';
+import { apiClient, clearSectionData } from '@/api/client';
 import { demoMode } from '@/api/mode';
 import { Modal } from '@/components/Modal';
 import type { DriveSyncStatus } from '@/types';
@@ -27,7 +20,7 @@ const sections = [
   { title: 'Контроль', items: [
     { id: 'summary', label: 'Где горит?', icon: LayoutDashboard, description: 'Сроки и обязательства, которые стоит проверить в первую очередь.' },
     { id: 'registry', label: 'Контракты', icon: FileStack, description: 'Реестр контрактов, сроки исполнения и контроль документов.' },
-    { id: 'engineers', label: 'Документы инженеров', icon: FileStack, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
+    { id: 'engineers', label: 'Документы инженеров', icon: UserRound, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
   ] },
   { title: 'Операции', items: [
     { id: 'projects', label: 'Тендеры и объекты', icon: Building2, description: 'Этапы контрактов и сроки банковских гарантий.' },
@@ -46,7 +39,44 @@ const sections = [
 type Section = typeof sections[number]['items'][number]['id'];
 const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
-const FinanceTab = lazy(() => import('@/features/dashboard/FinanceTab').then(module => ({ default: module.FinanceTab })));
+const loadSection = {
+  engineers: () => import('@/features/dashboard/EngineerDocumentsTab').then(module => ({ default: module.EngineerDocumentsTab })),
+  projects: () => import('@/features/dashboard/ProjectsTab').then(module => ({ default: module.ProjectsTab })),
+  finance: () => import('@/features/dashboard/FinanceTab').then(module => ({ default: module.FinanceTab })),
+  procurement: () => import('@/features/procurement/ProcurementTab').then(module => ({ default: module.ProcurementTab })),
+  dispatch: () => import('@/features/dispatch/DispatchTab').then(module => ({ default: module.DispatchTab })),
+  tasks: () => import('@/features/tasks/TasksTab').then(module => ({ default: module.TasksTab })),
+  files: () => import('@/features/files/FilesTab').then(module => ({ default: module.FilesTab })),
+  settings: () => import('@/features/settings/SettingsTab').then(module => ({ default: module.SettingsTab })),
+};
+const EngineerDocumentsTab = lazy(loadSection.engineers);
+const ProjectsTab = lazy(loadSection.projects);
+const FinanceTab = lazy(loadSection.finance);
+const ProcurementTab = lazy(loadSection.procurement);
+const DispatchTab = lazy(loadSection.dispatch);
+const TasksTab = lazy(loadSection.tasks);
+const FilesTab = lazy(loadSection.files);
+const SettingsTab = lazy(loadSection.settings);
+const prefetchOrder: readonly Section[] = ['registry', 'finance', 'engineers', 'summary', 'projects', 'procurement', 'dispatch', 'tasks', 'sources', 'files', 'settings'];
+
+function prefetchSection(view: Section, canEdit: boolean, showDrive: boolean) {
+  switch (view) {
+    case 'summary': return Promise.allSettled([apiClient.getCustomerTenders(), apiClient.getFinanceData('month')]);
+    case 'registry': return Promise.allSettled([apiClient.getCustomerTenders()]);
+    case 'sources': return Promise.allSettled([
+      apiClient.getCustomerTenders(),
+      ...(canEdit && !demoMode ? [apiClient.getDriveCatalog(), apiClient.getEngineerDocuments()] : []),
+    ]);
+    case 'engineers': return Promise.allSettled(canEdit && !demoMode ? [loadSection.engineers(), apiClient.getEngineerDocuments()] : []);
+    case 'projects': return Promise.allSettled([loadSection.projects(), apiClient.getProjects()]);
+    case 'finance': return Promise.allSettled([loadSection.finance(), apiClient.getFinanceData('month')]);
+    case 'procurement': return Promise.allSettled([loadSection.procurement(), apiClient.getProcurementItems()]);
+    case 'dispatch': return Promise.allSettled([loadSection.dispatch(), apiClient.getDispatchRecords()]);
+    case 'tasks': return Promise.allSettled([loadSection.tasks(), apiClient.getTasks()]);
+    case 'files': return Promise.allSettled([loadSection.files(), apiClient.getFiles(), ...(showDrive ? [apiClient.getDriveCatalog()] : [])]);
+    case 'settings': return Promise.allSettled([loadSection.settings(), apiClient.getTelegramSettings()]);
+  }
+}
 const formatSync = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Astrakhan' });
 
 function readSection(): Section {
@@ -56,7 +86,7 @@ function readSection(): Section {
 }
 
 export default function App() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, tokens, isAuthenticated, isLoading, logout } = useAuth();
   const { isDark, toggle } = useTheme();
   const [view, setView] = useState(readSection);
   const [procurementDue, setProcurementDue] = useState(() => window.location.hash === '#procurement?due');
@@ -72,7 +102,28 @@ export default function App() {
   const [mapping, setMapping] = useState<{ id: string; name: string } | null>(null);
   const [version, setVersion] = useState(0);
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const showDrive = canEdit && !demoMode && sync?.drive_mode !== 'mock';
+  const currentView = useRef(view);
+  const currentToken = useRef(tokens?.access_token);
+  const prefetchRun = useRef<AbortController | null>(null);
   const section = sections.flatMap(group => [...group.items]).find(item => item.id === view)!;
+
+  useEffect(() => { currentView.current = view; }, [view]);
+  useEffect(() => { currentToken.current = tokens?.access_token; }, [tokens?.access_token]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || manualSync || demoMode) return;
+    const run = new AbortController();
+    prefetchRun.current = run;
+    const timer = window.setTimeout(async () => {
+      await prefetchSection(currentView.current, canEdit, showDrive);
+      for (const next of prefetchOrder) {
+        if (run.signal.aborted) break;
+        if (next !== currentView.current) await prefetchSection(next, canEdit, showDrive);
+      }
+    }, 300);
+    return () => { run.abort(); window.clearTimeout(timer); };
+  }, [isAuthenticated, user, manualSync, version, canEdit, showDrive]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -109,10 +160,7 @@ export default function App() {
 
   useEffect(() => {
     if (!sidebar) return;
-    const root = document.documentElement;
-    const previousOverflow = root.style.overflow;
-    root.style.overflow = 'hidden';
-    document.querySelector<HTMLButtonElement>('.workspace-sidebar-head button')?.focus();
+    document.getElementById('workspace-menu-toggle')?.focus();
     const close = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setSidebar(false);
@@ -121,7 +169,6 @@ export default function App() {
     };
     window.addEventListener('keydown', close);
     return () => {
-      root.style.overflow = previousOverflow;
       window.removeEventListener('keydown', close);
     };
   }, [sidebar]);
@@ -138,15 +185,28 @@ export default function App() {
   }
 
   async function syncNow() {
+    const token = tokens?.access_token;
+    prefetchRun.current?.abort();
     setManualSync(true);
     setSyncMessage('');
     try {
       const result = await apiClient.syncDriveNow();
-      setSync(await apiClient.getDriveSyncStatus());
+      if (token !== currentToken.current) return;
+      if (result.status === 'error') throw new Error(result.message ?? 'Ошибка синхронизации');
+      clearSectionData();
+      const status = await apiClient.getDriveSyncStatus().catch(() => null);
+      if (token !== currentToken.current) return;
+      let active: Section;
+      do {
+        active = currentView.current;
+        await prefetchSection(active, canEdit, canEdit && !demoMode && (status?.drive_mode ?? sync?.drive_mode) !== 'mock');
+      } while (token === currentToken.current && active !== currentView.current);
+      if (token !== currentToken.current) return;
+      if (status) setSync(status);
       setSyncMessage(result.message ?? 'Синхронизация завершена');
       setVersion(value => value + 1);
     } catch (error) {
-      setSyncMessage(error instanceof Error ? error.message : 'Не удалось запустить синхронизацию');
+      if (token === currentToken.current) setSyncMessage(error instanceof Error ? error.message : 'Не удалось запустить синхронизацию');
     } finally {
       setManualSync(false);
     }
@@ -155,6 +215,7 @@ export default function App() {
   if (isLoading) return <main className="workspace-loading"><DataLoading /></main>;
   if (!isAuthenticated) return <AuthPage />;
 
+  const isSyncing = manualSync || sync?.status === 'syncing';
   const lastSync = Date.parse(sync?.last_synced_at ?? '');
   const syncLabel = sync?.status === 'syncing' ? 'Идёт импорт' : sync?.status === 'error' ? 'Ошибка импорта' : Number.isFinite(lastSync) ? formatSync.format(lastSync) : 'Google Drive';
   const customerView = customerViews.includes(view);
@@ -177,7 +238,7 @@ export default function App() {
       case 'procurement': return <ProcurementTab key={String(procurementDue)} dueOnly={procurementDue} renderHeader={renderPageHeader} />;
       case 'dispatch': return <DispatchTab renderHeader={renderPageHeader} driveLink={demoMode ? undefined : sync?.root_folder_link} />;
       case 'tasks': return <TasksTab renderHeader={renderPageHeader} />;
-      case 'files': return <FilesTab showDrive={canEdit && !demoMode && sync?.drive_mode !== 'mock'} onFileSelect={canEdit ? (id, name) => setMapping({ id, name }) : undefined} />;
+      case 'files': return <FilesTab showDrive={showDrive} onFileSelect={canEdit ? (id, name) => setMapping({ id, name }) : undefined} />;
       case 'settings': return <SettingsTab />;
       default: return null;
     }
@@ -185,7 +246,7 @@ export default function App() {
 
   return (
     <div className="workspace" data-sidebar={sidebar ? 'open' : 'closed'}>
-      <header className="workspace-topbar" inert={sidebar}>
+      <header className="workspace-topbar">
         <div className="workspace-topbar-strip"><div className="workspace-topbar-start">
           <a href="#summary" className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { event.preventDefault(); navigate('summary'); }}>
             <span className="workspace-brand-mark"><Workflow size={18} />
@@ -196,7 +257,15 @@ export default function App() {
         </div>
         <div className="workspace-topbar-actions">
           {demoMode && <span className="workspace-demo" title="Учебные данные"><FlaskConical size={14} />Демо</span>}
-          {!demoMode && <button className="workspace-sync" onClick={syncNow} disabled={manualSync || sync?.status === 'syncing'} title={syncMessage || syncLabel} aria-label="Синхронизировать Google Диск"><Database size={15} /><span>{manualSync || sync?.status === 'syncing' ? 'Синхронизация…' : 'Синхронизировать'}</span></button>}
+          {!demoMode && (
+            <button className="workspace-sync" onClick={syncNow} disabled={isSyncing}
+              title={isSyncing ? 'Синхронизация…' : syncMessage || syncLabel}
+              aria-label={isSyncing ? 'Идёт синхронизация Google Диска' : 'Синхронизировать Google Диск'}
+              aria-busy={isSyncing}>
+              {isSyncing ? <LoaderCircle size={15} className="motion-safe:animate-spin" aria-hidden="true" /> : <Database size={15} aria-hidden="true" />}
+              <span>{isSyncing ? 'Синхронизация…' : 'Синхронизировать'}</span>
+            </button>
+          )}
           <button className="workspace-icon-button" onClick={() => setShowAlerts('all')} title="Уведомления" aria-label="Уведомления"><Bell size={18} /></button>
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
@@ -207,7 +276,7 @@ export default function App() {
           </div>
         </div>
         </div>
-        <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><button id="workspace-menu-toggle" type="button" className="workspace-icon-button" aria-controls="workspace-sidebar" aria-expanded={sidebar} aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'} onClick={() => setSidebar(open => !open)}><PanelLeftOpen size={19} /></button><strong>Панель руководителя</strong></div>
+        <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><strong>Панель руководителя</strong></div>
           {[
             { label: 'Обзор', ids: ['summary'] },
             { label: 'Контракты', ids: ['registry', 'projects'] },
@@ -239,8 +308,16 @@ export default function App() {
           /></Suspense>}
         </nav>
       </header>
-      {sidebar && <button type="button" className="workspace-scrim" aria-label="Закрыть разделы" onClick={() => { setSidebar(false); document.getElementById('workspace-menu-toggle')?.focus(); }} />}
-      <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Навигация"><div className="workspace-sidebar-head"><span className="workspace-brand"><span><Workflow size={18} /></span><strong>Enterprise Hub</strong></span><button type="button" className="workspace-icon-button" aria-label="Закрыть меню" onClick={() => { setSidebar(false); requestAnimationFrame(() => document.getElementById('workspace-menu-toggle')?.focus()); }}>×</button></div>
+      <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Навигация">
+        <div className="workspace-sidebar-head">
+          <button id="workspace-menu-toggle" type="button" className="workspace-icon-button"
+            aria-controls="workspace-sidebar" aria-expanded={sidebar}
+            aria-label={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'}
+            title={sidebar ? 'Свернуть разделы' : 'Развернуть разделы'}
+            onClick={() => setSidebar(open => !open)}>
+            {sidebar ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}
+          </button>
+        </div>
         <nav aria-label="Разделы">
           {sections.map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
@@ -248,7 +325,7 @@ export default function App() {
           </div>)}
         </nav>
       </aside>
-      <main className="workspace-main" data-view={view} inert={sidebar}>
+      <main className="workspace-main" data-view={view}>
         {syncMessage && <p role="status">{syncMessage}</p>}
         {customerView ? <CustomerTendersTab key={version} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>

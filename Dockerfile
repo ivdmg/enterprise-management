@@ -3,6 +3,7 @@ WORKDIR /build
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
+ARG VITE_ALLOW_REGISTRATION=false
 RUN npm run build
 
 FROM python:3.12-slim

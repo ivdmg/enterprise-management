@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { UserProfile, AuthTokens } from '@/types';
-import { apiClient } from '@/api/client';
+import { apiClient, clearSectionData } from '@/api/client';
 import { sessionKey } from '@/api/mode';
 
 interface AuthContextType {
@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.getProfile()
         .then((profile) => setUser(profile))
         .catch(() => {
+          clearSectionData();
           setTokens(null);
           localStorage.removeItem(sessionKey);
         })
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    clearSectionData();
     setUser(null);
     setTokens(null);
     localStorage.removeItem(sessionKey);

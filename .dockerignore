@@ -10,3 +10,10 @@
 **/__pycache__
 **/.pytest_cache
 demo-data
+outputs
+private-transfer
+**/*.private.zip
+**/*.xlsx
+**/*.xls
+**/*.xlsm
+**/.vercel
