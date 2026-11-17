@@ -602,12 +602,13 @@ class AlertsEngine:
 
     @classmethod
     async def run_full_evaluation(cls, company_id: uuid.UUID, db: AsyncSession) -> None:
-        """Runs complete analytical risk evaluation across all domains and commits results."""
+        """Run analytical risk evaluation in the caller's transaction."""
+        await db.flush()
         await cls.evaluate_tender_penalties(company_id, db)
         await cls.evaluate_procurement_risks(company_id, db)
         await cls.evaluate_operational_tasks_risks(company_id, db)
         await cls.evaluate_cash_gap(company_id, db)
-        await db.commit()
+        await db.flush()
 
 
 alerts_engine = AlertsEngine()

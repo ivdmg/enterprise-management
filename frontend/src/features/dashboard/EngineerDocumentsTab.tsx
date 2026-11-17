@@ -31,6 +31,10 @@ const calendar = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan'
 const mark = (entry: Entry) => entry.value.trim().toLocaleLowerCase('ru');
 const isMissing = (doc: DocumentRecord) => doc.entries.some(entry => mark(entry) === 'нет');
 
+export function countPeopleWithMissingDocuments(register: EngineerRegister | null) {
+  return register?.people.filter(person => person.documents.some(isMissing)).length ?? 0;
+}
+
 const hasPastDate = (doc: DocumentRecord, today: string) =>
   doc.entries.some(entry => entry.is_date && entry.value < today);
 const hasNoFile = (doc: DocumentRecord) => doc.attachments.length === 0;
@@ -116,6 +120,9 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
     }))
     .filter(person => preset === 'all' || person.visible.length > 0);
   const selected = people.find(person => person.column === selectedColumn);
+  const renderDocuments = (person: typeof people[number]) => person.visible.map(doc => (
+    <DocumentCard key={doc.title} doc={doc} today={today} />
+  ));
 
   return (
     <section className="engineer-register">
@@ -157,22 +164,29 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
           {people.map(person => {
             const missing = person.documents.filter(isMissing);
             const reviewCount = person.documents.filter(needsReview).length;
-            return <button type="button" key={person.column} className="engineer-person" data-missing={missing.length > 0}
-              aria-expanded={selected?.column === person.column} aria-controls="engineer-details"
+            const isSelected = selected?.column === person.column;
+            return <div key={person.column} className="engineer-person-item" data-expanded={isSelected}>
+            <button type="button" className="engineer-person" data-missing={missing.length > 0}
+              aria-expanded={isSelected} aria-controls={isSelected ? `engineer-details engineer-mobile-${person.column}` : undefined}
               onClick={() => setSelectedColumn(selectedColumn === person.column ? null : person.column)}>
               <UserRound size={19} aria-hidden="true" />
               <strong>{person.name}</strong>
               {missing.length > 0 && <small>{missing.map(doc => doc.title).join(', ')}</small>}
               {missing.length === 0 && reviewCount > 0 && <small>На проверку · {reviewCount}</small>}
-            </button>;
+            </button>
+            {isSelected && <section id={`engineer-mobile-${person.column}`} className="engineer-mobile-details"
+              aria-label={'Документы · ' + person.name}>
+              <div className="engineer-documents">{renderDocuments(person)}</div>
+            </section>}
+            </div>;
           })}
         </div>
         {people.length === 0 && <p>Сотрудники по этому фильтру не найдены.</p>}
-        <div id="engineer-details" hidden={!selected}>
+        <div id="engineer-details" className="engineer-desktop-details" hidden={!selected}>
           {selected && <section className="workspace-panel engineer-details" aria-label={'Документы · ' + selected.name}>
             <h2>{selected.name}</h2>
             <div className="engineer-documents">
-              {selected.visible.map(doc => <DocumentCard key={doc.title} doc={doc} today={today} />)}
+              {renderDocuments(selected)}
             </div>
           </section>}
         </div>

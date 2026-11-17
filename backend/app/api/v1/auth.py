@@ -46,7 +46,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication & Multi-tenancy"])
 )
 async def register_company_and_admin(
     payload: UserRegisterRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[RegisterResponseData]:
     """
     Registers a new tenant organization along with its initial root Administrator.
@@ -140,7 +140,7 @@ async def register_company_and_admin(
 )
 async def login_user(
     payload: UserLoginRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[LoginResponseData]:
     """
     Authenticates a user by email and password, verifies tenant active status,
@@ -212,7 +212,7 @@ async def login_user(
 )
 async def refresh_access_token(
     payload: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[RefreshTokenResponseData]:
     """
     Validates the refresh token cryptographic signature and expiration,
@@ -332,3 +332,19 @@ async def generate_telegram_link(
             expires_in_seconds=600,
         )
     )
+
+# Keep the previous demo entry points behind the explicit transition mode.
+if settings.PLATFORM_AUTH_ENABLED:
+    from app.api.v1.platform_auth import router
+
+    from app.api.v1.platform_operators import router as operators_router
+    from app.api.v1.company_config import router as config_router
+    from app.api.v1.platform_companies import router as platform_companies_router
+    from app.api.v1.platform_integrations import router as platform_integrations_router
+    from app.api.v1.platform_invitations import router as platform_invitations_router
+
+    router.include_router(operators_router)
+    router.include_router(config_router)
+    router.include_router(platform_companies_router)
+    router.include_router(platform_integrations_router)
+    router.include_router(platform_invitations_router)

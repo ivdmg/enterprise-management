@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import async_session_factory
+from app.core.database import async_session_factory, set_tenant_context
 from app.core.config import settings
 from app.models.company import Company
 from app.services.engineer_documents import SOURCE_NAME, is_engineer_source, read_engineer_documents
@@ -115,19 +115,17 @@ class GoogleDriveSyncService:
             owns_session = db is None
             session = db if db is not None else async_session_factory()
 
-            # Ensure local incoming storage directory exists (Task BE-1.2)
-            incoming_dir = Path("storage/incoming")
-            incoming_dir.mkdir(parents=True, exist_ok=True)
-
             try:
+                await set_tenant_context(session, company_id)
+                client = google_drive_client.for_company(company_id)
                 # 1. Discover all files across incoming target folders
                 all_drive_files: List[DriveFileInfo] = []
-                await asyncio.to_thread(google_drive_client.refresh_folder_cache)
+                await asyncio.to_thread(client.refresh_folder_cache)
                 for folder in self.INCOMING_FOLDERS:
-                    if folder == "root" and google_drive_client.is_mock:
+                    if folder == "root" and client.is_mock:
                         continue
                     try:
-                        folder_files = await asyncio.to_thread(google_drive_client.list_files_in_folder, folder)
+                        folder_files = await asyncio.to_thread(client.list_files_in_folder, folder)
                         all_drive_files.extend(folder_files)
                     except Exception as e:
                         raise RuntimeError(f"Не удалось прочитать папку {folder}: {e}") from e
@@ -138,20 +136,26 @@ class GoogleDriveSyncService:
                     len(all_drive_files),
                 )
 
-                if not google_drive_client.is_mock:
+                if not client.is_mock:
                     sources = [f for f in all_drive_files if f.parent_folder == "root"
                                and is_engineer_source(f.name, f.mime_type)]
                     if sources:
                         try:
                             if len(sources) != 1:
                                 raise ValueError("В корневой папке несколько таблиц документов инженеров")
-                            register = await asyncio.to_thread(read_engineer_documents, google_drive_client, sources[0])
-                            await session.execute(
-                                update(Company).where(Company.id == company_id).values(engineer_documents=register)
-                            )
-                            await session.commit()
-                            processed += 1
-                            status_info.details.append({"file": SOURCE_NAME, "folder": "root", "action": "imported"})
+                            register = await asyncio.to_thread(read_engineer_documents, client, sources[0])
+                            previous = await session.scalar(select(Company.engineer_documents).where(Company.id == company_id))
+                            if previous and all(previous.get(field) == register[field] for field in ("source_url", "people")):
+                                skipped += 1
+                                action = "skipped"
+                            else:
+                                await session.execute(
+                                    update(Company).where(Company.id == company_id).values(engineer_documents=register)
+                                )
+                                await session.commit()
+                                processed += 1
+                                action = "imported"
+                            status_info.details.append({"file": SOURCE_NAME, "folder": "root", "action": action})
                         except Exception:
                             await session.rollback()
                             status_info.details.append({
@@ -167,9 +171,13 @@ class GoogleDriveSyncService:
 
                 # A mock root scan and a child scan may return the same document.
                 all_drive_files = list({f.id: f for f in all_drive_files}.values())
-                if not google_drive_client.is_mock:
+                if not client.is_mock:
                     source_id = settings.GOOGLE_DRIVE_SOURCE_FILE_ID
-                    all_drive_files = [f for f in all_drive_files if source_id and f.id == source_id]
+                    new_sources = [f for f in all_drive_files if f.parent_folder == "root"
+                                   and Path(f.name).stem.casefold() == "тендерщицы"]
+                    if len(new_sources) > 1:
+                        raise ValueError("В корневой папке несколько книг «Тендерщицы»")
+                    all_drive_files = new_sources or [f for f in all_drive_files if source_id and f.id == source_id]
                     if source_id and not all_drive_files:
                         status_info.details.append({
                             "file": "Тендеры", "folder": "root", "action": "error",
@@ -181,13 +189,10 @@ class GoogleDriveSyncService:
                     sha256_hash = ""
                     try:
                         # Download raw file bytes with retry/backoff
-                        file_bytes = await asyncio.to_thread(google_drive_client.download_file_bytes, file_info.id)
+                        file_bytes = await asyncio.to_thread(client.download_file_bytes, file_info.id)
                         sha256_hash = hashlib.sha256(file_bytes).hexdigest()
 
-                        # Save copy to local temporary incoming storage (Task BE-1.2)
                         ext = Path(file_info.name).suffix or ".xlsx"
-                        incoming_file_path = incoming_dir / f"{uuid.uuid4().hex}{ext}"
-                        incoming_file_path.write_bytes(file_bytes)
 
                         # Check if this exact file version was already ingested
                         query = select(UploadedFile).where(
@@ -214,7 +219,7 @@ class GoogleDriveSyncService:
                             sha256_hash=sha256_hash,
                             extension=ext,
                         )
-                        await storage_service.save_file(file_bytes, storage_key)
+                        await storage_service.save_tenant_file(file_bytes, storage_key, company_id)
 
                         # Create or update UploadedFile record
                         uploaded_file = existing_file or UploadedFile(
@@ -264,13 +269,26 @@ class GoogleDriveSyncService:
                             ).values(deleted_at=datetime.now(timezone.utc)))
 
                         # Deterministic parsing into business models
-                        tpl_type, count = await standard_template_parser.parse_and_persist(
-                            file_source=file_bytes,
-                            filename=file_info.name,
-                            company_id=company_id,
-                            file_id=uploaded_file.id,
-                            db=session,
-                        )
+                        if not client.is_mock and file_info in new_sources:
+                            from app.services.customer_tenders import persist_customer_workbook
+
+                            previous_file_id = await session.scalar(select(UploadedFile.id).where(
+                                UploadedFile.company_id == company_id,
+                                UploadedFile.google_drive_id == source_id,
+                                UploadedFile.deleted_at.is_(None),
+                            ))
+                            tpl_type, count = await persist_customer_workbook(
+                                file_bytes, company_id, uploaded_file.id, session,
+                                replaces_file_id=previous_file_id,
+                            )
+                        else:
+                            tpl_type, count = await standard_template_parser.parse_and_persist(
+                                file_source=file_bytes,
+                                filename=file_info.name,
+                                company_id=company_id,
+                                file_id=uploaded_file.id,
+                                db=session,
+                            )
 
                         await session.flush()
                         if old_project_ids:
@@ -340,7 +358,7 @@ class GoogleDriveSyncService:
 
                 # 3. Post-sync risk evaluation and alert updates
                 try:
-                    if google_drive_client.is_mock:
+                    if client.is_mock:
                         await alerts_engine.run_full_evaluation(company_id, session)
                     await session.commit()
                 except Exception as ae:

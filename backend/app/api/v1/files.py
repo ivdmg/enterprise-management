@@ -14,7 +14,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -23,10 +23,12 @@ import openpyxl
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
+from app.models.dispatch import FleetDispatchRecord
 from app.models.enums import DomainCategory, FileStatus, TaskPriority, TaskStatus, UserRole
 from app.models.file import FileTemplate, ParsingJob, UploadedFile
 from app.models.finance import CashflowOperation
 from app.models.payroll import PayrollRecord
+from app.models.procurement import ProcurementItem
 from app.models.project import TenderProject
 from app.models.task import OperationalTask
 from app.models.user import User
@@ -43,12 +45,23 @@ from app.schemas.files import (
     UploadAndAssignResult,
 )
 from app.services.alerts_engine import alerts_engine
+from app.services.audit import record_audit_log
 from app.services.google_drive import get_google_drive_client
 from app.services.parser import CANONICAL_FIELDS, ExcelParserService
 from app.services.storage import build_tenant_storage_key, storage_service
 from app.services.template_parser import DocumentValidationError, StandardTemplateParser
 
 router = APIRouter(prefix="/files", tags=["Files & Excel Ingestion"])
+
+
+def _uploaded_file_path(file_record: UploadedFile):
+    try:
+        path = storage_service.get_tenant_file_path(file_record.storage_path, file_record.company_id)
+        if path.is_file():
+            return path
+    except (FileNotFoundError, ValueError):
+        pass
+    raise HTTPException(404, "Физический файл документа не найден в хранилище")
 
 
 @router.post(
@@ -64,7 +77,7 @@ async def upload_and_assign_document(
     assignee_role: str = Form("manager"),
     contract_id_or_name: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[UploadAndAssignResult]:
     """
     BE-5.1:
@@ -94,11 +107,14 @@ async def upload_and_assign_document(
     gdrive_client = get_google_drive_client()
     if not gdrive_client.is_mock:
         raise HTTPException(403, "Google Диск подключён только для чтения")
-    drive_upload = gdrive_client.upload_file(
-        folder_name_or_id=target_folder,
-        filename=orig_name,
-        content=content,
-    )
+    try:
+        drive_upload = gdrive_client.for_company(current_user.company_id).upload_file(
+            folder_name_or_id=target_folder,
+            filename=orig_name,
+            content=content,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, "Недопустимое имя файла или папки") from exc
 
     # 2. Check if file record already exists or create new
     existing_q = select(UploadedFile).where(
@@ -130,19 +146,16 @@ async def upload_and_assign_document(
     template_type = StandardTemplateParser.detect_template_type(orig_name, content)
     if template_type:
         try:
-            if "cashflow" in template_type:
-                await StandardTemplateParser.parse_cashflow_sheet(uploaded_file.id, current_user.company_id, content, db)
-            elif "procurement" in template_type:
-                await StandardTemplateParser.parse_procurement_sheet(uploaded_file.id, current_user.company_id, content, db)
-            elif "tender" in template_type:
-                await StandardTemplateParser.parse_tender_registry(uploaded_file.id, current_user.company_id, content, db)
-            elif "dispatch" in template_type:
-                await StandardTemplateParser.parse_dispatch_sheet(uploaded_file.id, current_user.company_id, content, db)
-            elif "task" in template_type:
-                await StandardTemplateParser.parse_operational_tasks(uploaded_file.id, current_user.company_id, content, db)
-
-            # Recompute cash gap and systemic alerts after financial ingestion
-            await alerts_engine.run_full_evaluation(current_user.company_id, db)
+            async with db.begin_nested():
+                await StandardTemplateParser.parse_and_persist(
+                    file_source=content, filename=orig_name, company_id=current_user.company_id,
+                    file_id=uploaded_file.id, db=db,
+                )
+                await alerts_engine.run_full_evaluation(current_user.company_id, db)
+                await record_audit_log(
+                    db, current_user.company_id, "file", uploaded_file.id, None, "processed", current_user.id,
+                    action="parsed",
+                )
         except Exception:
             pass
 
@@ -162,6 +175,15 @@ async def upload_and_assign_document(
         google_drive_link=drive_upload.web_view_link,
     )
     db.add(new_task)
+    await db.flush()
+    await record_audit_log(
+        db, current_user.company_id, "file", uploaded_file.id, None, uploaded_file.status.value, current_user.id,
+        action="uploaded",
+    )
+    await record_audit_log(
+        db, current_user.company_id, "task", new_task.id, None, new_task.status.value, current_user.id,
+        action="created",
+    )
     await db.commit()
     await db.refresh(new_task)
 
@@ -186,7 +208,7 @@ async def upload_and_assign_document(
 async def upload_excel_file(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     """
     Accepts raw multipart/form-data spreadsheet, verifies size (<= 25 MB),
@@ -247,8 +269,7 @@ async def upload_excel_file(
 
     # 5. Save file to storage
     storage_key = build_tenant_storage_key(current_user.company_id, sha256_hash, ext)
-    await storage_service.save_file(content, storage_key)
-    local_path = storage_service.get_local_file_path(storage_key)
+    local_path = await storage_service.save_tenant_file(content, storage_key, current_user.company_id)
 
     # 6. Extract sheets and check template structure safely
     sheets = ["Лист1"]
@@ -294,6 +315,11 @@ async def upload_excel_file(
             error_message=validation_err_payload["message"],
         )
         db.add(uploaded_file)
+        await db.flush()
+        await record_audit_log(
+            db, current_user.company_id, "file", uploaded_file.id, None, FileStatus.ERROR.value, current_user.id,
+            action="uploaded",
+        )
         await db.commit()
         return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=validation_err_payload)
 
@@ -309,8 +335,8 @@ async def upload_excel_file(
         status=FileStatus.AWAITING_CONFIRMATION,
     )
     db.add(uploaded_file)
+    await db.flush()
     if ext == ".txt":
-        await db.flush()
         await StandardTemplateParser.parse_and_persist(
             file_source=content,
             filename=orig_name,
@@ -319,6 +345,14 @@ async def upload_excel_file(
             db=db,
         )
         uploaded_file.status = FileStatus.PROCESSED
+        await record_audit_log(
+            db, current_user.company_id, "file", uploaded_file.id, None, FileStatus.PROCESSED.value, current_user.id,
+            action="parsed",
+        )
+    await record_audit_log(
+        db, current_user.company_id, "file", uploaded_file.id, None, uploaded_file.status.value, current_user.id,
+        action="uploaded",
+    )
     await db.commit()
     await db.refresh(uploaded_file)
 
@@ -344,7 +378,7 @@ async def get_mapping_preview(
     file_id: uuid.UUID,
     sheet_name: Optional[str] = Query(None, description="Имя листа для анализа"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[MappingPreviewResponseData]:
     """
     Analyzes sheet structure with unmerge & fill normalization, checks fingerprint template cache,
@@ -365,12 +399,7 @@ async def get_mapping_preview(
         )
 
     # 2. Open workbook
-    local_path = storage_service.get_local_file_path(file_rec.storage_path)
-    if not local_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Физический файл документа не найден в хранилище",
-        )
+    local_path = _uploaded_file_path(file_rec)
 
     wb = openpyxl.load_workbook(local_path, data_only=True)
     target_sheet = sheet_name or wb.active.title
@@ -445,6 +474,10 @@ async def get_mapping_preview(
         columns_mapping=col_mappings,
         available_canonical_fields=avail_fields,
     )
+    await record_audit_log(
+        db, current_user.company_id, "file", file_rec.id, None, "available", current_user.id,
+        action="previewed",
+    )
     return ResponseEnvelope.ok(response_data)
 
 
@@ -458,7 +491,7 @@ async def confirm_mapping_and_import(
     file_id: uuid.UUID,
     payload: MappingConfirmRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[MappingConfirmResponseData]:
     """
     Saves/updates template fingerprint cache, normalizes all rows,
@@ -470,7 +503,7 @@ async def confirm_mapping_and_import(
         UploadedFile.id == file_id,
         UploadedFile.company_id == current_user.company_id,
         UploadedFile.deleted_at.is_(None),
-    )
+    ).with_for_update()
     res = await db.execute(query)
     file_rec = res.scalar_one_or_none()
     if not file_rec:
@@ -480,7 +513,7 @@ async def confirm_mapping_and_import(
         )
 
     # 2. Read workbook
-    local_path = storage_service.get_local_file_path(file_rec.storage_path)
+    local_path = _uploaded_file_path(file_rec)
     wb = openpyxl.load_workbook(local_path, data_only=True)
     target_sheet = payload.sheet_name if payload.sheet_name in wb.sheetnames else wb.sheetnames[0]
     ws = wb[target_sheet]
@@ -616,8 +649,10 @@ async def confirm_mapping_and_import(
             imported_count += 1
 
     # 6. Update File Status and Audit Log
+    old_status = file_rec.status.value
     file_rec.status = FileStatus.PROCESSED
     job = ParsingJob(
+        company_id=current_user.company_id,
         file_id=file_rec.id,
         status="completed",
         extracted_rows_count=imported_count,
@@ -626,6 +661,10 @@ async def confirm_mapping_and_import(
         finished_at=datetime.now(timezone.utc),
     )
     db.add(job)
+    await record_audit_log(
+        db, current_user.company_id, "file", file_rec.id, old_status, FileStatus.PROCESSED.value, current_user.id,
+        action="parsed",
+    )
 
     # 7. Run Financial Impact & Risk Engine evaluation
     from app.services.alerts_engine import alerts_engine
@@ -662,7 +701,7 @@ async def list_files(
     limit: int = Query(20, ge=1, le=100),
     status: Optional[FileStatus] = Query(None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[FileListItem]]:
     """Returns paginated list of uploaded files for the tenant."""
     base_query = select(UploadedFile).where(
@@ -711,6 +750,33 @@ async def list_files(
     return ResponseEnvelope.ok(items, meta=meta)
 
 
+@router.get("/{file_id}/download", response_class=FileResponse)
+async def download_file(
+    file_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db, scope="function"),
+) -> FileResponse:
+    file_record = await db.scalar(select(UploadedFile).where(
+        UploadedFile.id == file_id,
+        UploadedFile.company_id == current_user.company_id,
+        UploadedFile.deleted_at.is_(None),
+    ))
+    if file_record is None:
+        raise HTTPException(404, "Файл не найден")
+    path = _uploaded_file_path(file_record)
+    original_basename = os.path.basename(file_record.original_name.replace("\\", "/"))
+    filename = "".join(char for char in original_basename if char.isprintable()) or "document"
+    await record_audit_log(
+        db, current_user.company_id, "file", file_record.id, None, "authorized", current_user.id,
+        action="downloaded",
+    )
+    await db.commit()
+    return FileResponse(
+        path, media_type="application/octet-stream", filename=filename,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @router.delete(
     "/{file_id}",
     status_code=status.HTTP_200_OK,
@@ -719,14 +785,14 @@ async def list_files(
 async def delete_file(
     file_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[dict]:
     """Soft-deletes file and cascades deleted_at to all extracted records."""
     query = select(UploadedFile).where(
         UploadedFile.id == file_id,
         UploadedFile.company_id == current_user.company_id,
         UploadedFile.deleted_at.is_(None),
-    )
+    ).with_for_update()
     res = await db.execute(query)
     file_rec = res.scalar_one_or_none()
     if not file_rec:
@@ -739,7 +805,7 @@ async def delete_file(
     file_rec.deleted_at = now_dt
 
     # Cascade soft-deletion across canonical domain tables
-    for domain_model in (TenderProject, CashflowOperation, PayrollRecord, OperationalTask):
+    for domain_model in (TenderProject, CashflowOperation, PayrollRecord, OperationalTask, ProcurementItem, FleetDispatchRecord):
         await db.execute(
             update(domain_model)
             .where(
@@ -750,5 +816,9 @@ async def delete_file(
             .values(deleted_at=now_dt)
         )
 
+    await record_audit_log(
+        db, current_user.company_id, "file", file_rec.id, file_rec.status.value, "deleted", current_user.id,
+        action="deleted",
+    )
     await db.commit()
     return ResponseEnvelope.ok({"message": "Файл и связанные записи успешно помечены удаленными"})

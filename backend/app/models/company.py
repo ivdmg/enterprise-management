@@ -1,5 +1,5 @@
 from typing import List, TYPE_CHECKING
-from sqlalchemy import JSON, Boolean, String
+from sqlalchemy import JSON, Boolean, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, UUIDPrimaryKeyMixin, TimestampMixin
 
@@ -22,6 +22,8 @@ class Company(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "companies"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    code: Mapped[str] = mapped_column(String(63), unique=True, nullable=False,
+                                      server_default=text("'company-' || gen_random_uuid()::text"))
     inn: Mapped[str | None] = mapped_column(String(12), nullable=True)
     kpp: Mapped[str | None] = mapped_column(String(9), nullable=True)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Moscow", nullable=False)

@@ -3,7 +3,7 @@ import json
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 from uuid import UUID
 from typing import Annotated, List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, NoDecode
 
 
@@ -17,6 +17,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
+        hide_input_in_errors=True,
     )
 
     # General Project Settings
@@ -25,6 +26,16 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = False
     ALLOW_REGISTRATION: bool = True
+    PLATFORM_AUTH_ENABLED: bool = False
+    CLIENT_AUTH_ORIGIN: str = "https://client.pilot.test"
+    PLATFORM_AUTH_ORIGIN: str = "https://platform.pilot.test"
+    AUTH_MFA_KEY: SecretStr = SecretStr("")
+    AUTH_MAIL_OUTBOX: Path | None = None
+    AUTH_SMTP_HOST: str | None = None
+    AUTH_SMTP_PORT: int = 465
+    AUTH_SMTP_FROM: str | None = None
+    AUTH_SMTP_USER: str | None = None
+    AUTH_SMTP_PASSWORD: SecretStr | None = None
     GOOGLE_DRIVE_COMPANY_ID: UUID | None = None
     FRONTEND_DIST_DIR: Path = Path(__file__).resolve().parents[3] / "frontend" / "dist"
 
@@ -38,17 +49,32 @@ class Settings(BaseSettings):
     # Database URLs (Async for FastAPI runtime, Sync for Alembic if needed)
     DATABASE_URL: str | None = None
     SYNC_DATABASE_URL: str | None = None
+    DATABASE_RUNTIME_URL: str | None = None
+    DATABASE_PLATFORM_URL: str | None = None
+    DATABASE_WORKER_URL: str | None = None
 
     @property
     def async_database_url(self) -> str:
         if self.DATABASE_URL:
-            url = urlsplit(self.DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1).replace("postgresql://", "postgresql+asyncpg://", 1))
-            query = [("ssl" if key == "sslmode" else key, value) for key, value in parse_qsl(url.query) if key != "channel_binding"]
-            return urlunsplit(url._replace(query=urlencode(query)))
+            return self._as_async_url(self.DATABASE_URL)
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
             f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @property
+    def async_runtime_database_url(self) -> str:
+        return self._as_async_url(self.DATABASE_RUNTIME_URL) if self.DATABASE_RUNTIME_URL else self.async_database_url
+
+    @property
+    def async_worker_database_url(self) -> str:
+        return self._as_async_url(self.DATABASE_WORKER_URL) if self.DATABASE_WORKER_URL else self.async_runtime_database_url
+
+    @staticmethod
+    def _as_async_url(database_url: str) -> str:
+        url = urlsplit(database_url.replace("postgres://", "postgresql+asyncpg://", 1).replace("postgresql://", "postgresql+asyncpg://", 1))
+        query = [("ssl" if key == "sslmode" else key, value) for key, value in parse_qsl(url.query) if key != "channel_binding"]
+        return urlunsplit(url._replace(query=urlencode(query)))
 
     @property
     def sync_database_url(self) -> str:
@@ -102,9 +128,45 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_MOCK_DIR: Path = Path("storage/mock_drive")
     GOOGLE_DRIVE_SYNC_INTERVAL_HOURS: int = 4
     SYNC_INTERVAL_SECONDS: int = 120  # Polling interval in seconds (default 120s)
+    INTEGRATIONS_ENABLED: bool = False
+    INTEGRATION_CREDENTIALS_JSON: SecretStr | None = None
+    INTEGRATION_TEST_WORKBOOK_DIR: Path | None = None
+    RELEASE_VERSION: str = "local"
 
     # 44-FZ statutory key rate percent (default 19.0%)
     KEY_RATE_PERCENT: float = 19.0
+
+    @model_validator(mode="after")
+    def validate_platform_auth(self):
+        production = self.ENVIRONMENT.lower() in {"production", "prod"}
+        if production and not self.PLATFORM_AUTH_ENABLED:
+            raise ValueError("Production requires PLATFORM_AUTH_ENABLED")
+        if self.PLATFORM_AUTH_ENABLED:
+            import base64
+
+            origins = (self.CLIENT_AUTH_ORIGIN, self.PLATFORM_AUTH_ORIGIN)
+            if len({urlsplit(value).hostname for value in origins}) != 2 or any(
+                urlsplit(value).scheme != "https" or not urlsplit(value).hostname
+                or value != f"https://{urlsplit(value).netloc}" or urlsplit(value).username
+                for value in origins
+            ):
+                raise ValueError("Authentication requires two distinct HTTPS origins")
+            try:
+                if len(base64.b64decode(self.AUTH_MFA_KEY.get_secret_value(), altchars=b"-_", validate=True)) != 32:
+                    raise ValueError()
+            except ValueError:
+                raise ValueError("AUTH_MFA_KEY must be a Fernet key") from None
+            role_urls = [self.DATABASE_RUNTIME_URL, self.DATABASE_PLATFORM_URL]
+            if self.INTEGRATIONS_ENABLED:
+                role_urls.append(self.DATABASE_WORKER_URL)
+            database_users = {urlsplit(url or "").username for url in role_urls}
+            if None in database_users or len(database_users) != len(role_urls):
+                raise ValueError("Centralized authentication requires separate runtime, platform and enabled worker DB roles")
+            if len(self.JWT_SECRET) < 32 or self.JWT_SECRET == type(self).model_fields["JWT_SECRET"].default:
+                raise ValueError("Centralized authentication requires a random JWT_SECRET")
+            if production and (not self.AUTH_SMTP_HOST or not self.AUTH_SMTP_FROM or self.AUTH_MAIL_OUTBOX):
+                raise ValueError("Production authentication requires SMTP")
+        return self
 
 
 settings = Settings()

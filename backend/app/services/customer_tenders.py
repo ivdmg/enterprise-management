@@ -15,7 +15,11 @@ def key(value):
     if isinstance(value, (int,float)): return str(int(value)) if value == int(value) else str(value)
     return str(value).strip() if value is not None else ''
 
-def read_customer_workbook(content):
+class WorkbookShapeError(ValueError):
+    pass
+
+
+def read_customer_workbook(content, *, max_rows=None, max_columns=None):
     wb=openpyxl.load_workbook(io.BytesIO(content),data_only=True)
     if not {'Реест Ольга','Ежедневный мониторинг'}.issubset(wb.sheetnames):
         wb.close()
@@ -23,9 +27,23 @@ def read_customer_workbook(content):
     result={}
     for name in ('Реест Ольга','Ежедневный мониторинг'):
         ws=wb[name]
+        if ((max_rows is not None and ws.max_row > max_rows)
+                or (max_columns is not None and ws.max_column > max_columns)):
+            wb.close()
+            raise WorkbookShapeError()
+        minimum_columns = 17 if name == "Реест Ольга" else 2
+        if ws.max_row < 3 or ws.max_column < minimum_columns:
+            wb.close()
+            raise ValueError(f'Лист «{name}» не содержит обязательные заголовки или столбцы')
         rows=list(ws.values)
+        # Keep the field positions consumed by the existing dashboard.
+        if name == 'Реест Ольга' and str(rows[0][4]).startswith('Статус аукциона'):
+            order = (0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 4, *range(17, ws.max_column))
+            rows = [tuple(row[index] for index in order) for row in rows]
+        elif name == 'Ежедневный мониторинг' and ws.max_column >= 8 and str(rows[0][7]).startswith('Дата выполнения'):
+            rows = [row[:4] + row[7:] for row in rows]
         columns=[]
-        for i in range(ws.max_column):
+        for i in range(len(rows[0])):
             top=rows[0][i]
             sub=rows[1][i] if name=='Реест Ольга' else None
             label=str(top or '').strip()
@@ -52,16 +70,35 @@ def read_customer_workbook(content):
     wb.close()
     return result
 
-async def persist_customer_workbook(content,company_id,file_id,db):
-    data=read_customer_workbook(content)
+def contract_amount(record):
+    amount = record["values"][15] if record else None
+    if amount in (None, ""):
+        return None
+    try:
+        parsed = Decimal(str(amount).replace(" ", "").replace("\u00a0", "").replace(",", "."))
+        if not parsed.is_finite():
+            raise ValueError("Сумма не является конечным числом")
+        return parsed
+    except (ValueError, ArithmeticError) as exc:
+        raise ValueError(f'Реест Ольга, строка {record["source_row"]}: неверная сумма контракта') from exc
+
+
+async def persist_customer_workbook(content,company_id,file_id,db,*,prepared=None,replaces_file_id=None):
+    data=prepared if prepared is not None else read_customer_workbook(content)
     if data is None: raise ValueError('Не найдены оба листа реестра заказчика')
-    existing=(await db.execute(select(TenderProject).where(TenderProject.company_id==company_id,TenderProject.file_id==file_id,TenderProject.deleted_at.is_(None)))).scalars().all()
+    existing=(await db.execute(select(TenderProject).where(
+        TenderProject.company_id == company_id,
+        TenderProject.file_id.in_([file_id, replaces_file_id] if replaces_file_id else [file_id]),
+        TenderProject.deleted_at.is_(None),
+        TenderProject.custom_attributes['customer_tenders'].as_boolean().is_(True),
+    ))).scalars().all()
+    existing.sort(key=lambda project: project.file_id == file_id)
     by_key={p.project_code:p for p in existing if (p.custom_attributes or {}).get('customer_tenders')}
     registry={r['key']:r for r in data['Реест Ольга']['rows']}
     monitoring={r['key']:r for r in data['Ежедневный мониторинг']['rows']}
     identifiers = registry.keys() | monitoring.keys()
-    for identifier, project in by_key.items():
-        if identifier not in identifiers:
+    for project in existing:
+        if project.project_code not in identifiers or by_key[project.project_code] is not project:
             project.deleted_at = datetime.now(timezone.utc)
     first_key=min(registry.keys() | monitoring.keys(),key=lambda k:(registry.get(k) or monitoring[k])['source_row']) if registry or monitoring else None
     for identifier in registry.keys() | monitoring.keys():
@@ -76,12 +113,8 @@ async def persist_customer_workbook(content,company_id,file_id,db):
         project.customer_name=str(values[1]) if values[1] else None
         project.project_name=str(values[9] or values[1] or identifier) if r else str(values[1] or identifier)
         project.purchase_number=key(values[7]) or None if r else None
-        amount=values[15] if r else None
-        if amount == '': amount=None
-        if amount is not None and not isinstance(amount,(int,float)):
-            try: amount=Decimal(str(amount).replace(' ','').replace('\u00a0','').replace(',','.'))
-            except Exception: raise ValueError(f'Реест Ольга, строка {r["source_row"]}: неверная сумма контракта')
-        project.contract_sum=Decimal(str(amount)) if amount is not None else Decimal('0')
+        amount = contract_amount(r)
+        project.contract_sum=amount if amount is not None else Decimal('0')
         project.status=str(values[16] or 'Не указан')[:50] if r else 'Не указан'
         project.deadline_date=None
         project.bank_guarantee_expiry=None

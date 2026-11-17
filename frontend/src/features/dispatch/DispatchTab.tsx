@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { apiClient } from '@/api/client';
 import type { DispatchRecordData, DispatchStatus } from '@/types';
 import { LogIncidentModal } from './LogIncidentModal';
+import { MonthlyDispatch } from './MonthlyDispatch';
 import {
   Truck,
   Users,
@@ -318,13 +319,14 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
   return (
     <div className="space-y-4">
       {renderHeader?.(<>
-        <span className="workspace-catalog-button workspace-page-stat">
-          Смена · {latestShift ? latestShift.slice(0, 10).split('-').reverse().join('.') : 'Нет данных'}
-        </span>
+        {latestShift && <span className="workspace-catalog-button workspace-page-stat">
+          Смена · {latestShift.slice(0, 10).split('-').reverse().join('.')}
+        </span>}
         {driveLink && <a className="workspace-catalog-button" href={driveLink} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} />Google Диск</a>}
         <button type="button" className="workspace-catalog-button" onClick={loadRecords} id="dispatch-refresh-btn"><RefreshCw size={16} />Обновить статус</button>
       </>)}
       {loadError && <p role="alert">Не удалось загрузить суточный статус.</p>}
+      <MonthlyDispatch />
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

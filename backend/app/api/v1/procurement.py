@@ -38,7 +38,7 @@ async def list_procurement_items(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[ProcurementItemResponse]]:
     """
     Returns procurement items for tenant company with optional filters by project and status.
@@ -112,7 +112,7 @@ async def update_procurement_status(
     payload: UpdateProcurementStatusRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[UpdateProcurementStatusResponse]:
     """
     Updates the delivery/procurement status of a supply item.

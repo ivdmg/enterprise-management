@@ -1,11 +1,11 @@
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
-import { Bell, Building2, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UserRound } from 'lucide-react';
+import { Bell, Building2, CircleUserRound, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UsersRound } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { AuthPage } from '@/features/auth/AuthPage';
-import { CustomerTendersTab, type TenderView } from '@/features/dashboard/CustomerTendersTab';
+import { countContractsNeedingAttention, CustomerTendersTab, type TenderView } from '@/features/dashboard/CustomerTendersTab';
 import { FileUploadModal } from '@/features/files/FileUploadModal';
 import { AccountantUploadModal } from '@/features/files/AccountantUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
@@ -13,6 +13,8 @@ import { AlertsDrawer, isContractPenalty } from '@/features/alerts/AlertsDrawer'
 import { apiClient, clearSectionData } from '@/api/client';
 import { demoMode } from '@/api/mode';
 import { Modal } from '@/components/Modal';
+import { CompanySources } from '@/features/company/CompanySources';
+import type { CompanyModule } from '@/features/company/ClientRoot';
 import type { DriveSyncStatus } from '@/types';
 import './workspace.css';
 
@@ -20,7 +22,7 @@ const sections = [
   { title: 'Контроль', items: [
     { id: 'summary', label: 'Где горит?', icon: LayoutDashboard, description: 'Сроки и обязательства, которые стоит проверить в первую очередь.' },
     { id: 'registry', label: 'Контракты', icon: FileStack, description: 'Реестр контрактов, сроки исполнения и контроль документов.' },
-    { id: 'engineers', label: 'Документы инженеров', icon: UserRound, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
+    { id: 'engineers', label: 'Документы инженеров', icon: UsersRound, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
   ] },
   { title: 'Операции', items: [
     { id: 'projects', label: 'Тендеры и объекты', icon: Building2, description: 'Этапы контрактов и сроки банковских гарантий.' },
@@ -37,6 +39,11 @@ const sections = [
 ] as const;
 
 type Section = typeof sections[number]['items'][number]['id'];
+const moduleIds: Record<Section, string> = {
+  summary: 'overview', registry: 'contracts', engineers: 'engineer_documents',
+  projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
+  tasks: 'tasks', sources: 'sources', files: 'files', settings: 'settings',
+};
 const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
 const loadSection = {
@@ -85,10 +92,33 @@ function readSection(): Section {
   return sections.flatMap(group => [...group.items]).find(item => item.id === hash)?.id ?? 'summary';
 }
 
-export default function App() {
-  const { user, tokens, isAuthenticated, isLoading, logout } = useAuth();
+interface AppProps {
+  allowedModules?: readonly CompanyModule[];
+  companyBase?: string;
+  requestedModule?: string;
+}
+
+export default function App({ allowedModules, companyBase, requestedModule }: AppProps) {
+  const { user, tokens, isAuthenticated, isLoading, logout, companyProfile } = useAuth();
   const { isDark, toggle } = useTheme();
-  const [view, setView] = useState(readSection);
+  const [legacyView, setView] = useState(readSection);
+  const allowedSections = allowedModules && new Map(allowedModules.map(module => [module.id, module]));
+  const isAllowed = (id: Section) => !allowedSections || allowedSections.has(moduleIds[id]);
+  const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label ?? fallback;
+  const menuSections = sections.flatMap(group => [...group.items]).filter(item => isAllowed(item.id));
+  if (allowedSections) {
+    menuSections.sort((a, b) => (allowedSections.get(moduleIds[a.id])?.order ?? 0)
+      - (allowedSections.get(moduleIds[b.id])?.order ?? 0));
+  }
+  const requestedView = sections.flatMap(group => [...group.items]).find(item => moduleIds[item.id] === requestedModule)?.id;
+  const view = companyBase
+    ? requestedModule ? requestedView : window.location.hash ? legacyView : menuSections[0]?.id
+    : legacyView;
+  const hasView = !!view && isAllowed(view);
+  const activeView = view ?? 'summary';
+  const linkTo = (id: Section, due = false) => companyBase
+    ? `${companyBase}/m/${moduleIds[id]}${due ? '#procurement?due' : ''}`
+    : `#${id}`;
   const [procurementDue, setProcurementDue] = useState(() => window.location.hash === '#procurement?due');
   const [sidebar, setSidebar] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -101,18 +131,58 @@ export default function App() {
   const [upload, setUpload] = useState<'file' | 'accounting' | null>(null);
   const [mapping, setMapping] = useState<{ id: string; name: string } | null>(null);
   const [version, setVersion] = useState(0);
-  const canEdit = user?.role === 'admin' || user?.role === 'manager';
-  const showDrive = canEdit && !demoMode && sync?.drive_mode !== 'mock';
-  const currentView = useRef(view);
+  const [attention, setAttention] = useState<Partial<Record<Section, number>>>({});
+  const watchEngineers = !demoMode && isAllowed('engineers') && (user?.role === 'manager' || user?.role === 'admin');
+  const watchContracts = isAllowed('registry');
+  const watchProcurement = isAllowed('procurement');
+  const watchDispatch = isAllowed('dispatch');
+  const watchTasks = isAllowed('tasks');
+  const canEdit = allowedSections
+    ? !!allowedSections.get(moduleIds[activeView])?.permissions.includes(moduleIds[activeView] + '.write')
+    : user?.role === 'admin' || user?.role === 'manager';
+  const showDrive = !companyBase && canEdit && !demoMode && sync?.drive_mode !== 'mock';
+  const currentView = useRef(activeView);
   const currentToken = useRef(tokens?.access_token);
   const prefetchRun = useRef<AbortController | null>(null);
-  const section = sections.flatMap(group => [...group.items]).find(item => item.id === view)!;
+  const section = sections.flatMap(group => [...group.items]).find(item => item.id === activeView)!;
 
-  useEffect(() => { currentView.current = view; }, [view]);
+  useEffect(() => { currentView.current = activeView; }, [activeView]);
   useEffect(() => { currentToken.current = tokens?.access_token; }, [tokens?.access_token]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user || manualSync || demoMode) return;
+    if (!isAuthenticated || !user) {
+      setAttention({});
+      return;
+    }
+    let active = true;
+    const refresh = () => {
+      const update = (id: Section, count: number) => {
+        if (active) setAttention(previous => ({ ...previous, [id]: count }));
+      };
+      if (watchEngineers) void Promise.all([
+        apiClient.getEngineerDocuments(), import('@/features/dashboard/EngineerDocumentsTab'),
+      ]).then(([data, module]) => update('engineers', module.countPeopleWithMissingDocuments(data.register))).catch(() => {});
+      if (watchContracts) void apiClient.getCustomerTenders()
+        .then(rows => update('registry', countContractsNeedingAttention(rows))).catch(() => {});
+      if (watchProcurement) void Promise.all([
+        apiClient.getProcurementItems(), import('@/features/procurement/ProcurementTab'),
+      ]).then(([items, module]) => {
+        const deadline = module.deliveryRiskDeadline();
+        update('procurement', items.filter(item => module.hasDeliveryRisk(item, deadline)).length);
+      }).catch(() => {});
+      if (watchDispatch) void apiClient.getDispatchRecords()
+        .then(rows => update('dispatch', rows.filter(row => row.status === 'repair' || row.status === 'downtime').length)).catch(() => {});
+      if (watchTasks) void apiClient.getTasks()
+        .then(rows => update('tasks', rows.filter(row => row.status === 'overdue' ||
+          (row.status !== 'approved_closed' && row.days_remaining != null && row.days_remaining < 0)).length)).catch(() => {});
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [isAuthenticated, user, activeView, version, watchEngineers, watchContracts, watchProcurement, watchDispatch, watchTasks]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || manualSync || demoMode || companyBase) return;
     const run = new AbortController();
     prefetchRun.current = run;
     const timer = window.setTimeout(async () => {
@@ -123,7 +193,7 @@ export default function App() {
       }
     }, 300);
     return () => { run.abort(); window.clearTimeout(timer); };
-  }, [isAuthenticated, user, manualSync, version, canEdit, showDrive]);
+  }, [isAuthenticated, user, manualSync, version, canEdit, showDrive, companyBase]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -135,7 +205,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || companyBase) return;
     let active = true;
     const refresh = () => apiClient.getDriveSyncStatus().then(data => { if (active) setSync(data); }).catch(() => {});
     apiClient.getAlerts().then(data => {
@@ -145,7 +215,7 @@ export default function App() {
     refresh();
     const timer = window.setInterval(refresh, 60_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [isAuthenticated, showAlerts]);
+  }, [isAuthenticated, showAlerts, companyBase]);
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -174,6 +244,11 @@ export default function App() {
   }, [sidebar]);
 
   function navigate(next: Section, due = false) {
+    if (!isAllowed(next)) return;
+    if (companyBase) {
+      window.location.assign(linkTo(next, due));
+      return;
+    }
     const hash = next === 'procurement' && due ? 'procurement?due' : next;
     if (window.location.hash !== `#${hash}`) {
       window.location.hash = hash;
@@ -218,7 +293,7 @@ export default function App() {
   const isSyncing = manualSync || sync?.status === 'syncing';
   const lastSync = Date.parse(sync?.last_synced_at ?? '');
   const syncLabel = sync?.status === 'syncing' ? 'Идёт импорт' : sync?.status === 'error' ? 'Ошибка импорта' : Number.isFinite(lastSync) ? formatSync.format(lastSync) : 'Google Drive';
-  const customerView = customerViews.includes(view);
+  const customerView = hasView && customerViews.includes(activeView) && !(companyBase && activeView === "sources");
 
   function renderPageHeader(actions?: ReactNode) {
     return <header className="workspace-heading workspace-pagebar">
@@ -231,7 +306,7 @@ export default function App() {
   }
 
   function renderSection() {
-    switch (view) {
+    switch (activeView) {
       case 'engineers': return demoMode ? <p>Реестр доступен в рабочей организации.</p> : canEdit ? <EngineerDocumentsTab refreshAt={sync?.last_synced_at} onHome={() => navigate('summary')} /> : <p>Раздел доступен руководителям организации.</p>;
       case 'projects': return <ProjectsTab renderHeader={renderPageHeader} />;
       case 'finance': return <FinanceTab />;
@@ -240,6 +315,7 @@ export default function App() {
       case 'tasks': return <TasksTab renderHeader={renderPageHeader} />;
       case 'files': return <FilesTab showDrive={showDrive} onFileSelect={canEdit ? (id, name) => setMapping({ id, name }) : undefined} />;
       case 'settings': return <SettingsTab />;
+      case 'sources': return companyBase ? <CompanySources /> : null;
       default: return null;
     }
   }
@@ -248,16 +324,17 @@ export default function App() {
     <div className="workspace" data-sidebar={sidebar ? 'open' : 'closed'}>
       <header className="workspace-topbar">
         <div className="workspace-topbar-strip"><div className="workspace-topbar-start">
-          <a href="#summary" className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { event.preventDefault(); navigate('summary'); }}>
+          <a href={companyBase ?? "#summary"} className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { if (companyBase) return; event.preventDefault(); navigate('summary'); }}>
             <span className="workspace-brand-mark"><Workflow size={18} />
 
             </span><strong>Enterprise Hub</strong>
           </a>
-          <span className="workspace-current"><ChevronRight size={13} />{section.label}</span>
+          <span className="workspace-current"><ChevronRight size={13} />{labelFor(section.id, section.label)}</span>
         </div>
         <div className="workspace-topbar-actions">
+          {syncMessage && <span className="workspace-sync-result" role="status" title={syncMessage}>{syncMessage}</span>}
           {demoMode && <span className="workspace-demo" title="Учебные данные"><FlaskConical size={14} />Демо</span>}
-          {!demoMode && (
+          {!demoMode && !companyBase && (
             <button className="workspace-sync" onClick={syncNow} disabled={isSyncing}
               title={isSyncing ? 'Синхронизация…' : syncMessage || syncLabel}
               aria-label={isSyncing ? 'Идёт синхронизация Google Диска' : 'Синхронизировать Google Диск'}
@@ -266,13 +343,18 @@ export default function App() {
               <span>{isSyncing ? 'Синхронизация…' : 'Синхронизировать'}</span>
             </button>
           )}
-          <button className="workspace-icon-button" onClick={() => setShowAlerts('all')} title="Уведомления" aria-label="Уведомления"><Bell size={18} /></button>
+          {!companyBase && <button className="workspace-icon-button"
+            onClick={() => setShowAlerts(current => current === 'all' ? null : 'all')}
+            title="Уведомления" aria-label="Уведомления" aria-controls="workspace-alerts"
+            aria-expanded={showAlerts !== null}><Bell size={18} /></button>}
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
           <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
           <div id="workspace-profile" popover="auto" className="workspace-profile">
             <div className="workspace-profile-account"><strong>{user?.full_name || 'Руководитель'}</strong><small>{user?.email}</small></div>
-            <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>
-            <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); navigate('summary'); logout(); }}><LogOut size={16} />Выйти</button>
+            {isAllowed("settings") && <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>}
+            {companyProfile?.permissions.includes("company.team.read") && <a href={`${companyBase}/team`}>Команда</a>}
+{companyProfile?.permissions.includes("company.audit.read") && <a href={`${companyBase}/audit`}>Журнал действий</a>}
+            <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); if (!companyBase) navigate('summary'); void Promise.resolve(logout()).catch(() => setSyncMessage('Не удалось завершить сессию. Попробуйте ещё раз.')); }}><LogOut size={16} />Выйти</button>
           </div>
         </div>
         </div>
@@ -284,11 +366,12 @@ export default function App() {
             { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks', ...(!demoMode && canEdit ? ['engineers'] : [])] },
             { label: 'Данные', ids: ['sources', 'files', 'settings'] },
           ].map(({ label, ids }, index) => {
-            const items = sections.flatMap(group => [...group.items]).filter(item => ids.includes(item.id));
-            const active = ids.includes(view);
+            const items = menuSections.filter(item => ids.includes(item.id));
+            if (!items.length) return null;
+            const active = items.some(item => item.id === view);
             if (items.length === 1) {
-              const { id } = items[0];
-              return <a key={label} href={`#${id}`} aria-current={active ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}>{label}</a>;
+              const { id, label: sectionLabel } = items[0];
+              return <a key={label} href={linkTo(id)} aria-current={active ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}>{labelFor(id, companyBase ? sectionLabel : label)}</a>;
             }
             const menuId = `workspace-nav-${index}`;
             const anchor = `--${menuId}`;
@@ -296,12 +379,12 @@ export default function App() {
               <button type="button" className="workspace-nav-trigger" data-active={active} popoverTarget={menuId} style={{ anchorName: anchor } as CSSProperties}>{label}<ChevronDown size={13} /></button>
               <div id={menuId} popover="auto" className="workspace-nav-menu" style={{ positionAnchor: anchor } as CSSProperties}>
                 {items.map(({ id, label, icon: Icon }) =>
-                  <button key={id} type="button" aria-current={view === id ? 'page' : undefined} popoverTarget={menuId} popoverTargetAction="hide" onClick={() => navigate(id)}><Icon size={16} />{label}</button>,
+                  <button key={id} type="button" aria-current={view === id ? 'page' : undefined} popoverTarget={menuId} popoverTargetAction="hide" onClick={() => navigate(id)}><Icon size={16} />{labelFor(id, label)}</button>,
                 )}
               </div>
             </div>;
           })}
-          {(canEdit || sync?.root_folder_link) && <Suspense fallback={null}><QuickActions
+          {(!companyBase && (canEdit || sync?.root_folder_link)) && <Suspense fallback={null}><QuickActions
             onUpload={canEdit ? () => setUpload('file') : undefined}
             onAccounting={canEdit && (demoMode || sync?.drive_mode === 'mock') ? () => setUpload('accounting') : undefined}
             driveLink={demoMode ? undefined : sync?.root_folder_link}
@@ -318,16 +401,29 @@ export default function App() {
             {sidebar ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}
           </button>
         </div>
+        <button className="workspace-icon-button workspace-sidebar-profile" type="button"
+          popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">
+          <CircleUserRound size={19} aria-hidden="true" />
+        </button>
         <nav aria-label="Разделы">
-          {sections.map(group => <div className="workspace-nav-group" key={group.title}>
+          {(allowedSections ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
-            {group.items.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-label={label} title={label} aria-current={view === id ? 'page' : undefined} onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}><Icon size={18} /><span>{label}</span></a>)}
+            {group.items.map(({ id, label, icon: Icon }) => {
+              const count = attention[id] ?? 0;
+              const name = labelFor(id, label);
+              const description = count ? `Требуют внимания: ${count}` : undefined;
+              return <a key={id} href={linkTo(id)} aria-label={name} aria-description={description}
+                title={description ? `${name} · ${description}` : name} aria-current={view === id ? 'page' : undefined}
+                onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}>
+                <Icon size={18} /><span>{name}</span>
+                {count > 0 && <small className="workspace-attention-count" data-severity={id === 'engineers' || id === 'tasks' ? 'high' : 'normal'} aria-hidden="true">{count > 99 ? '99+' : count}</small>}
+              </a>;
+            })}
           </div>)}
         </nav>
       </aside>
       <main className="workspace-main" data-view={view}>
-        {syncMessage && <p role="status">{syncMessage}</p>}
-        {customerView ? <CustomerTendersTab key={version} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
+        {!hasView ? <p>Раздел недоступен. Выберите доступный раздел в меню.</p> : customerView ? <CustomerTendersTab key={version} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
               {view === 'files' ? renderPageHeader(<>
                 {!demoMode && canEdit && sync?.root_folder_link && <a className="workspace-catalog-button" href={sync.root_folder_link} target="_blank" rel="noreferrer"><ExternalLink size={16} />Папка Google Диска</a>}

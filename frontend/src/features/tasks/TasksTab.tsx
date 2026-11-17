@@ -380,7 +380,17 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
       <Card padding="sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Quick Filter Tabs (White & Gray Bento) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 lg:pb-0">
+          <div className="md:hidden min-w-0">
+            <Select ariaLabel="Быстрый фильтр задач" value={quickFilter}
+              onChange={value => setQuickFilter(value as QuickFilter)}
+              options={[
+                { value: 'all', label: `Все задачи (${totalCount})` },
+                { value: 'my', label: `Мои задачи · ${currentRoleDef.shortName} (${myCount})` },
+                { value: 'urgent', label: `Горящие (${urgentCount})` },
+                { value: 'accounting', label: `Бухгалтерия (${accountingCount})` },
+              ]} />
+          </div>
+          <div className="hidden md:flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 lg:pb-0">
             <button
               type="button"
               onClick={() => setQuickFilter('all')}

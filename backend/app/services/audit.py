@@ -3,7 +3,7 @@ import uuid
 from typing import Optional
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.audit import AuditLog
+from app.models.audit import AuditAction, AuditLog
 
 logger = logging.getLogger("audit")
 
@@ -17,9 +17,11 @@ async def record_audit_log(
     new_status: str,
     user_id: Optional[uuid.UUID] = None,
     request: Optional[Request] = None,
+    *,
+    action: AuditAction = "status_changed",
 ) -> AuditLog:
     """
-    Task BE-5.1: Records an immutable audit log entry for status transitions.
+    Stage an audit event in the caller's transaction.
     Extracts IP address and User-Agent from Request if provided.
     """
     ip_address: Optional[str] = None
@@ -39,6 +41,7 @@ async def record_audit_log(
         user_id=user_id,
         entity_type=entity_type,
         entity_id=entity_id,
+        action=action,
         old_status=str(old_status) if old_status is not None else None,
         new_status=str(new_status),
         ip_address=ip_address,
@@ -46,12 +49,10 @@ async def record_audit_log(
     )
     db.add(log_entry)
     logger.info(
-        "AUDIT: [%s] %s status changed '%s' -> '%s' (user=%s, ip=%s)",
+        "AUDIT: [%s] %s action=%s (user=%s)",
         entity_type,
         entity_id,
-        old_status,
-        new_status,
+        action,
         user_id,
-        ip_address,
     )
     return log_entry

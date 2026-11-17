@@ -26,6 +26,7 @@ from app.schemas.alerts import (
 from app.schemas.common import MetaModel, ResponseEnvelope
 from app.schemas.dashboard import TopFireItem
 from app.services.alerts_engine import alerts_engine
+from app.services.audit import record_audit_log
 
 router = APIRouter(tags=["Alerts & Integrations"])
 
@@ -38,7 +39,7 @@ router = APIRouter(tags=["Alerts & Integrations"])
 )
 async def list_critical_alerts(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[TopFireItem]]:
     """Returns all active critical alerts sorted by calculated financial impact."""
     from app.api.v1.dashboard import build_fire_item
@@ -80,7 +81,7 @@ async def list_system_alerts(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[SystemAlertItem]]:
     """
     Returns active or historical alerts strictly for the tenant with severity filtering.
@@ -156,7 +157,7 @@ async def resolve_system_alert(
     alert_id: uuid.UUID,
     payload: ResolveAlertRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[ResolveAlertResponseData]:
     """
     Marks an operational incident as resolved, recording the resolver and reasoning.
@@ -164,7 +165,7 @@ async def resolve_system_alert(
     query = select(SystemAlert).where(
         SystemAlert.id == alert_id,
         SystemAlert.company_id == current_user.company_id,
-    )
+    ).with_for_update()
     res = await db.execute(query)
     alert = res.scalar_one_or_none()
     if not alert:
@@ -173,12 +174,14 @@ async def resolve_system_alert(
             detail="Алерт не найден в вашей организации",
         )
 
+    old_status = "resolved" if alert.is_resolved else "open"
     now_dt = datetime.now(timezone.utc)
     alert.is_resolved = True
     alert.resolved_at = now_dt
     alert.resolved_by_user_id = current_user.id
     alert.resolution_comment = payload.resolution_comment.strip()
 
+    await record_audit_log(db, current_user.company_id, "alert", alert.id, old_status, "resolved", current_user.id)
     await db.commit()
 
     return ResponseEnvelope.ok(
@@ -199,7 +202,7 @@ async def resolve_system_alert(
 )
 async def get_telegram_settings(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[TelegramIntegrationSettingsData]:
     """Returns telegram bot dispatch settings for the current tenant."""
     query = select(IntegrationSetting).where(
@@ -238,7 +241,7 @@ async def get_telegram_settings(
 async def update_telegram_settings(
     payload: UpdateTelegramSettingsRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[dict]:
     """Updates tenant telegram schedule and alert preferences."""
     query = select(IntegrationSetting).where(
@@ -264,6 +267,11 @@ async def update_telegram_settings(
     if payload.alert_rules is not None:
         settings_rec.alert_rules = payload.alert_rules
 
+    await db.flush()
+    await record_audit_log(
+        db, current_user.company_id, "telegram_settings", settings_rec.id, None, "updated", current_user.id,
+        action="settings_updated",
+    )
     await db.commit()
     return ResponseEnvelope.ok({"message": "Настройки интеграции успешно обновлены"})
 
@@ -276,13 +284,8 @@ async def update_telegram_settings(
 async def test_send_telegram_notification(
     current_user: User = Depends(get_current_user),
 ) -> ResponseEnvelope[dict]:
-    """Dispatches a test ping message to the user/channel."""
-    return ResponseEnvelope.ok(
-        {
-            "status": "delivered",
-            "message": "Тестовое сообщение успешно доставлено в Telegram",
-        }
-    )
+    """Reject test delivery until a Telegram sender is available."""
+    raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Отправка сообщений в Telegram не подключена")
 
 
 @router.get(
@@ -293,7 +296,7 @@ async def test_send_telegram_notification(
 )
 async def get_key_rate_settings(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[KeyRateSettingsResponse]:
     """
     Returns current Central Bank key rate used in 44-FZ statutory penalty calculations.
@@ -320,7 +323,7 @@ async def get_key_rate_settings(
 async def update_key_rate_settings(
     payload: UpdateKeyRateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[KeyRateSettingsResponse]:
     """
     Updates the Central Bank key rate for tenant's 44-FZ penalty calculations.
@@ -340,6 +343,11 @@ async def update_key_rate_settings(
         rules["key_rate_percent"] = payload.key_rate_percent
         setting_rec.alert_rules = rules
 
+    await db.flush()
+    await record_audit_log(
+        db, current_user.company_id, "key_rate_settings", setting_rec.id, None, "updated", current_user.id,
+        action="settings_updated",
+    )
     await db.commit()
 
     daily_rate_percent = payload.key_rate_percent / 300.0

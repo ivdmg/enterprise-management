@@ -77,6 +77,15 @@ const STATUS_CONFIGS: Record<ProcurementStatus, StatusConfig> = {
   },
 };
 
+export function deliveryRiskDeadline() {
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  return new Date(Date.parse(today) + 7 * 86_400_000).toISOString().slice(0, 10);
+}
+
+export function hasDeliveryRisk(item: ProcurementItemData, deadline: string) {
+  return item.status === 'invoice_pending' && !!item.delivery_deadline && item.delivery_deadline <= deadline;
+}
+
 export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: boolean; renderHeader?: (actions?: ReactNode) => ReactNode } = {}) {
   const [items, setItems] = useState<ProcurementItemData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,10 +184,9 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
   ];
 
   // Filtering
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const deadline = new Date(Date.parse(today) + 7 * 86_400_000).toISOString().slice(0, 10);
+  const deadline = deliveryRiskDeadline();
   const filteredItems = items.filter((item) => {
-    if (deliveryRisk && (item.status !== 'invoice_pending' || !item.delivery_deadline || item.delivery_deadline > deadline)) return false;
+    if (deliveryRisk && !hasDeliveryRisk(item, deadline)) return false;
     if (statusFilter !== 'all' && item.status !== statusFilter) return false;
     if (projectFilter !== 'all' && item.project_name !== projectFilter) return false;
     if (searchQuery.trim()) {

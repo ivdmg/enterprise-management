@@ -7,7 +7,7 @@ def workbook():
     w=openpyxl.Workbook()
     a=w.active
     a.title='Реест Ольга'
-    a.append(['вн.№','Заказчик']+[None]*20)
+    a.append(['вн.№','Заказчик']+[None]*14+['Статус'])
     a.append([None]*12+['НМЦК','Процент падения','Сумма падения','Сумма контракта (выиграли)'])
     a.append([None]*22)
     a.append([2501,'Заказчик']+[None]*13+[0])

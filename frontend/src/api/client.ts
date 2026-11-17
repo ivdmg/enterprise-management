@@ -27,6 +27,7 @@ import type {
   DispatchRecordData,
   DispatchStatus,
 } from '@/types';
+import { companyClientEnabled, companyRequest } from './companySession';
 import { mockData } from '@/mocks';
 import { demoMode as USE_MOCKS, sessionKey } from './mode';
 import { demoDate, demoTenders } from '@/mocks/tenders';
@@ -56,6 +57,7 @@ function getToken(): string | null {
 }
 
 function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  if (companyClientEnabled) return companyRequest<T>(endpoint, options);
   const token = getToken();
   if (sectionToken !== token) {
     clearSectionData();
@@ -574,6 +576,10 @@ export const apiClient = {
   },
 
   // --- Dispatch & Fleet (FE-5.3) ---
+  getMonthlyDispatch(signal: AbortSignal) {
+    return request<import('@/features/dispatch/MonthlyDispatch').MonthlySchedule | null>('/dispatch/monthly', { signal });
+  },
+
   async getDispatchRecords(params?: {
     status?: DispatchStatus;
     resource_type?: 'machinery' | 'crew';

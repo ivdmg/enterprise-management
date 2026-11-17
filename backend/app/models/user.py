@@ -8,6 +8,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     text,
@@ -44,6 +45,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, server_default="1", nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
@@ -56,7 +58,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     __table_args__ = (
-        UniqueConstraint("email", name="uq_users_email"),
+        UniqueConstraint("company_id", "email", name="uq_users_company_email"),
         Index("idx_users_company", "company_id"),
         Index(
             "idx_users_telegram",

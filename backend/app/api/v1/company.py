@@ -26,7 +26,7 @@ router = APIRouter(prefix="/company", tags=["Company Management & Team"])
 )
 async def list_company_users(
     current_admin: User = Depends(get_current_active_admin),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[CompanyUserItem]]:
     """
     Returns the list of all active/inactive team members belonging strictly
@@ -64,7 +64,7 @@ async def list_company_users(
 async def invite_company_user(
     payload: InviteUserRequest,
     current_admin: User = Depends(get_current_active_admin),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[InviteUserResponseData]:
     """
     Creates a new user account tied strictly to the administrator's company.
@@ -100,3 +100,8 @@ async def invite_company_user(
         created_at=new_user.created_at,
     )
     return ResponseEnvelope.ok(response_data)
+
+from app.core.config import settings
+
+if settings.PLATFORM_AUTH_ENABLED:
+    from app.api.v1.platform_team import router

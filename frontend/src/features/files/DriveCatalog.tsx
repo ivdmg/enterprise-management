@@ -10,8 +10,11 @@ export interface DriveNode {
   name: string;
   url: string;
   active_source: boolean;
+  source_kind?: 'tenders' | 'engineers' | 'dispatch' | null;
   size_bytes: number | null;
   created_at: string | null;
+  modified_at?: string | null;
+  processed_at?: string | null;
   owner: string | null;
   children: DriveNode[] | null;
 }
@@ -46,7 +49,7 @@ export function FileRow({ node, file, onFileSelect }: {
   node?: DriveNode; file?: FileListItem;
   onFileSelect?: (id: string, name: string) => void;
 }) {
-  const date = node?.created_at ?? file?.created_at;
+  const date = node ? node.modified_at ?? node.created_at : file?.created_at;
   const size = node?.size_bytes ?? file?.file_size_bytes;
   const name = node?.name ?? file?.original_name;
   const link = node?.url ?? file?.google_drive_link;
@@ -56,13 +59,15 @@ export function FileRow({ node, file, onFileSelect }: {
     <div className="workspace-catalog-name"><File size={17} aria-hidden="true" /><strong>{name}</strong></div>
     <div className="workspace-catalog-meta">
       <span>{file?.uploaded_by ? 'Загрузил · ' + file.uploaded_by : node?.owner ? 'Владелец · ' + node.owner : 'Загрузивший не указан'}</span>
-      <span>{date ? formatDate(date) : 'Дата недоступна'}</span>
+      <span>{date ? (node?.modified_at ? 'Изменён на Диске · ' : '') + formatDate(date) : 'Дата недоступна'}</span>
       {size != null && <span>{formatFileSize(size)}</span>}
     </div>
     <div className="workspace-catalog-actions">
-      {node && (node.active_source ? <Badge variant="success">Подключён к импорту</Badge> :
+      {node && (node.active_source ? <Badge variant="success">{node.source_kind === 'dispatch' ? 'Подключён к диспетчерской' : 'Подключён к импорту'}</Badge> :
         <Badge variant="warning">Парсер не подключён</Badge>)}
       {status && (!node || node.active_source) && <Badge variant={file.status === 'processed' ? 'success' : 'neutral'}>{status}</Badge>}
+      {node?.source_kind === 'engineers' && !status && node.processed_at &&
+        <Badge variant="success">Обработан</Badge>}
       {file?.status === 'awaiting_confirmation' && onFileSelect && <button type="button" className="workspace-link" onClick={() => onFileSelect(file.id, file.original_name)}>Настроить импорт</button>}
       {link && <a className="workspace-link" href={link} target="_blank" rel="noreferrer">Открыть на Google Диске <ExternalLink size={14} /></a>}
     </div>

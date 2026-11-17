@@ -7,11 +7,16 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
 
 logger = logging.getLogger("enterprise_hub.google_drive")
+
+
+class DriveFileTooLarge(ValueError):
+    pass
 
 
 def execute_with_backoff(callable_fn: Callable[[], Any], max_retries: int = 3, initial_delay: float = 1.0) -> Any:
@@ -102,6 +107,7 @@ class GoogleDriveClient:
         mock_mode: Optional[bool] = None,
         mock_dir: Optional[Path] = None,
         credentials_path: Optional[Path] = None,
+        credentials_info: Optional[dict] = None,
     ):
         if mock_dir:
             self.mock_dir = Path(mock_dir).resolve()
@@ -124,7 +130,7 @@ class GoogleDriveClient:
         if not credentials_file.is_absolute():
             credentials_file = Path(__file__).resolve().parents[2] / credentials_file
         configured_mock = settings.GOOGLE_DRIVE_MOCK if mock_mode is None else mock_mode
-        has_sa_json = bool(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
+        has_sa_json = credentials_info is not None or bool(settings.GOOGLE_SERVICE_ACCOUNT_JSON)
         
         # Determine whether to use mock mode
         self.is_mock = configured_mock
@@ -142,7 +148,12 @@ class GoogleDriveClient:
                 from googleapiclient.discovery import build  # type: ignore
 
                 creds = None
-                if settings.GOOGLE_SERVICE_ACCOUNT_JSON:
+                if credentials_info is not None:
+                    creds = service_account.Credentials.from_service_account_info(
+                        credentials_info,
+                        scopes=["https://www.googleapis.com/auth/drive.readonly"],
+                    )
+                elif settings.GOOGLE_SERVICE_ACCOUNT_JSON:
                     raw_val = settings.GOOGLE_SERVICE_ACCOUNT_JSON.strip()
                     try:
                         # Try base64 decoding first
@@ -161,7 +172,13 @@ class GoogleDriveClient:
                     )
 
                 if creds:
-                    self._service = build("drive", "v3", credentials=creds)
+                    if credentials_info is None:
+                        self._service = build("drive", "v3", credentials=creds)
+                    else:
+                        from google_auth_httplib2 import AuthorizedHttp
+                        from httplib2 import Http
+
+                        self._service = build("drive", "v3", http=AuthorizedHttp(creds, http=Http(timeout=25)))
                     logger.info("GoogleDriveClient connected to live Google Drive API v3")
                 else:
                     self.is_mock = True
@@ -286,14 +303,24 @@ class GoogleDriveClient:
         norm = str(rel_path).replace("\\", "/").strip("/")
         return f"mock-file-{hashlib.md5(norm.encode('utf-8')).hexdigest()[:16]}"
 
+    def _mock_path(self, path: str | Path) -> Path:
+        target = (self.mock_dir / path).resolve()
+        if not target.is_relative_to(self.mock_dir):
+            raise ValueError("Path is outside the mock Drive")
+        return target
+
+    def for_company(self, company_id: UUID) -> "GoogleDriveClient":
+        if self.is_mock and (settings.DATABASE_RUNTIME_URL or settings.DATABASE_WORKER_URL):
+            tenant_root = self.mock_dir / "tenants" / str(company_id)
+            if tenant_root != self._mock_path(tenant_root):
+                raise ValueError("Mock Drive tenant root cannot be redirected")
+            return GoogleDriveClient(mock_mode=True, mock_dir=tenant_root)
+        return self
+
     def _resolve_mock_file_path(self, file_id_or_path: str) -> Path:
         """Resolves file ID or relative path to an absolute Path in mock directory."""
         # 1. Check direct absolute/relative path
-        direct_path = Path(file_id_or_path)
-        if direct_path.is_file():
-            return direct_path.resolve()
-
-        under_mock = (self.mock_dir / file_id_or_path.lstrip("/\\")).resolve()
+        under_mock = self._mock_path(file_id_or_path)
         if under_mock.is_file():
             return under_mock
 
@@ -301,7 +328,7 @@ class GoogleDriveClient:
         for f in self.mock_dir.rglob("*.xlsx"):
             rel = f.relative_to(self.mock_dir)
             if self._get_mock_file_id(rel) == file_id_or_path or f.name == file_id_or_path:
-                return f.resolve()
+                return self._mock_path(f)
 
         raise FileNotFoundError(f"File not found on Google Drive (mock): {file_id_or_path}")
 
@@ -326,15 +353,15 @@ class GoogleDriveClient:
             if not clean_folder or clean_folder in ("root", "all"):
                 search_dirs = [self.mock_dir / folder for folder in self.STANDARD_FOLDERS + self.LEGACY_FOLDERS]
             else:
-                target_dir = (self.mock_dir / clean_folder).resolve()
+                target_dir = self._mock_path(clean_folder)
                 search_dirs = [target_dir] if target_dir.is_dir() else []
 
             for folder_path in search_dirs:
-                if not folder_path.exists():
+                if not self._mock_path(folder_path).is_dir():
                     continue
                 folder_name = folder_path.name
                 for file_path in folder_path.iterdir():
-                    if not file_path.is_file() or file_path.name.startswith("~$"):
+                    if not self._mock_path(file_path).is_file() or file_path.name.startswith("~$"):
                         continue  # Skip directories and temporary Excel lock files
                     if not any(file_path.name.lower().endswith(ext) for ext in valid_extensions):
                         continue
@@ -431,14 +458,23 @@ class GoogleDriveClient:
             logger.error("Error listing files in Google Drive folder %s: %s", folder_name_or_id, e)
             raise
 
-    def download_file_bytes(self, file_id_or_path: str) -> bytes:
+    def download_file_bytes(
+        self, file_id_or_path: str, *, max_bytes: int | None = None,
+        deadline_seconds: int | None = None, max_retries: int = 3,
+    ) -> bytes:
         """Downloads raw binary content of a file."""
         if self.is_mock:
             target_path = self._resolve_mock_file_path(file_id_or_path)
-            return target_path.read_bytes()
+            with target_path.open("rb") as source:
+                data = source.read() if max_bytes is None else source.read(max_bytes + 1)
+            if max_bytes is not None and len(data) > max_bytes:
+                raise DriveFileTooLarge()
+            return data
 
         # Real Google Drive API v3
         from googleapiclient.http import MediaIoBaseDownload  # type: ignore
+
+        deadline = time.monotonic() + deadline_seconds if deadline_seconds is not None else None
 
         def do_download():
             metadata = self._service.files().get(fileId=file_id_or_path, fields="mimeType", supportsAllDrives=True).execute()
@@ -450,13 +486,20 @@ class GoogleDriveClient:
             else:
                 request = self._service.files().get_media(fileId=file_id_or_path, supportsAllDrives=True)
             fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
+            if max_bytes is None:
+                downloader = MediaIoBaseDownload(fh, request)
+            else:
+                downloader = MediaIoBaseDownload(fh, request, chunksize=min(max_bytes, 1024 * 1024))
             done = False
             while not done:
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise TimeoutError()
                 _, done = downloader.next_chunk()
+                if max_bytes is not None and fh.tell() > max_bytes:
+                    raise DriveFileTooLarge()
             return fh.getvalue()
 
-        return execute_with_backoff(do_download)
+        return execute_with_backoff(do_download, max_retries=max_retries)
 
     def upload_file(
         self, folder_name_or_id: str, filename: str, content: bytes, description: Optional[str] = None
@@ -467,9 +510,11 @@ class GoogleDriveClient:
 
         if self.is_mock:
             clean_folder = folder_name_or_id.strip("/\\")
-            target_folder = self.mock_dir / clean_folder
+            target_folder = self._mock_path(clean_folder)
+            if filename in {"", ".", ".."} or "/" in filename or "\\" in filename:
+                raise ValueError("Invalid mock Drive filename")
+            target_file = self._mock_path(target_folder / filename)
             target_folder.mkdir(parents=True, exist_ok=True)
-            target_file = target_folder / filename
             target_file.write_bytes(content)
 
             rel_path = target_file.relative_to(self.mock_dir)
@@ -543,9 +588,9 @@ class GoogleDriveClient:
             try:
                 source_path = self._resolve_mock_file_path(file_id)
                 clean_target = target_folder_name_or_id.strip("/\\")
-                target_dir = self.mock_dir / clean_target
+                target_dir = self._mock_path(clean_target)
                 target_dir.mkdir(parents=True, exist_ok=True)
-                dest_path = target_dir / source_path.name
+                dest_path = self._mock_path(target_dir / source_path.name)
                 
                 # If target file exists, overwrite or rename
                 if dest_path.exists() and dest_path != source_path:
@@ -554,7 +599,7 @@ class GoogleDriveClient:
 
                 if description:
                     # Write companion .meta.txt or log description
-                    meta_file = target_dir / f"{source_path.name}.meta.txt"
+                    meta_file = self._mock_path(target_dir / f"{source_path.name}.meta.txt")
                     meta_file.write_text(description, encoding="utf-8")
 
                 logger.info("Mock Drive: Moved '%s' to folder '%s'", source_path.name, clean_target)

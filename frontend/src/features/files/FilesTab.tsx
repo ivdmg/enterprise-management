@@ -27,7 +27,7 @@ export function FilesTab({ showDrive, onFileSelect }: {
   for (const file of files ?? []) {
     if (file.google_drive_id && driveIds.has(file.google_drive_id)) {
       if (!attached.has(file.google_drive_id)) attached.set(file.google_drive_id, file);
-    } else {
+    } else if (!showDrive) {
       local.push(file);
     }
   }

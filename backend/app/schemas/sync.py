@@ -21,6 +21,7 @@ class SyncStatusData(BaseModel):
     skipped_files_count: int = Field(0, description="Total unchanged files skipped (0 overhead)")
     last_error: Optional[str] = Field(None, description="Error message if sync failed")
     details: List[Dict[str, Any]] = Field(default_factory=list, description="Recent file sync events")
+    root_folder_link: Optional[str] = None
 
     @computed_field
     @property
@@ -36,11 +37,6 @@ class SyncStatusData(BaseModel):
     @property
     def message(self) -> str:
         return self.last_error or f"Обновлено файлов: {self.processed_files_count}, без изменений: {self.skipped_files_count}"
-
-    @computed_field
-    @property
-    def root_folder_link(self) -> Optional[str]:
-        return f"https://drive.google.com/drive/folders/{settings.GOOGLE_DRIVE_ROOT_FOLDER_ID}" if settings.GOOGLE_DRIVE_ROOT_FOLDER_ID else None
 
     @computed_field
     @property

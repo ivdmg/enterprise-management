@@ -110,7 +110,7 @@ def build_fire_item(
 )
 async def get_dashboard_summary(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[DashboardSummaryData]:
     """
     Returns high-level Executive Fire-Panel metrics:
@@ -270,7 +270,7 @@ async def get_dashboard_summary(
 )
 async def get_dashboard_critical_alerts(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[list[TopFireItem]]:
     """
     Returns critical actionable alert cards for 'Where is it burning?' widget:
@@ -312,7 +312,7 @@ async def get_dashboard_finance(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[DashboardFinanceData]:
     """
     Returns cashflow totals, daily inflow/outflow dynamics, and top debtors & creditors.
@@ -448,7 +448,7 @@ async def get_dashboard_projects(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[ProjectDashboardItem]]:
     """
     Returns tenant construction & tender projects with real-time risk evaluations.
@@ -544,7 +544,7 @@ async def get_dashboard_projects(
 async def get_dashboard_payroll(
     period: Optional[str] = Query(None, description="Расчетный период YYYY-MM"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[DashboardPayrollData]:
     """
     Aggregates wage accruals, payouts, and debts grouped by corporate department.
@@ -610,7 +610,7 @@ async def update_project_tender_stage(
     payload: UpdateProjectTenderStageRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[UpdateProjectTenderStageResponse]:
     """
     Updates the tender stage of a project and logs the change to audit_logs.

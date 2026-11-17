@@ -88,6 +88,7 @@ class NotificationLog(Base, UUIDPrimaryKeyMixin):
     """
     __tablename__ = "notification_logs"
 
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     alert_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("system_alerts.id", ondelete="CASCADE"),

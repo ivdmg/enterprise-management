@@ -73,28 +73,31 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
     }
   };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isOpen, onClose]);
 
   const visibleAlerts = penaltiesOnly ? alerts.filter(isContractPenalty) : alerts;
   const unresolvedAlerts = visibleAlerts.filter((a) => !a.is_resolved);
   const resolvedAlerts = visibleAlerts.filter((a) => a.is_resolved);
 
   return (
-    <>
-      {/* Overlay */}
-      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Drawer */}
-      <div className="workspace-alert-drawer fixed inset-y-0 right-0 z-50 w-full max-w-md bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-2xl flex flex-col transition-colors duration-150">
+      <aside id="workspace-alerts" aria-labelledby="workspace-alerts-title"
+        className="workspace-alert-drawer" data-open={isOpen} inert={!isOpen}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
-          <h2 className="text-base font-bold text-[var(--text-main)]">
+          <h2 id="workspace-alerts-title" className="text-base font-bold text-[var(--text-main)]">
             {penaltiesOnly ? 'Штрафы и неустойки' : 'Уведомления'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--card-subtle)] transition-colors cursor-pointer"
-            aria-label="Закрыть"
+            className="workspace-icon-button"
+            aria-label="Закрыть уведомления"
           >
             <X className="h-5 w-5" />
           </button>
@@ -238,7 +241,6 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
             </div>
           )}
         </div>
-      </div>
-    </>
+      </aside>
   );
 }

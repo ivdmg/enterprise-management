@@ -133,6 +133,7 @@ class ParsingJob(Base, UUIDPrimaryKeyMixin):
     """
     __tablename__ = "parsing_jobs"
 
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     file_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("uploaded_files.id", ondelete="CASCADE"),

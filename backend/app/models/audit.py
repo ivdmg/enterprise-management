@@ -1,10 +1,14 @@
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from typing import TYPE_CHECKING, Literal, Optional
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, UUIDPrimaryKeyMixin
+
+AuditAction = Literal[
+    "status_changed", "created", "uploaded", "parsed", "deleted", "previewed", "downloaded", "settings_updated",
+]
 
 if TYPE_CHECKING:
     from app.models.company import Company
@@ -37,6 +41,7 @@ class AuditLog(Base, UUIDPrimaryKeyMixin):
     )
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(String(32), nullable=False, server_default="status_changed")
     old_status: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     new_status: Mapped[str] = mapped_column(String(100), nullable=False)
     timestamp: Mapped[datetime] = mapped_column(
@@ -50,6 +55,10 @@ class AuditLog(Base, UUIDPrimaryKeyMixin):
     user: Mapped["User | None"] = relationship("User")
 
     __table_args__ = (
+        CheckConstraint(
+            "action IN ('status_changed','created','uploaded','parsed','deleted','previewed','downloaded','settings_updated')",
+            name="ck_audit_logs_action",
+        ),
         Index("idx_audit_logs_company_entity", "company_id", "entity_type", "entity_id"),
         Index("idx_audit_logs_timestamp", "company_id", "timestamp"),
     )

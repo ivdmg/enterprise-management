@@ -63,23 +63,42 @@ class LocalStorageService(IStorageService):
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _resolve_safe_path(self, storage_key: str) -> Path:
-        # Strip leading slashes to prevent root-escape
-        normalized_key = storage_key.lstrip("/\\")
-        target_path = (self.base_dir / normalized_key).resolve()
-        # Path traversal guard
-        if not str(target_path).startswith(str(self.base_dir)):
-            raise ValueError(f"Directory traversal attack detected in storage key: {storage_key}")
+        target_path = (self.base_dir / storage_key).resolve()
+        if target_path == self.base_dir or not target_path.is_relative_to(self.base_dir):
+            raise ValueError("Storage key is outside the storage directory")
         return target_path
 
     def get_local_file_path(self, storage_key: str) -> Path:
         return self._resolve_safe_path(storage_key)
 
+    def get_tenant_file_path(self, storage_key: str, company_id: uuid.UUID) -> Path:
+        tenant_prefix = Path("tenants") / str(company_id)
+        if not Path(storage_key).is_relative_to(tenant_prefix):
+            raise FileNotFoundError("Storage key does not belong to the company")
+        target_path = self._resolve_safe_path(storage_key)
+        if not target_path.is_relative_to(self.base_dir / tenant_prefix):
+            raise FileNotFoundError("Storage key does not belong to the company")
+        return target_path
+
     async def save_file(self, file_bytes: bytes, storage_key: str) -> str:
         target_path = self._resolve_safe_path(storage_key)
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(target_path, "wb") as f:
-            await f.write(file_bytes)
+        await self._write_file(file_bytes, target_path)
         return storage_key
+
+    async def save_tenant_file(self, file_bytes: bytes, storage_key: str, company_id: uuid.UUID) -> Path:
+        target_path = self.get_tenant_file_path(storage_key, company_id)
+        await self._write_file(file_bytes, target_path)
+        return target_path
+
+    async def _write_file(self, file_bytes: bytes, target_path: Path) -> None:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = target_path.with_name(f".{uuid.uuid4().hex}.tmp")
+        try:
+            async with aiofiles.open(temporary_path, "xb") as f:
+                await f.write(file_bytes)
+            temporary_path.replace(target_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
 
     async def get_file_bytes(self, storage_key: str) -> bytes:
         target_path = self._resolve_safe_path(storage_key)

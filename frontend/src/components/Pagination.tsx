@@ -4,14 +4,19 @@ export function Pagination({ page, total, pageSize, onPage }: {
   const pages = Math.ceil(total / pageSize);
   if (pages < 2) return null;
 
-  const visible = pages <= 10
+  const desktopPages = pages <= 10
     ? Array.from({ length: pages }, (_, index) => index)
     : [...new Set([0, 1, page - 2, page - 1, page, page + 1, page + 2, pages - 2, pages - 1])]
       .filter(index => index >= 0 && index < pages)
       .sort((a, b) => a - b);
 
-  return <nav className="workspace-pagination" aria-label="Страницы списка">
-    {visible.map((index, position) => {
+  const mobilePages = pages <= 7
+    ? Array.from({ length: pages }, (_, index) => index)
+    : page < 3 ? [0, 1, 2, 3, pages - 2, pages - 1]
+    : page >= pages - 3 ? [0, 1, pages - 4, pages - 3, pages - 2, pages - 1]
+    : [0, page - 1, page, page + 1, pages - 1];
+
+  const renderPages = (visible: number[]) => visible.map((index, position) => {
       const previous = visible[position - 1];
       const button = (value: number) => <button type="button" aria-label={'Страница ' + (value + 1)}
         aria-current={value === page ? 'page' : undefined} onClick={() => onPage(value)}>{value + 1}</button>;
@@ -20,6 +25,10 @@ export function Pagination({ page, total, pageSize, onPage }: {
           index - previous > 2 && <span className="workspace-pagination-gap" aria-hidden="true">…</span>}
         {button(index)}
       </span>;
-    })}
+    });
+
+  return <nav className="workspace-pagination" aria-label="Страницы списка">
+    <div className="workspace-pagination-desktop">{renderPages(desktopPages)}</div>
+    <div className="workspace-pagination-mobile">{renderPages(mobilePages)}</div>
   </nav>;
 }

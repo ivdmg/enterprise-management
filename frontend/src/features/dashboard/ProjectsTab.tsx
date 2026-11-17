@@ -280,7 +280,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
             </div>
           )}
           <div className="px-3 py-1.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-sub)] text-xs font-medium border border-[var(--card-border)]">
-            Портфель: <span className="font-mono font-semibold text-[var(--text-main)]">{knownAmounts.length ? formatCurrency(totalContractSum) : '—'}</span>
+            Сумма контрактов: <span className="font-mono font-semibold text-[var(--text-main)]">{knownAmounts.length ? formatCurrency(totalContractSum) : '—'}</span>
           </div>
         </div>
       )}
@@ -579,7 +579,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
         {/* ============================================================ */}
         {/* MOBILE CARDS VIEW (< 768px): Responsive Compact Bento Cards   */}
         {/* ============================================================ */}
-        <div className="md:hidden divide-y divide-[var(--card-border)]">
+        <div className="workspace-project-cards md:hidden divide-y divide-[var(--card-border)]">
           {filteredProjects.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">
               Объектов по выбранным фильтрам не найдено
@@ -602,7 +602,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                   }`}
                 >
                   {/* Top: Title & Risk badge */}
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="workspace-project-card-title flex items-start justify-between gap-2">
                     <div>
                       <h3 className="font-semibold text-[var(--text-main)] text-sm">
                         {project.project_name}
@@ -633,7 +633,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
                       Стадия закупки (нажмите для смены):
                     </span>
-                    <div className="grid grid-cols-4 gap-1 w-full pt-1">
+                    <div className="workspace-project-stages grid gap-1 w-full pt-1">
                       {STAGES.map((stage, idx) => {
                         const isCompleted = idx < currentStageIdx;
                         const isCurrent = idx === currentStageIdx;
@@ -655,7 +655,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                             <span className="text-[10px] font-mono leading-none font-bold">
                               {isCompleted ? '✓' : stage.stepNumber}
                             </span>
-                            <span className="text-[9px] font-medium leading-tight truncate w-full mt-0.5">
+                            <span className="text-[10px] font-medium leading-tight w-full mt-0.5">
                               {stage.label}
                             </span>
                           </button>

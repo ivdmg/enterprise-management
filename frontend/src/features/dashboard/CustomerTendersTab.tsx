@@ -75,6 +75,11 @@ function signals(row: CustomerTender, today: number): Signal[] {
   return result;
 }
 
+export function countContractsNeedingAttention(rows: CustomerTender[]) {
+  const today = Date.parse(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
+  return rows.filter(row => signals(row, today).length > 0).length;
+}
+
 function SourceLink({ href }: { href: string | null | undefined }) {
   if (!href || !/^https:\/\/(?:docs|drive)\.google\.com\//i.test(href)) return null;
   return <a className="workspace-sheet-link" href={href} target="_blank" rel="noreferrer">Открыть Google Таблицу <ArrowUpRight size={16} /></a>;
@@ -92,6 +97,10 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
   const canReadCatalog = !demoMode && (user?.role === 'manager' || user?.role === 'admin');
   const { nodes: catalog, error: catalogError } = useDriveCatalog(view === 'sources' && canReadCatalog);
   const unconnected = flattenDrive(catalog ?? []).filter(node => !node.active_source);
+  const connected = flattenDrive(catalog ?? []);
+  const tenderSource = connected.find(node => node.source_kind === 'tenders');
+  const engineerSource = connected.find(node => node.source_kind === 'engineers');
+  const dispatchSource = connected.find(node => node.source_kind === 'dispatch');
   const reducedMotion = useReducedMotion();
   const [rows, setRows] = useState<CustomerTender[] | null>(null);
   const [error, setError] = useState('');
@@ -229,21 +238,28 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         </div>
         <div className="workspace-section-heading workspace-section-spaced"><h2>Операции</h2></div>
         <section className="workspace-panel mt-4"><h2>Снабжение и закупки</h2><p>Счета на оплате с просроченной или близкой датой поставки.</p><button className="workspace-link" onClick={onOpenProcurement}>К счетам с риском по сроку <ArrowRight size={16} /></button></section>
-      </> : view === 'sources' ? <div className="workspace-sources"><section className="workspace-panel">
-        <Database size={24} /><h2>{demoMode ? 'Учебный реестр' : rows?.find(row => row.source_name)?.source_name ?? 'Тендеры · Google Drive'}</h2>
+      </> : view === 'sources' ? <div className="workspace-sources">{(demoMode || tenderSource) && <section className="workspace-panel">
+        <Database size={24} /><h2>{demoMode ? 'Учебный реестр' : tenderSource?.name}</h2>
         <p>{demoMode ? 'Синтетические данные в браузере. Google Drive в этом режиме отключён.' : 'Связь по внутреннему номеру. Изменения вносятся в исходный документ.'}</p>
         <p>{sync?.status === 'error' ? 'Последняя попытка синхронизации завершилась ошибкой.' : sync?.status === 'syncing' ? 'Идёт синхронизация.' : null}</p>
         {!demoMode && <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>}
         <dl className="workspace-facts workspace-source-facts"><div><dt>Реест Ольга</dt><dd>{registryCount} записей</dd></div><div><dt>Ежедневный мониторинг</dt><dd>{monitoringCount} записей</dd></div></dl>
-        <SourceLink href={source} />
+        <SourceLink href={tenderSource?.url ?? source} />
         {warningCount > 0 && <p className="workspace-warning">Пропущено строк с ошибкой формулы во внутреннем номере: {warningCount}. После исправления в источнике они попадут в следующий импорт.</p>}
-      </section>
-        {engineers && <section className="workspace-panel">
+      </section>}
+        {engineerSource && <section className="workspace-panel">
           <FileText size={24} /><h2>Документы инженеров</h2>
           <p>Матрица сотрудников и файлы из папки «удостоверения».</p>
-          <dl className="workspace-facts workspace-source-facts"><div><dt>Сотрудники в реестре</dt><dd>{engineers.people.length}</dd></div></dl>
-          <p>Последняя синхронизация · {syncFormat.format(new Date(engineers.synced_at))}</p>
-          <SourceLink href={engineers.source_url} />
+          {engineers && <>
+            <dl className="workspace-facts workspace-source-facts"><div><dt>Сотрудники в реестре</dt><dd>{engineers.people.length}</dd></div></dl>
+            <p>Последняя синхронизация · {syncFormat.format(new Date(engineers.synced_at))}</p>
+          </>}
+          <SourceLink href={engineerSource.url} />
+        </section>}
+        {dispatchSource && <section className="workspace-panel">
+          <FileText size={24} /><h2>{dispatchSource.name}</h2>
+          <p>Помесячный график читается при открытии диспетчерской.</p>
+          <SourceLink href={dispatchSource.url} />
         </section>}
         {canReadCatalog && <section className="workspace-panel">
           <h2>Файлы без парсера</h2>

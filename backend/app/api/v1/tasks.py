@@ -86,13 +86,17 @@ def map_task_to_response(task: OperationalTask, today: datetime.date) -> TaskIte
 async def create_task(
     payload: CreateTaskRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[TaskItemResponse]:
     if payload.responsible_role and payload.responsible_role not in ROLE_IDS.values():
         raise HTTPException(status_code=422, detail="Неизвестная роль исполнителя")
     task = OperationalTask(company_id=current_user.company_id, file=None, **payload.model_dump())
     db.add(task)
     await db.flush()
+    await record_audit_log(
+        db, current_user.company_id, "task", task.id, None, task.status.value, current_user.id,
+        action="created",
+    )
     return ResponseEnvelope.ok(map_task_to_response(task, datetime.now(timezone.utc).date()))
 
 
@@ -118,7 +122,7 @@ async def list_operational_tasks(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[List[TaskItemResponse]]:
     """
     BE-5.2: Returns filtered operational tasks for current company tenant:
@@ -207,7 +211,7 @@ async def update_task_status(
     payload: UpdateTaskStatusRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ) -> ResponseEnvelope[UpdateTaskStatusResponse]:
     """
     BE-5.3: 1-click status update by project manager:

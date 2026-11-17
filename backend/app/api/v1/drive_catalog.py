@@ -1,13 +1,19 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_active_manager
 from app.core.config import settings
+from app.core.database import get_db
+from app.models.company import Company
 from app.models.user import User
 from app.schemas.common import ResponseEnvelope
 from app.services.engineer_documents import GOOGLE_SHEET, is_engineer_source
 from app.services.google_drive import GoogleDriveClient, execute_with_backoff
+from app.services.monthly_dispatch import DISPATCH_WORKBOOK_NAMES
+from app.services.tender_source import TENDER_WORKBOOK_NAME
 
 router = APIRouter(prefix="/drive-catalog", tags=["Google Drive"])
 FOLDER = "application/vnd.google-apps.folder"
@@ -23,7 +29,7 @@ def read_catalog():
         while True:
             page = execute_with_backoff(lambda: client._service.files().list(
                 q=f"'{folder_id}' in parents and trashed = false",
-                fields="nextPageToken,files(id,name,mimeType,size,createdTime,owners(displayName))",
+                fields="nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,owners(displayName))",
                 pageSize=100, pageToken=page_token,
                 supportsAllDrives=True, includeItemsFromAllDrives=True,
             ).execute())
@@ -35,13 +41,20 @@ def read_catalog():
         root = folder_id == settings.GOOGLE_DRIVE_ROOT_FOLDER_ID
         engineer_sources = [item["id"] for item in items
                             if root and is_engineer_source(item["name"], item["mimeType"])]
+        tender_sources = [item["id"] for item in items if root and item["name"].casefold() == TENDER_WORKBOOK_NAME]
+        dispatch_sources = [item["id"] for item in items if root and item["name"].casefold() in DISPATCH_WORKBOOK_NAMES]
         nodes = []
         for item in sorted(items, key=lambda entry: (entry["mimeType"] != FOLDER, entry["name"].casefold())):
             is_folder = item["mimeType"] == FOLDER
             file_id = item["id"]
-            is_active_source = not is_folder and (
-                file_id == settings.GOOGLE_DRIVE_SOURCE_FILE_ID or engineer_sources == [file_id]
-            )
+            source_kind = None
+            if not is_folder:
+                if tender_sources == [file_id] or (root and not tender_sources and file_id == settings.GOOGLE_DRIVE_SOURCE_FILE_ID):
+                    source_kind = "tenders"
+                elif engineer_sources == [file_id]:
+                    source_kind = "engineers"
+                elif dispatch_sources == [file_id]:
+                    source_kind = "dispatch"
             url = f"https://drive.google.com/file/d/{file_id}/view"
             if is_folder:
                 url = f"https://drive.google.com/drive/folders/{file_id}"
@@ -49,9 +62,11 @@ def read_catalog():
                 url = f"https://docs.google.com/spreadsheets/d/{file_id}/view"
             nodes.append({
                 "id": file_id, "name": item["name"], "url": url,
-                "active_source": is_active_source,
+                "active_source": source_kind is not None,
+                "source_kind": source_kind,
                 "size_bytes": int(item["size"]) if item.get("size") is not None else None,
                 "created_at": item.get("createdTime"),
+                "modified_at": item.get("modifiedTime"),
                 "owner": next((owner.get("displayName") for owner in item.get("owners", [])
                                if owner.get("displayName")), None),
                 "children": list_children(file_id) if is_folder else None,
@@ -62,12 +77,19 @@ def read_catalog():
 
 
 @router.get("")
-async def get_catalog(response: Response, user: User = Depends(get_current_active_manager)):
+async def get_catalog(response: Response, user: User = Depends(get_current_active_manager),
+                      db: AsyncSession = Depends(get_db, scope="function")):
     if (settings.GOOGLE_DRIVE_MOCK or user.company_id != settings.GOOGLE_DRIVE_COMPANY_ID
             or not settings.GOOGLE_DRIVE_ROOT_FOLDER_ID):
         raise HTTPException(404, "Google Диск не подключён к этой организации")
     response.headers["Cache-Control"] = "private, no-store"
     try:
-        return ResponseEnvelope.ok(await asyncio.to_thread(read_catalog))
+        nodes = await asyncio.to_thread(read_catalog)
+        register = await db.scalar(select(Company.engineer_documents).where(Company.id == user.company_id))
+        for node in nodes:
+            if (node["source_kind"] == "engineers" and register
+                    and register.get("source_url") == node["url"]):
+                node["processed_at"] = register.get("synced_at")
+        return ResponseEnvelope.ok(nodes)
     except Exception as exc:
         raise HTTPException(502, "Не удалось прочитать каталог Google Диска") from exc

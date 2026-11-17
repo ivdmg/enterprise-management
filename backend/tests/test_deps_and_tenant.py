@@ -1,7 +1,7 @@
 import uuid
 import pytest
 from fastapi import HTTPException, status
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from app.api.deps import (
     get_current_user,
@@ -72,6 +72,9 @@ async def test_get_current_user_success_isolation():
     result_mock = MagicMock()
     result_mock.scalar_one_or_none.return_value = fake_user
     db_mock.execute.return_value = result_mock
+    db_mock.info = {}
+    db_mock.in_transaction = Mock(return_value=False)
+    db_mock.in_nested_transaction = Mock(return_value=False)
 
     user = await get_current_user(cred_mock, db_mock)
     assert user.id == user_id

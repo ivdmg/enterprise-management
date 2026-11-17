@@ -4,7 +4,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.database import async_session_factory
+from app.core.database import async_session_factory, set_tenant_context
 from app.models.company import Company
 from app.services.drive_sync import drive_sync_service
 
@@ -21,31 +21,30 @@ async def sync_google_drive_job() -> None:
     logger.info("Starting scheduled Google Drive sync job...")
     async with async_session_factory() as session:
         try:
-            # Query all active tenant companies
             stmt = select(Company.id).where(Company.is_active == True)  # noqa: E712
             if settings.GOOGLE_DRIVE_COMPANY_ID:
+                await set_tenant_context(session, settings.GOOGLE_DRIVE_COMPANY_ID)
                 stmt = stmt.where(Company.id == settings.GOOGLE_DRIVE_COMPANY_ID)
             result = await session.execute(stmt)
             company_ids = result.scalars().all()
-
-            logger.info("Found %d active companies for Drive synchronization", len(company_ids))
-            for company_id in company_ids:
-                try:
-                    await drive_sync_service.sync_company_drive(
-                        company_id=company_id,
-                        user_id=None,
-                        db=session,
-                    )
-                except Exception as comp_err:
-                    logger.error("Error during scheduled sync for company %s: %s", company_id, comp_err)
-
-            logger.info("Scheduled Google Drive sync job completed successfully")
         except Exception as e:
             logger.exception("Scheduled Google Drive sync job encountered a critical error: %s", e)
+            return
+
+    logger.info("Found %d active companies for Drive synchronization", len(company_ids))
+    for company_id in company_ids:
+        try:
+            await drive_sync_service.sync_company_drive(company_id=company_id)
+        except Exception as comp_err:
+            logger.error("Error during scheduled sync for company %s: %s", company_id, comp_err)
+
+    logger.info("Scheduled Google Drive sync job completed successfully")
 
 
 def start_scheduler() -> None:
     """Starts the AsyncIOScheduler and schedules recurring maintenance jobs."""
+    if settings.INTEGRATIONS_ENABLED:
+        return
     if scheduler.running:
         logger.warning("Scheduler is already running")
         return

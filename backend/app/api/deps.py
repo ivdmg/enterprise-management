@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import decode_token
 from app.models.enums import UserRole
 from app.models.user import User
@@ -18,7 +19,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db, scope="function")],
     request: Request = None,
 ) -> User:
     """
@@ -27,6 +28,20 @@ async def get_current_user(
     Tenant isolation guarantee: company_id is bound directly to the database query
     preventing any cross-tenant data leaks.
     """
+    if settings.PLATFORM_AUTH_ENABLED:
+        from app.services.platform_auth import authenticate
+        from app.services.company_config import enforce_route_modules
+
+        if request is None:
+            raise HTTPException(401, "Войдите в свой кабинет")
+        user = await authenticate(request, db)
+        if user.role == UserRole.VIEWER and request.method not in {"GET", "HEAD", "OPTIONS"}:
+            raise HTTPException(403, "Учётная запись доступна только для просмотра")
+        await enforce_route_modules(
+            db, user.company_id, request.url.path.removeprefix(settings.API_V1_STR), request.method
+        )
+        return user
+
     if not credentials or not credentials.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -79,6 +94,9 @@ async def get_current_user(
         )
 
     # Tenant-isolated database query
+    from app.core.database import set_tenant_context
+
+    await set_tenant_context(db, company_uuid)
     query = (
         select(User)
         .options(joinedload(User.company))

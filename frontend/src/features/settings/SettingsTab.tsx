@@ -30,7 +30,6 @@ export function SettingsTab() {
   const [settings, setSettings] = useState<TelegramSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,18 +72,6 @@ export function SettingsTab() {
     }
   };
 
-  const handleTestSend = async () => {
-    setTesting(true);
-    try {
-      const res = await apiClient.testTelegramSend();
-      showToast(res.message);
-    } catch {
-      showToast('Не удалось отправить тестовое сообщение');
-    } finally {
-      setTesting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="py-12 flex justify-center">
@@ -96,7 +83,7 @@ export function SettingsTab() {
   if (!settings) return <p role="alert">Не удалось загрузить настройки.</p>;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="workspace-settings-content space-y-6 max-w-4xl mx-auto">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xl text-sm font-semibold transition-all">
@@ -171,22 +158,22 @@ export function SettingsTab() {
       </Card>
 
       {/* Telegram Integration */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-5 pb-4 border-b border-[var(--card-border)]">
+      <Card className="p-4 sm:p-6">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-5 pb-4 border-b border-[var(--card-border)]">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
               <Send className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-base font-bold text-[var(--text-main)]">
                   Интеграция с Telegram
                 </h2>
-                <Badge variant="success">Подключен</Badge>
+                <Badge variant="neutral">Не подключён</Badge>
               </div>
               <p className="text-xs text-[var(--text-sub)] mt-0.5">
 
-                Бот @{settings.bot_username} отправляет утренний дайджест и критические алерты
+                Отправка дайджестов и уведомлений в Telegram недоступна.
               </p>
             </div>
           </div>
@@ -194,8 +181,7 @@ export function SettingsTab() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleTestSend}
-            isLoading={testing}
+            disabled
             id="test-telegram-btn"
           >
             Тестовое сообщение
@@ -204,7 +190,7 @@ export function SettingsTab() {
 
         {/* Telegram Options */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
             <div className="flex items-center gap-3">
               <Clock className="h-5 w-5 text-[var(--text-muted)]" />
               <div>
@@ -235,7 +221,7 @@ export function SettingsTab() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)]">
             <div className="flex items-center gap-3">
               <Bell className="h-5 w-5 text-[var(--text-muted)]" />
               <div>

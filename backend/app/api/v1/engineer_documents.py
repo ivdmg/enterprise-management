@@ -16,7 +16,7 @@ router = APIRouter(prefix="/engineer-documents", tags=["Engineer Documents"])
 async def get_engineer_documents(
     response: Response,
     user: User = Depends(get_current_active_manager),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     if settings.GOOGLE_DRIVE_MOCK or user.company_id != settings.GOOGLE_DRIVE_COMPANY_ID:
         raise HTTPException(404, "Реестр не подключён к этой организации")
