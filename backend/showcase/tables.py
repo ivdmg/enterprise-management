@@ -1,31 +1,32 @@
 """Tabular contract shared by the synthetic seed and the read-only importer."""
 
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
-from .data import snapshot
+from .data import STAGES, SHIFT_STATUS, snapshot
 
 SHEETS = {
     "team": ("Документы сотрудников",),
     "finance": ("Платежи",),
-    "operations": ("Реест Ольга", "Ежедневный мониторинг", "Задачи", "Сигналы", "Смены"),
+    "operations": ("Реестр контрактов", "Ежедневный мониторинг", "Задачи", "Сигналы", "Смены"),
     "stock": ("Поставки",),
 }
 TITLES = {"team": "Документы сотрудников", "finance": "Реестр платежей",
-          "operations": "Тендеры и исполнение контрактов", "stock": "Реестр закупок и поставок"}
+          "operations": "Контракты и операции", "stock": "Реестр закупок и поставок"}
 FOLDERS = {"team": "Команда", "finance": "Финансы", "operations": "Операции", "stock": "Запасы"}
 DOC_HEADER = ["Сотрудник", "Документ", "Действует до"]
 DOC_FIELDS = ["Табельный №", "Подразделение", "Должность", "Номер документа", "Выдан",
               "Организация", "Ответственный", "Следующее действие"]
 PERSONNEL = (
-    ("Алина Ветрова", "Служба эксплуатации", "Инженер по эксплуатации"),
-    ("Мирон Соснов", "Служба эксплуатации", "Инженер-энергетик"),
+    ("Алина Ветрова", "Служба эксплуатации", "Специалист по эксплуатации"),
+    ("Мирон Соснов", "Служба эксплуатации", "Специалист по оборудованию"),
     ("Кира Ясенева", "Производственный участок", "Мастер участка"),
-    ("Роман Камышев", "Электромонтаж", "Старший электромонтёр"),
-    ("Дина Рябинова", "Производственный участок", "Инженер по ОТ"),
-    ("Лев Вишневский", "Электромонтаж", "Наладчик автоматики"),
-    ("Зоя Ольхина", "Метрология", "Инженер-метролог"),
-    ("Никита Лиственный", "Метрология", "Техник КИП"),
-    ("Мария Туманова", "Служба эксплуатации", "Инженер-механик"),
+    ("Роман Камышев", "Операционный отдел", "Старший специалист"),
+    ("Дина Рябинова", "Производственный участок", "Специалист по охране труда"),
+    ("Лев Вишневский", "Операционный отдел", "Координатор работ"),
+    ("Зоя Ольхина", "Контроль качества", "Специалист по качеству"),
+    ("Никита Лиственный", "Контроль качества", "Оператор участка"),
+    ("Мария Туманова", "Служба эксплуатации", "Специалист по обслуживанию"),
     ("Илья Берестов", "Логистика", "Координатор смены"),
 )
 MONITOR_HEADER = ["вн.№", "Заказчик", "Начало", "Завершение"]
@@ -36,10 +37,10 @@ COLUMN_NAMES = {
     "customer_name": "Заказчик", "curator_name": "Куратор", "contract_sum": "Сумма договора",
     "completed_sum": "Выполнено, ₽", "completion_percent": "Готовность, %", "start_date": "Начало работ",
     "deadline_date": "Срок по договору", "status": "Статус", "penalty_amount_calculated": "Расчёт пени",
-    "tender_stage": "Стадия тендера", "task_title": "Поручение", "project_id": "Код объекта",
+    "tender_stage": "Этап закупки", "task_title": "Поручение", "project_id": "Код объекта",
     "related_contract": "Номер договора", "responsible_role": "Роль", "responsible_person": "Ответственный",
     "due_date": "Исполнить до", "days_remaining": "Осталось, дн.", "is_urgent": "Срочно",
-    "source": "Происхождение", "priority": "Приоритет", "resource_type": "Тип ресурса",
+    "source": "Происхождение", "priority": "Приоритет", "resource_type": "Тип ресурса", "work_type": "Работы",
     "alert_type": "Тип риска", "severity": "Критичность", "title": "Событие", "description": "Описание",
     "calculated_financial_impact": "Оценка потерь, ₽", "is_resolved": "Закрыт", "created_at": "Дата регистрации",
     "shift_date": "Дата смены", "target_object": "Объект", "unit_name": "Подразделение",
@@ -49,6 +50,34 @@ COLUMN_NAMES = {
 }
 
 
+DISPLAY_VALUES = {
+    ("Реестр контрактов", "tender_stage"): dict(zip(STAGES, (
+        "Подготовка", "Заявка подана", "Отбор", "Согласовано",
+        "Обеспечение", "Контракт", "Исполнение", "Приёмка",
+    ), strict=True)),
+    ("Задачи", "responsible_role"): {
+        "ceo": "Генеральный директор", "coo": "Операционный директор",
+        "tender": "Тендерный специалист", "engineer": "Специалист по операциям",
+        "dispatcher": "Диспетчер", "manager": "Менеджер проектов",
+        "lawyer": "Юрист", "procurement": "Закупщик", "accountant": "Бухгалтер",
+    },
+    ("Смены", "status"): SHIFT_STATUS,
+}
+
+
+def template_tables(today=None):
+    """Return business-facing headers and labels for editable source books."""
+    tables = seed_tables(today)
+    result = {}
+    for name, (header, *records) in tables.items():
+        values = [DISPLAY_VALUES.get((name, column), {}) for column in header]
+        result[name] = [
+            [COLUMN_NAMES.get(column, column) for column in header],
+            *([labels.get(cell, cell) for labels, cell in zip(values, row, strict=True)] for row in records),
+        ]
+    return result
+
+
 def encode(rows):
     return [list(rows[0]), *(list(row.values()) for row in rows)]
 
@@ -56,7 +85,7 @@ def encode(rows):
 def employee_rows(today):
     yield [*DOC_HEADER, *DOC_FIELDS]
     kinds = ("Удостоверение по охране труда", "Допуск к работам",
-             "Проверка знаний электробезопасности", "Обучение первой помощи")
+             "Проверка знаний по безопасности", "Обучение первой помощи")
     for index, (name, department, role) in enumerate(PERSONNEL, 1):
         for item, kind in enumerate(kinds):
             days = (180 - index * 6, 18 - index, index * 18 - 50, 90 + index * 2)[item]
@@ -97,7 +126,7 @@ def seed_tables(today=None):
     ]
     return {
         "Документы сотрудников": list(employee_rows(today)),
-        "Реест Ольга": encode(project_rows),
+        "Реестр контрактов": encode(project_rows),
         "Ежедневный мониторинг": [[*MONITOR_HEADER, "Куратор", "Ближайший этап", "Ответ заказчика",
                                   "Готовность, %", "Решение по исполнению"], *(
             [row["number"], row["monitoring"]["values"][1],
@@ -119,13 +148,15 @@ DATE_FIELDS = {"Действует до", "Выдан", "Начало", "Зав�
                "due_date", "shift_date", "delivery_deadline", "date"}
 
 
-def read_rows(raw, template, optional=frozenset(), additional=frozenset(), mapping=None):
+def read_rows(raw, template, optional=frozenset(), additional=frozenset(), mapping=None, line_numbers=None):
     if not raw or len(raw) >= 1000:
         raise ValueError("sheet size")
     accepted = {
         key: {str(label).strip().casefold() for label in ((mapping or {}).get(key, key), COLUMN_NAMES.get(key, key))}
         for key in template
     }
+    if "tender_stage" in accepted:
+        accepted["tender_stage"].add("стадия тендера")
     required = template.keys() - additional
     for index, raw_header in enumerate(raw[:8]):
         header = [str(value).strip().casefold() for value in raw_header]
@@ -143,7 +174,7 @@ def read_rows(raw, template, optional=frozenset(), additional=frozenset(), mappi
     if len(set(columns.values())) != len(columns):
         raise ValueError("ambiguous column mapping")
     rows = []
-    for values in raw[index + 1:]:
+    for line_number, values in enumerate(raw[index + 1:], index + 2):
         if not any(value != "" for value in values):
             continue
         row = {}
@@ -157,14 +188,19 @@ def read_rows(raw, template, optional=frozenset(), additional=frozenset(), mappi
                 if not isinstance(value, str):
                     raise ValueError("invalid date type")
                 iso_day(value)
+            if key == "created_at" and type(value) in (int, float) and 1 <= value <= 100_000:
+                epoch = datetime(1899, 12, 30, tzinfo=ZoneInfo("Europe/Samara"))
+                value = (epoch + timedelta(days=value)).isoformat(timespec="seconds")
             if type(sample) is bool and value in ("TRUE", "FALSE"):
                 value = value == "TRUE"
             if value == "" and (key in optional or key in additional):
                 row[key] = None
-            elif type(value) is not type(sample) or value == "":
+            elif value == "" or not (type(value) is type(sample) or type(sample) is int and type(value) is float):
                 raise ValueError("invalid cell type")
             else:
                 row[key] = value
+        if line_numbers is not None:
+            line_numbers.append(line_number)
         rows.append(row)
     return rows
 
@@ -201,20 +237,32 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
 
-def parse_tables(tables, today, mapping=None):
+def parse_tables(tables, today, mapping=None, sources=None):
     seed = seed_tables(today)
     mapping = mapping or {}
+    sources = sources or {}
 
-    def read(name, optional=frozenset()):
+    def read(name, optional=frozenset(), additional=frozenset(), line_numbers=None):
         header, example, *_ = seed[name]
         if name == "Платежи":
             header = header[:4]
         elif name == "Ежедневный мониторинг":
             header = MONITOR_HEADER
         template = {key: "" if key in DATE_FIELDS else value for key, value in zip(header, example)}
-        return read_rows(tables[name], template, optional, mapping=mapping.get(name))
+        legacy = "Реест Ольга" if name == "Реестр контрактов" and name not in tables else name
+        rows = read_rows(tables[legacy], template, optional, additional,
+                         mapping=mapping.get(name, mapping.get(legacy)), line_numbers=line_numbers)
+        for field in template:
+            if labels := DISPLAY_VALUES.get((name, field)):
+                codes = {label.casefold(): code for code, label in labels.items()}
+                for row in rows:
+                    value = row[field]
+                    if isinstance(value, str):
+                        row[field] = codes.get(value.strip().casefold(), value)
+        return rows
 
-    projects = read("Реест Ольга")
+    contract_rows = []
+    projects = read("Реестр контрактов", line_numbers=contract_rows)
     monitoring = read("Ежедневный мониторинг", {"Завершение"})
     by_code = {row["вн.№"]: row for row in monitoring}
     project_codes = {row["project_code"] for row in projects}
@@ -223,7 +271,11 @@ def parse_tables(tables, today, mapping=None):
             or len(codes_by_id) != len(projects) or project_codes != by_code.keys()):
         raise ValueError("invalid register join")
     registry = []
-    for project in projects:
+    for project, source_row in zip(projects, contract_rows, strict=True):
+        if project["tender_stage"] not in STAGES:
+            raise ValueError("unknown procurement stage")
+        if source := sources.get("Реестр контрактов"):
+            project["google_drive_link"] = f"{source}&range=A{source_row}"
         code = project.pop("вн.№")
         monitor = by_code[code]
         if code != project["project_code"] or project["customer_name"] != monitor["Заказчик"]:
@@ -239,8 +291,8 @@ def parse_tables(tables, today, mapping=None):
         row[:2] = [code, monitor["Заказчик"]]
         row[4:6] = [iso_day(monitor["Начало"]), iso_day(monitor["Завершение"]) if monitor["Завершение"] else None]
         registry.append({
-            "id": project["id"], "number": code, "amount": project["contract_sum"], "link": None,
-            "curator": project["curator_name"], "registry": {"source_row": len(registry) + 2, "values": values},
+            "id": project["id"], "number": code, "amount": project["contract_sum"], "link": project.get("google_drive_link"),
+            "curator": project["curator_name"], "registry": {"source_row": source_row, "values": values},
             "monitoring": {"source_row": monitoring.index(monitor) + 2, "values": row},
             "registry_columns": [], "monitoring_columns": [], "source_warnings": {},
         })
@@ -271,14 +323,16 @@ def parse_tables(tables, today, mapping=None):
         project["debt_sum"] = project["completed_sum"] - project["paid_sum"]
 
     supplies = read("Поставки")
-    shifts = read("Смены")
+    shifts = read("Смены", additional={"work_type"})
+    if any(shift["status"] not in SHIFT_STATUS for shift in shifts):
+        raise ValueError("unknown shift status")
     project_names = {project["project_name"] for project in projects}
     if (any(item["project_name"] not in project_names for item in supplies)
             or any(shift["target_object"] not in project_names for shift in shifts)):
         raise ValueError("unknown project name")
     return {
         "customer-tenders": registry, "dashboard/projects": projects, "tasks": tasks,
-        "alerts": read("Сигналы"), "procurement/items": supplies,
+        "alerts": read("Сигналы", additional={"project_id"}), "procurement/items": supplies,
         "dispatch/records": shifts, "payments": payments,
         "engineer-documents": documents(tables["Документы сотрудников"], timestamp(), mapping.get("Документы сотрудников")),
     }

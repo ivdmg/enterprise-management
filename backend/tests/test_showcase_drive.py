@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from showcase import drive, main
-from showcase.tables import SHEETS, TITLES, parse_tables, seed_tables
+from showcase.tables import SHEETS, TITLES, parse_tables, seed_tables, template_tables
 
 
 class CatalogTests(TestCase):
@@ -33,6 +33,9 @@ class CatalogTests(TestCase):
                     {"id": "allowed-shortcut", "name": "Ярлык", "mimeType": "application/vnd.google-apps.shortcut"},
                 ]}
             for group, key in source.files.items():
+                if url.endswith(f"/{key}"):
+                    return {"sheets": [{"properties": {"title": name, "sheetId": index}}
+                                       for index, name in enumerate(SHEETS[group])]}
                 if f"/{key}/" in url:
                     self.assertEqual(params["ranges"], [f"'{name}'!A1:Z1000" for name in SHEETS[group]])
                     return {"valueRanges": [{"values": seed_tables()[name]} for name in SHEETS[group]]}
@@ -155,3 +158,21 @@ class SnapshotTests(TestCase):
         self.assertEqual(len(register["people"]), 10)
         self.assertEqual(register["people"][0]["documents"][0]["entries"][0]["value"], columns[1][2])
         self.assertEqual(len(data["customer-tenders"]), 12)
+
+    def test_revised_showcase_contract(self):
+        tables = template_tables(self.today)
+        name = "Реестр контрактов"
+        tables[name] = [["Контракты"], [], *tables[name]]
+        link = "https://docs.google.com/spreadsheets/d/demo-source/edit#gid=42"
+        data = parse_tables(tables, self.today, sources={name: link})
+        self.assertTrue(data["customer-tenders"][0]["link"].endswith("&range=A4"))
+        self.assertGreater(len({row["tender_stage"] for row in data["dashboard/projects"]}), 3)
+        roles = {row["responsible_role"] for row in data["tasks"]}
+        self.assertEqual(len(roles), 9)
+        self.assertTrue(all(5 <= sum(row["responsible_role"] == role for row in data["tasks"]) <= 10 for role in roles))
+        finance = self.api.get("/api/v1/dashboard/finance").json()["data"]
+        self.assertTrue(finance["top_debtors"] and finance["top_creditors"])
+        shifts = self.api.get("/api/v1/dispatch/monthly").json()["data"]["records"]
+        self.assertEqual({shift["status"] for shift in shifts}, {"На объекте", "В ремонте", "Простой"})
+        self.assertTrue(all(shift["work_type"] for shift in shifts))
+        self.assertEqual(len({day[:7] for shift in shifts for day in shift["entries"]}), 3)

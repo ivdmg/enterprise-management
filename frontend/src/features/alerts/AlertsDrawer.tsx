@@ -13,6 +13,7 @@ interface AlertsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   penaltiesOnly?: boolean;
+  onProject?: (id: string) => void;
 }
 
 export function isContractPenalty(alert: Alert) {
@@ -41,7 +42,7 @@ function getSeverityBadge(severity: string) {
   }
 }
 
-export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsDrawerProps) {
+export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false, onProject }: AlertsDrawerProps) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -140,14 +141,12 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
                             <div className="flex items-center gap-2 mb-0.5">
                               {getSeverityBadge(alert.severity)}
                             </div>
-                            <p className="text-sm font-semibold text-[var(--text-main)]">
-                              {alert.title}
-                            </p>
-                            {alert.description && (
-                              <p className="text-xs text-[var(--text-sub)] mt-0.5">
-                                {alert.description}
-                              </p>
-                            )}
+                            <details className="workspace-alert-item">
+                              <summary className="text-sm font-semibold text-[var(--text-main)]">{alert.title}</summary>
+                              <p className="text-xs text-[var(--text-sub)] mt-2">{alert.description || 'Подробности отсутствуют.'}</p>
+                              {onProject && alert.project_id && <button type="button" className="workspace-link mt-2"
+                                onClick={() => onProject(alert.project_id!)}>Открыть объект</button>}
+                            </details>
                             <div className="flex items-center gap-3 mt-1.5 text-xs text-[var(--text-muted)]">
                               {alert.calculated_financial_impact > 0 && (
                                 <span className="font-semibold text-rose-600 dark:text-rose-400">

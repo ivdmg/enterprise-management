@@ -140,6 +140,9 @@ export const apiClient = {
   getShowcaseSettings() {
     return request<TelegramSettings>('/showcase/settings');
   },
+  getShowcaseSourceLinks(signal?: AbortSignal) {
+    return request<Record<string, string>>('/showcase/source-links', { signal });
+  },
   getShowcaseSource(signal?: AbortSignal) {
     return request<{
       source: 'drive' | 'snapshot' | 'synthetic';

@@ -79,7 +79,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
     <Modal
       isOpen={!!record}
       onClose={onClose}
-      title="Сводка по инциденту / состоянию"
+      title={showcaseMode ? 'Сводка смены' : 'Сводка по инциденту / состоянию'}
       size="md"
     >
       <div className="space-y-4">
@@ -103,10 +103,10 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
             )}
             <div>
               <p className="font-bold text-sm">
-                {isOnSite ? 'Штатный режим' : isRepair ? 'Аварийный ремонт' : 'Технический простой'}
+                {showcaseMode ? STATUS_CONFIGS[record.status].label : isOnSite ? 'Штатный режим' : isRepair ? 'Аварийный ремонт' : 'Технический простой'}
               </p>
               <p className="text-xs opacity-85">
-                {isOnSite
+                {showcaseMode ? record.work_type : isOnSite
                   ? 'Все системы функционируют штатно'
                   : `Зафиксирован простой: ${record.downtime_hours || 0} ч.`}
               </p>
@@ -122,7 +122,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
               <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">Единица ресурса:</span>
               <span className="font-semibold text-[var(--text-main)] text-sm">{record.unit_name}</span>
               <span className="text-[11px] text-[var(--text-sub)] block">
-                {isMachinery ? 'Спецтехника' : 'Строительная бригада'}
+                {isMachinery ? 'Техника' : showcaseMode ? 'Рабочая группа' : 'Строительная бригада'}
               </span>
             </div>
             <div>
@@ -421,10 +421,10 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                 value={projectFilter}
                 onChange={setProjectFilter}
                 options={[
-                  { value: 'all', label: 'Все строительные площадки' },
+                  { value: 'all', label: 'Все объекты' },
                   ...uniqueObjects.map((obj) => ({ value: obj, label: obj })),
                 ]}
-                placeholder="Все строительные площадки"
+                placeholder="Все объекты"
               />
             </div>
           </div>
@@ -512,8 +512,8 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                 <th className="text-left px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[16%]">
                   Ответственный
                 </th>
-                <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[22%] min-w-[280px]">
-                  Статус (в 1 клик)
+                <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[22%] min-w-[120px]">
+                  Статус
                 </th>
                 <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[13%]">
                   Инцидент / Заметки
@@ -554,7 +554,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                               {rec.unit_name}
                             </p>
                             <p className="text-[11px] text-[var(--text-sub)] truncate">
-                              {isMachinery ? 'Спецтехника' : 'Строительная бригада'}
+                              {isMachinery ? 'Техника' : showcaseMode ? 'Рабочая группа' : 'Строительная бригада'}
                             </p>
                           </div>
                         </div>
@@ -576,7 +576,9 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       {/* 1-Click Status Switcher Pills */}
                       <td className="px-3.5 py-3.5 align-middle">
                         <div className="flex items-center justify-center">
-                          <div className="inline-flex items-center bg-[var(--card-subtle)] p-1 rounded-xl border border-[var(--card-border)]">
+                          {showcaseMode ? <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${STATUS_CONFIGS[rec.status].badgeClass}`}>
+                            {STATUS_CONFIGS[rec.status].label}
+                          </span> : <div className="inline-flex items-center bg-[var(--card-subtle)] p-1 rounded-xl border border-[var(--card-border)]">
                             {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
                               const cfg = STATUS_CONFIGS[st];
                               const isActive = rec.status === st;
@@ -598,13 +600,13 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                                 </button>
                               );
                             })}
-                          </div>
+                          </div>}
                         </div>
                       </td>
 
                       {/* Incident & Notes: Clean status indicator with question icon modal trigger */}
                       <td className="px-3.5 py-3.5 align-middle text-center">
-                        {rec.status === 'on_site' ? (
+                        {showcaseMode ? rec.work_type ?? '—' : rec.status === 'on_site' ? (
                           <button
                             type="button"
                             onClick={() => setSelectedIncidentSummary(rec)}
@@ -652,6 +654,8 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                           >
                             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </a>}
+                          {showcaseMode && <button className="workspace-catalog-button" type="button"
+                            onClick={() => setSelectedIncidentSummary(rec)}>Подробнее</button>}
                           {!showcaseMode && <button
                             type="button"
                             onClick={() => openIncidentModal(rec)}
@@ -720,7 +724,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                   {/* 1-Click Status Switcher (Mobile Large Targets >= 44px) */}
                   {!showcaseMode && <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">
-                      Сменить статус в 1 клик:
+                      Сменить статус:
                     </span>
                     <div className="grid grid-cols-3 gap-1.5">
                       {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
@@ -786,6 +790,8 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
                     </a>}
 
+                    {showcaseMode && <button className="workspace-catalog-button" type="button"
+                      onClick={() => setSelectedIncidentSummary(rec)}>Подробнее</button>}
                     {!showcaseMode && <button
                       type="button"
                       onClick={() => openIncidentModal(rec)}

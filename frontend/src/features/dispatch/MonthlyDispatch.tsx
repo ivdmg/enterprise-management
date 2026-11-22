@@ -39,6 +39,7 @@ export function MonthlyDispatch() {
   const months = [...new Set(schedule.records.flatMap(record =>
     Object.keys(record.entries).map(day => day.slice(0, 7)),
   ))].sort();
+  const monthFormat = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const visible = schedule.records.filter(record =>
     !month || Object.keys(record.entries).some(day => day.startsWith(month)),
   );
@@ -53,7 +54,7 @@ export function MonthlyDispatch() {
         setMobileLimit(12);
       }} options={[
         { value: '', label: 'Все месяцы' },
-        ...months.map(value => ({ value, label: value.split('-').reverse().join('.') })),
+        ...months.map(value => ({ value, label: monthFormat.format(new Date(`${value}-01T00:00:00Z`)) })),
       ]} /> : <p className="text-sm text-[var(--text-sub)]">В исходной книге нет отметок по датам.</p>}
       <div className="hidden md:block max-h-[32rem] overflow-auto">
         <table className="w-full text-left text-sm">

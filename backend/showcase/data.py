@@ -1,6 +1,6 @@
 """Synthetic data for the public showcase, independent of customer sources."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
@@ -25,11 +25,33 @@ PROJECTS = (
 )
 
 
+STAGES = ("preparation", "submitted", "bidding", "won", "guarantee", "contract", "execution", "acceptance")
+ROLE_TASKS = {
+    "ceo": "Проверить ключевые показатели",
+    "coo": "Сверить план операций",
+    "tender": "Проверить условия предложения",
+    "engineer": "Проверить готовность работ",
+    "dispatcher": "Подтвердить график смены",
+    "manager": "Согласовать график с заказчиком",
+    "lawyer": "Проверить условия договора",
+    "procurement": "Подтвердить поставку",
+    "accountant": "Сверить взаиморасчёты",
+}
+SHIFT_STATUS = {"on_site": "На объекте", "repair": "В ремонте", "downtime": "Простой"}
+
+
 def snapshot(today=None):
     today = today or datetime.now(ZoneInfo("Europe/Samara")).date()
 
     def day(offset):
         return (today + timedelta(days=offset)).isoformat()
+
+    def shift_day(index):
+        if index <= 4:
+            return day(0)
+        month_index = today.year * 12 + today.month - 1 - (index - 3) // 2
+        year, month = divmod(month_index, 12)
+        return date(year, month + 1, 12 + index).isoformat()
 
     projects = []
     registry = []
@@ -50,7 +72,7 @@ def snapshot(today=None):
             "days_overdue": max(0, -offset) if completion < 100 else 0,
             "risk_level": "critical" if offset < 0 and completion < 100 else "normal",
             "penalty_amount_calculated": amount // 100 if offset < 0 and completion < 100 else 0,
-            "tender_stage": "contract",
+            "tender_stage": "acceptance" if completion == 100 else "execution" if offset < 0 else STAGES[(index - 1) % 7],
         })
         values = [None] * 22
         monitoring = [None] * 25
@@ -76,7 +98,9 @@ def snapshot(today=None):
     suppliers = ("ВолгаКомплект", "Контакт-Поставка", "Приборная база", "Меридиан Снаб")
     for index, (project, (_, offset, amount, completion)) in enumerate(zip(projects, PROJECTS), 1):
         curator = project["curator_name"]
-        for part, title in enumerate(("Согласовать график работ", "Подготовить акт приёмки"), 1):
+        for part, (role, title) in enumerate(ROLE_TASKS.items(), 1):
+            if (index + part) % 2:
+                continue
             due = offset - 2 if part == 1 else offset
             status = "completed" if completion == 100 or (part == 1 and completion >= 50) else "pending"
             if status != "completed" and due < 0:
@@ -84,13 +108,13 @@ def snapshot(today=None):
             tasks.append({
                 "id": f"task-{index}-{part}", "task_title": f"{title} · {project['project_name']}",
                 "project_id": project["id"], "related_contract": project["project_code"],
-                "responsible_role": "manager", "responsible_person": curator, "due_date": day(due),
+                "responsible_role": role, "responsible_person": curator, "due_date": day(due),
                 "days_remaining": due, "is_urgent": due <= 5 and status != "completed",
                 "source": "manual", "status": status, "priority": "high" if due <= 5 else "medium",
             })
         if offset < 0 and completion < 100:
             alerts.append({
-                "id": f"alert-{index}", "alert_type": "DEADLINE_BREACH", "severity": "CRITICAL",
+                "id": f"alert-{index}", "project_id": project["id"], "alert_type": "DEADLINE_BREACH", "severity": "CRITICAL",
                 "title": f"Нарушен срок исполнения · {project['project_name']}",
                 "description": f"Прошло {abs(offset)} дн. с плановой даты. Требуется согласовать новый срок.",
                 "calculated_financial_impact": amount // 100, "is_resolved": False,
@@ -106,9 +130,10 @@ def snapshot(today=None):
         })
         if index <= 8:
             dispatch.append({
-                "id": f"shift-{index}", "shift_date": day(0 if index <= 4 else -1),
+                "id": f"shift-{index}", "shift_date": shift_day(index),
                 "target_object": project["project_name"], "resource_type": "crew",
-                "unit_name": f"Монтажная группа №{(index - 1) % 4 + 1}",
-                "responsible_person": curator, "status": "on_site",
+                "unit_name": f"Рабочая группа №{(index - 1) % 4 + 1}",
+                "responsible_person": curator, "status": tuple(SHIFT_STATUS)[(index - 1) % 3],
+                "work_type": ("Плановые работы", "Диагностика оборудования", "Подготовка площадки")[(index - 1) % 3],
             })
     return today, projects, registry, tasks, alerts, procurement, dispatch

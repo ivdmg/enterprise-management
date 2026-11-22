@@ -205,8 +205,8 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
   // Options for custom Role Select (FE-5.1)
   const roleSelectOptions = useMemo(() => {
     return [
-      { value: 'all', label: 'Все 9 ролей предприятия' },
-      ...ENTERPRISE_ROLES.map((r) => ({ value: r.id, label: r.name })),
+      { value: 'all', label: 'Все роли предприятия' },
+      ...ENTERPRISE_ROLES.map((r) => ({ value: r.id, label: showcaseMode && r.id === "engineer" ? "Специалист по операциям" : r.name })),
     ];
   }, []);
 

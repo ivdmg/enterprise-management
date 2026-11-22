@@ -1,3 +1,4 @@
+import { ShowcaseSheets, ShowcaseSheetLink } from '@/components/ShowcaseSheetLink';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
 import { Bell, Building2, CircleUserRound, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UsersRound } from 'lucide-react';
@@ -43,6 +44,10 @@ const moduleIds: Record<Section, string> = {
   summary: 'overview', registry: 'contracts', engineers: 'engineer_documents',
   projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
   tasks: 'tasks', sources: 'sources', files: 'files', settings: 'settings',
+};
+const showcaseTitle = 'Система мониторинга предприятия';
+const sheetsBySection: Partial<Record<Section, string>> = {
+  projects: 'Реестр контрактов', procurement: 'Поставки', dispatch: 'Смены', tasks: 'Задачи',
 };
 const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
@@ -100,7 +105,20 @@ interface AppProps {
 }
 
 export default function App({ allowedModules, companyBase, requestedModule }: AppProps) {
+  const [sheetLinks, setSheetLinks] = useState<Record<string, string>>({});
+  const [alertCount, setAlertCount] = useState(0);
+  const [alertProject, setAlertProject] = useState<string>();
   const [showcaseSource, setShowcaseSource] = useState<Awaited<ReturnType<typeof apiClient.getShowcaseSource>>>();
+
+  useEffect(() => {
+    if (!showcaseMode || !showcaseSource?.refreshed_at) return;
+    const controller = new AbortController();
+    apiClient.getShowcaseSourceLinks(controller.signal).then(links => {
+      if (!controller.signal.aborted) setSheetLinks(links);
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [showcaseSource?.refreshed_at]);
+
   useEffect(() => {
     if (!showcaseMode) return;
     const controller = new AbortController();
@@ -116,7 +134,9 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const [legacyView, setView] = useState(readSection);
   const allowedSections = allowedModules && new Map(allowedModules.map(module => [module.id, module]));
   const isAllowed = (id: Section) => !allowedSections || allowedSections.has(moduleIds[id]);
-  const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label ?? fallback;
+  const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label
+    ?? (showcaseMode && id === 'engineers' ? 'Документы сотрудников'
+      : showcaseMode && id === 'projects' ? 'Проекты и объекты' : fallback);
   const menuSections = sections.flatMap(group => [...group.items]).filter(item => isAllowed(item.id));
   if (allowedSections) {
     menuSections.sort((a, b) => (allowedSections.get(moduleIds[a.id])?.order ?? 0)
@@ -222,7 +242,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
     const refresh = () => apiClient.getDriveSyncStatus().then(data => { if (active) setSync(data); }).catch(() => {});
     apiClient.getAlerts().then(data => {
       const amounts = data.filter(isContractPenalty);
-      if (active) setPenalties(amounts.length ? amounts.reduce((total, alert) => total + alert.calculated_financial_impact, 0) : null);
+      if (active) {
+        setAlertCount(data.length);
+        setPenalties(amounts.length ? amounts.reduce((total, alert) => total + alert.calculated_financial_impact, 0) : null);
+      }
     }).catch(() => { if (active) setPenalties(null); });
     refresh();
     const timer = window.setInterval(refresh, 60_000);
@@ -310,9 +333,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
 
   function renderPageHeader(actions?: ReactNode) {
     return <header className="workspace-heading workspace-pagebar">
-      <div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{labelFor(section.id, section.label)}</h1>{<p>{section.description}</p>}</div>
+      <div><div className="workspace-eyebrow"><section.icon size={15} /> {showcaseMode ? showcaseTitle : "ENTERPRISE HUB"}</div><h1>{labelFor(section.id, section.label)}</h1>{<p>{section.description}</p>}</div>
       <div className="workspace-pagebar-actions">
         {actions}
+        {sheetsBySection[section.id] && <ShowcaseSheetLink sheet={sheetsBySection[section.id]!} />}
         <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={() => navigate('summary')}><House size={17} /></button>
       </div>
     </header>;
@@ -326,7 +350,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
         const refreshAt = showcaseMode ? showcaseSource?.refreshed_at ?? undefined : sync?.last_synced_at;
         return <EngineerDocumentsTab refreshAt={refreshAt} onHome={() => navigate('summary')} />;
       }
-      case 'projects': return <ProjectsTab renderHeader={renderPageHeader} />;
+      case 'projects': return <ProjectsTab renderHeader={renderPageHeader} highlightProjectId={alertProject} onClearHighlight={() => setAlertProject(undefined)} />;
       case 'finance': return <FinanceTab />;
       case 'procurement': return <ProcurementTab key={String(procurementDue)} dueOnly={procurementDue} renderHeader={renderPageHeader} />;
       case 'dispatch': return <DispatchTab renderHeader={renderPageHeader} driveLink={demoMode ? undefined : sync?.root_folder_link} />;
@@ -342,10 +366,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
     <div className="workspace" data-showcase={showcaseMode || undefined} data-sidebar={sidebar ? 'open' : 'closed'}>
       <header className="workspace-topbar">
         <div className="workspace-topbar-strip"><div className="workspace-topbar-start">
-          <a href={companyBase ?? "#summary"} className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { if (companyBase) return; event.preventDefault(); navigate('summary'); }}>
+          <a href={companyBase ?? "#summary"} className="workspace-brand" aria-label={showcaseMode ? showcaseTitle + " — обзор" : "Enterprise Hub — обзор"} onClick={event => { if (companyBase) return; event.preventDefault(); navigate('summary'); }}>
             <span className="workspace-brand-mark"><Workflow size={18} />
 
-            </span><strong>Enterprise Hub</strong>
+            </span><strong>{showcaseMode ? showcaseTitle : "Enterprise Hub"}</strong>
           </a>
           <span className="workspace-current"><ChevronRight size={13} />{labelFor(section.id, section.label)}</span>
         </div>
@@ -365,10 +389,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
               <span>{isSyncing ? 'Синхронизация…' : 'Синхронизировать'}</span>
             </button>
           )}
-          {!companyBase && <button className="workspace-icon-button"
+          {!companyBase && <button className="workspace-icon-button workspace-alert-trigger"
             onClick={() => setShowAlerts(current => current === 'all' ? null : 'all')}
-            title="Уведомления" aria-label="Уведомления" aria-controls="workspace-alerts"
-            aria-expanded={showAlerts !== null}><Bell size={18} /></button>}
+            title="Уведомления" aria-label={alertCount ? `Уведомления: ${alertCount}` : "Уведомления"} aria-controls="workspace-alerts"
+            aria-expanded={showAlerts !== null}><Bell size={18} />{alertCount > 0 && <small className="workspace-attention-count" aria-hidden="true">{alertCount > 99 ? "99+" : alertCount}</small>}</button>}
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
           {!showcaseMode && <>
             <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
@@ -446,6 +470,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           </div>)}
         </nav>
       </aside>
+      <ShowcaseSheets.Provider value={sheetLinks}>
       <main className="workspace-main" data-view={view}>
         {!hasView ? <p>Раздел недоступен. Выберите доступный раздел в меню.</p> : customerView ? <CustomerTendersTab key={`${version}-${hasDriveSnapshot}`} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
@@ -456,6 +481,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
               <div key={`${view}-${version}-${hasDriveSnapshot}`} className="workspace-module workspace-reveal"><Suspense fallback={<DataLoading />}>{renderSection()}</Suspense></div>
             </>}
       </main>
+      </ShowcaseSheets.Provider>
       <FileUploadModal isOpen={canEdit && upload === 'file'} onClose={() => setUpload(null)} onUploadComplete={data => { setUpload(null); if (data.status === 'awaiting_confirmation') setMapping({ id: data.file_id, name: data.original_name }); setVersion(value => value + 1); }} />
       <AccountantUploadModal isOpen={canEdit && upload === 'accounting'} onClose={() => setUpload(null)} onUploadSuccess={() => { setUpload(null); setVersion(value => value + 1); navigate('tasks'); }} />
       <MappingDrawer isOpen={canEdit && mapping !== null} onClose={() => { setMapping(null); setVersion(value => value + 1); }} fileId={mapping?.id ?? ''} fileName={mapping?.name ?? ''} />
@@ -469,7 +495,11 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           </div>
         </div>
       </Modal>}
-      <AlertsDrawer isOpen={showAlerts !== null} penaltiesOnly={showAlerts === 'penalties'} onClose={() => setShowAlerts(null)} />
+      <AlertsDrawer isOpen={showAlerts !== null} penaltiesOnly={showAlerts === 'penalties'} onClose={() => setShowAlerts(null)} onProject={showcaseMode ? id => {
+        setAlertProject(id);
+        setShowAlerts(null);
+        navigate('projects');
+      } : undefined} />
     </div>
   );
 }

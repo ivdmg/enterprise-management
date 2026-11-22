@@ -1,3 +1,4 @@
+import { ShowcaseSheetLink } from '@/components/ShowcaseSheetLink';
 import { Modal } from '@/components/Modal';
 import { Pagination } from '@/components/Pagination';
 import { motion, useReducedMotion } from 'motion/react';
@@ -184,12 +185,12 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
 
   return <div key={view} className="workspace-reveal">
     {view !== 'summary' && <header className={'workspace-heading workspace-pagebar' + (view === 'registry' ? ' workspace-contract-heading' : '')}>
-      <div><div className="workspace-eyebrow"><span /> УПРАВЛЕНИЕ ТЕНДЕРАМИ</div><h1>{labels[view][0]}</h1><p>{labels[view][1]}</p></div>
+      <div><div className="workspace-eyebrow"><span /> {showcaseMode ? "ОПЕРАЦИИ" : "УПРАВЛЕНИЕ ТЕНДЕРАМИ"}</div><h1>{labels[view][0]}</h1><p>{labels[view][1]}</p></div>
       {view === 'registry' && rows && rows.length > 0 && <div className="workspace-contract-controls">
         <FieldBeam className="workspace-search-beam"><label className="workspace-search"><Search size={18} /><input aria-label="Поиск по записям" placeholder="Заказчик, город или номер" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /></label></FieldBeam>
         <Select ariaLabel="Фильтр по сигналам" className="workspace-filter" value={filter} options={Object.entries(filters).map(([value, label]) => ({ value, label }))} onChange={value => { setFilter(value as Filter); setFocusedId(null); setPage(0); }} />
         <p className="workspace-result">Найдено: {filtered.length}</p>
-        <SourceLink href={source} />
+        {showcaseMode ? <ShowcaseSheetLink sheet="Реестр контрактов" /> : <SourceLink href={source} />}
         {focusedId && <button className="workspace-link workspace-contract-reset" onClick={() => openContracts('all')}>Показать весь список</button>}
       </div>}
     </header>}
@@ -207,7 +208,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             { icon: CalendarClock, title: 'Предупреждения', value: deadlineCount ? count('soon') : '—',
               stats: [['Горизонт', '4–7 дней'], ['Даты в реестре', deadlineCount]], action: () => openContracts('soon') },
             { icon: Scale, title: 'Штрафы и неустойки', value: penalties === null ? '—' : money.format(penalties),
-              stats: [['Источник', 'Журнал рисков'], ['Статус', 'Открытые']], action: onOpenAlerts },
+              stats: [['Источник', showcaseMode ? 'Лист «Сигналы»' : 'Журнал рисков'], ['Статус', 'Открытые']], action: onOpenAlerts },
             { icon: FileText, title: 'Проверить документы', value: count('review'),
               stats: [['Реестр', registryCount], ['Мониторинг', monitoringCount]], action: () => openContracts('review') },
           ].map(({ icon: Icon, title, value, stats, action }) => (
@@ -246,18 +247,18 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         <p>{demoMode && !showcaseMode ? 'Синтетические данные в браузере. Google Drive в этом режиме отключён.' : 'Связь по внутреннему номеру. Изменения вносятся в исходный документ.'}</p>
         <p>{sync?.status === 'error' ? 'Последняя попытка синхронизации завершилась ошибкой.' : sync?.status === 'syncing' ? 'Идёт синхронизация.' : null}</p>
         {(!demoMode || showcaseMode) && <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>}
-        <dl className="workspace-facts workspace-source-facts"><div><dt>Реест Ольга</dt><dd>{registryCount} записей</dd></div><div><dt>Ежедневный мониторинг</dt><dd>{monitoringCount} записей</dd></div></dl>
-        <SourceLink href={tenderSource?.url ?? source} />
+        <dl className="workspace-facts workspace-source-facts"><div><dt>Реестр контрактов</dt><dd>{registryCount} записей</dd></div><div><dt>Ежедневный мониторинг</dt><dd>{monitoringCount} записей</dd></div></dl>
+        {showcaseMode ? <ShowcaseSheetLink sheet="Реестр контрактов" /> : <SourceLink href={tenderSource?.url ?? source} />}
         {warningCount > 0 && <p className="workspace-warning">Пропущено строк с ошибкой формулы во внутреннем номере: {warningCount}. После исправления в источнике они попадут в следующий импорт.</p>}
       </section>}
         {engineerSource && <section className="workspace-panel">
-          <FileText size={24} /><h2>Документы инженеров</h2>
+          <FileText size={24} /><h2>{showcaseMode ? "Документы сотрудников" : "Документы инженеров"}</h2>
           <p>{showcaseMode ? 'Реестр удостоверений, допусков и сроков действия.' : 'Матрица сотрудников и файлы из папки «удостоверения».'}</p>
           {engineers && <>
             <dl className="workspace-facts workspace-source-facts"><div><dt>Сотрудники в реестре</dt><dd>{engineers.people.length}</dd></div></dl>
             <p>Последняя синхронизация · {syncFormat.format(new Date(engineers.synced_at))}</p>
           </>}
-          <SourceLink href={engineerSource.url} />
+          {showcaseMode ? <ShowcaseSheetLink sheet="Документы сотрудников" /> : <SourceLink href={engineerSource.url} />}
         </section>}
         {dispatchSource && <section className="workspace-panel">
           <FileText size={24} /><h2>{dispatchSource.name}</h2>
@@ -267,6 +268,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         {showcaseMode && connected.filter(node => node.source_kind === 'finance' || node.source_kind === 'procurement').map(node =>
           <section className="workspace-panel" key={node.id}><FileText size={24} /><h2>{node.name}</h2>
             <p>{node.source_kind === 'finance' ? 'Поступления и расходы по внутреннему номеру договора.' : 'Счета, поставщики и контроль сроков поставки.'}</p>
+            <ShowcaseSheetLink sheet={node.source_kind === 'finance' ? 'Платежи' : 'Поставки'} />
           </section>)}
         {canReadCatalog && <section className="workspace-panel">
           <h2>Файлы без парсера</h2>
@@ -290,7 +292,13 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             const deadline = dateValue(field(row.registry, 18));
             const workNotes = [4, 11, 18].map(index => field(row.monitoring, index)).filter(Boolean);
             const title = work || customer || 'Запись без названия';
-            const metadata = <div className="workspace-record-meta">№ {row.number}{city && ` · ${city}`}</div>;
+            const metadata = <div className="workspace-record-meta flex flex-wrap items-center gap-2">
+              <span>№ {row.number}{city && ` · ${city}`}</span>
+              {showcaseMode && row.link && <a href={row.link} target="_blank" rel="noreferrer"
+                aria-label={`Открыть строку ${row.number} в Google Таблице`} title="Строка в Google Таблице">
+                <ArrowUpRight size={16} />
+              </a>}
+            </div>;
             const facts = <dl className="workspace-facts">
                 <div><dt>Статус</dt><dd>{field(row.registry, 16) || 'Не указан'}</dd></div>
                 <div><dt>Срок исполнения</dt><dd>{deadline === null ? 'Не указан' : dateFormat.format(deadline)}</dd></div>

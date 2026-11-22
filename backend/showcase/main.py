@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .data import SHIFT_STATUS
 from .drive import Snapshots
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -67,9 +68,27 @@ def read_demo(endpoint: str, request: Request, response: Response):
                     point[field] += payment[field]
         incoming = sum(point["incoming"] for point in totals.values())
         outgoing = sum(point["outgoing"] for point in totals.values())
+        debtors = {}
+        for row in state.data["dashboard/projects"]:
+            if row["debt_sum"] <= 0:
+                continue
+            counterparty = row["customer_name"]
+            item = debtors.setdefault(counterparty, {"counterparty": counterparty, "debt_sum": 0})
+            item["debt_sum"] += row["debt_sum"]
+        creditors = {}
+        for row in state.data["procurement/items"]:
+            if row["status"] != "invoice_pending":
+                continue
+            counterparty = row["supplier"]
+            due = row.get("payment_due_date")
+            item = creditors.setdefault(counterparty, {"counterparty": counterparty, "debt_sum": 0})
+            item["debt_sum"] += row["invoice_amount"]
+            if due:
+                item["payment_due_date"] = min(item.get("payment_due_date", due), due)
         data = {"dynamics": [totals[day] for day in sorted(totals)], "total_incoming": incoming,
                 "total_outgoing": outgoing, "net_cash_flow": incoming - outgoing,
-                "top_debtors": [], "top_creditors": []}
+                "top_debtors": sorted(debtors.values(), key=lambda item: -item["debt_sum"])[:5],
+                "top_creditors": sorted(creditors.values(), key=lambda item: -item["debt_sum"])[:5]}
     elif endpoint == "dispatch/monthly":
         projects = {row["project_name"]: row for row in state.data["dashboard/projects"]}
         records = []
@@ -77,11 +96,11 @@ def read_demo(endpoint: str, request: Request, response: Response):
             project = projects[shift["target_object"]]
             records.append({
                 "row": index, "code": project["project_code"], "customer": project["customer_name"],
-                "work": shift["target_object"], "city": None, "frequency": None, "work_type": None,
-                "status": None, "assignee": shift["responsible_person"],
+                "work": shift["target_object"], "city": None, "frequency": None, "work_type": shift["work_type"],
+                "status": SHIFT_STATUS[shift["status"]], "assignee": shift["responsible_person"],
                 "entries": {shift["shift_date"]: shift["unit_name"]},
             })
-        data = {"link": None, "records": records}
+        data = {"link": state.data.get("source_links", {}).get("Смены"), "records": records}
     elif endpoint == "engineer-documents":
         data = {"register": state.data[endpoint]}
     elif endpoint == "drive-catalog":
@@ -93,6 +112,8 @@ def read_demo(endpoint: str, request: Request, response: Response):
             "alert_rules": {"deadline_warning_days": 5, "cash_gap_forecast_days": 30,
                             "notify_on_critical_instant": False},
         }
+    elif endpoint == "showcase/source-links":
+        data = state.data.get("source_links", {})
     elif endpoint == "showcase/source":
         data = source_status(state)
     elif endpoint == "sync/status":

@@ -523,7 +523,7 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
                           >
                             <span className="flex items-center gap-1.5 min-w-0 truncate">
                               <span className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotColor}`} />
-                              <span className="truncate whitespace-nowrap">{statusCfg.label}</span>
+                              <span className={showcaseMode ? "whitespace-normal text-left leading-tight" : "truncate whitespace-nowrap"}>{statusCfg.label}</span>
                             </span>
                             {!showcaseMode && <ChevronDown className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />}
                           </button>

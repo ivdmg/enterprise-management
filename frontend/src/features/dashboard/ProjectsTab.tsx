@@ -41,6 +41,15 @@ const STAGES: StageDefinition[] = [
   { id: 'acceptance', label: 'КС-2', stepNumber: 8 },
 ];
 
+const showcaseStageLabels: Record<TenderStage, string> = {
+  preparation: 'Подготовка', submitted: 'Заявка подана', bidding: 'Отбор', won: 'Согласовано',
+  guarantee: 'Обеспечение', contract: 'Контракт', execution: 'Исполнение', acceptance: 'Приёмка',
+};
+
+function StageStatus({ stage }: { stage?: TenderStage | null }) {
+  return <span className="showcase-stage-status">{stage ? showcaseStageLabels[stage] ?? 'Не указан' : 'Не указан'}</span>;
+}
+
 function getStageIndex(stage?: TenderStage | null): number {
   if (!stage) return -1;
   const idx = STAGES.findIndex((s) => s.id === stage);
@@ -160,8 +169,8 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
 
       const scrollTimer = setTimeout(() => {
         const el =
-          document.getElementById(`project-row-${highlightProjectId}`) ||
-          document.getElementById(`project-card-${highlightProjectId}`);
+          [`project-row-${highlightProjectId}`, `project-card-${highlightProjectId}`]
+            .map(id => document.getElementById(id)).find(element => element?.getClientRects().length);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -358,7 +367,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                   { value: 'all', label: `Все стадии (${projects.length})` },
                   ...STAGES.map((s) => ({
                     value: s.id,
-                    label: `${s.stepNumber}. ${s.label} (${projects.filter((p) => p.tender_stage === s.id).length})`,
+                    label: `${s.stepNumber}. ${showcaseMode ? showcaseStageLabels[s.id] : s.label} (${projects.filter((p) => p.tender_stage === s.id).length})`,
                   })),
                 ]}
                 value={stageFilter}
@@ -398,7 +407,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                       : 'bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)] hover:bg-[var(--card-bg)]'
                   }`}
                 >
-                  {s.label} ({count})
+                  {showcaseMode ? showcaseStageLabels[s.id] : s.label} ({count})
                 </button>
               );
             })}
@@ -502,7 +511,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
 
                       {/* Tender stage controls */}
                       <td className="px-3 py-3.5 align-middle overflow-hidden max-w-0">
-                        <div className="grid grid-cols-4 gap-1 w-full">
+                        {showcaseMode ? <StageStatus stage={project.tender_stage} /> : <div className="grid grid-cols-4 gap-1 w-full">
                           {STAGES.map((stage, idx) => {
                             const isCompleted = idx < currentStageIdx;
                             const isCurrent = idx === currentStageIdx;
@@ -531,7 +540,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                               </button>
                             );
                           })}
-                        </div>
+                        </div>}
                       </td>
 
                       {/* 3. Bank Guarantee Compact Widget (17%) */}
@@ -635,7 +644,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
                       {showcaseMode ? 'Стадия закупки' : 'Стадия закупки (нажмите для смены):'}
                     </span>
-                    <div className="workspace-project-stages grid gap-1 w-full pt-1">
+                    {showcaseMode ? <div><StageStatus stage={project.tender_stage} /></div> : <div className="workspace-project-stages grid gap-1 w-full pt-1">
                       {STAGES.map((stage, idx) => {
                         const isCompleted = idx < currentStageIdx;
                         const isCurrent = idx === currentStageIdx;
@@ -663,7 +672,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                           </button>
                         );
                       })}
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Bank Guarantee Widget Mobile */}

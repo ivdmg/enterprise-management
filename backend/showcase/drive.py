@@ -116,10 +116,20 @@ class GoogleSource:
         if found != set(self.files.values()):
             raise ValueError("configured spreadsheets are outside the demo root or missing")
         tables = {}
+        self.source_links = {}
         for key, sheets in SHEETS.items():
+            book = f"https://sheets.googleapis.com/v4/spreadsheets/{self.files[key]}"
+            meta = self.get(book, fields="sheets(properties(sheetId,title))")
+            ids = {sheet["properties"]["title"]: sheet["properties"]["sheetId"] for sheet in meta["sheets"]}
+            actual = ["Реест Ольга" if name == "Реестр контрактов" and name not in ids else name for name in sheets]
+            for name, title in zip(sheets, actual, strict=True):
+                gid = ids.get(title)
+                if type(gid) is not int or gid < 0:
+                    raise ValueError("missing sheet metadata")
+                self.source_links[name] = f"https://docs.google.com/spreadsheets/d/{self.files[key]}/edit#gid={gid}"
             response = self.get(
-                f"https://sheets.googleapis.com/v4/spreadsheets/{self.files[key]}/values:batchGet",
-                ranges=[f"'{name}'!A1:Z1000" for name in sheets], valueRenderOption="UNFORMATTED_VALUE",
+                f"{book}/values:batchGet",
+                ranges=[f"'{name}'!A1:Z1000" for name in actual], valueRenderOption="UNFORMATTED_VALUE",
                 dateTimeRenderOption="SERIAL_NUMBER",
             )
             for name, result in zip(sheets, response["valueRanges"], strict=True):
@@ -153,7 +163,11 @@ class Snapshots:
             mapping = json.loads(os.getenv("SHOWCASE_COLUMN_MAPPING_JSON", "{}"))
             if not isinstance(mapping, dict) or any(not isinstance(value, dict) for value in mapping.values()):
                 raise ValueError("invalid column mappings")
-            loaded = (parse_tables(tables, today, mapping), catalog, timestamp())
+            links = getattr(reader, "source_links", {})
+            links = links if isinstance(links, dict) else {}
+            data = parse_tables(tables, today, mapping, links)
+            data["source_links"] = links
+            loaded = (data, catalog, timestamp())
         except Exception as exc:
             issue = "schema" if isinstance(exc, ValueError) else "unavailable"
             LOG.warning("Showcase refresh failed (%s)", issue)

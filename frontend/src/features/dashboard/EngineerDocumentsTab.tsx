@@ -1,6 +1,7 @@
 import { DataLoading } from '@/components/DataLoading';
 import { useEffect, useState } from 'react';
 import { Clock3, ExternalLink, FileStack, FileText, House, Search, UserRound } from 'lucide-react';
+import { ShowcaseSheetLink } from '@/components/ShowcaseSheetLink';
 import { showcaseMode } from '@/api/mode';
 import { apiClient } from '@/api/client';
 import { FieldBeam } from '@/components/FieldBeam';
@@ -65,7 +66,7 @@ function DocumentCard({ doc, today }: { doc: DocumentRecord; today: string }) {
   const note = notes.filter(entry => !isGroup(entry)).map(entry => entry.value).join(' · ');
 
   return (
-    <article className="engineer-document" data-missing={isMissing(doc)}>
+    <article className="engineer-document" data-missing={isMissing(doc)} data-expired={showcaseMode && hasPastDate(doc, today)}>
       <h3 title={doc.title}>{doc.title}</h3>
       <div className="engineer-document-dates" data-past={hasPastDate(doc, today)}>
         {dates.map((entry, index) => (
@@ -154,13 +155,14 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
       <header className="workspace-heading workspace-pagebar engineer-pagebar">
         <div className="engineer-title">
           <div>
-            <div className="workspace-eyebrow"><FileStack size={15} /> ENTERPRISE HUB</div>
-            <h1>Документы инженеров</h1>
+            <div className="workspace-eyebrow"><FileStack size={15} /> {showcaseMode ? "КОМАНДА" : "ENTERPRISE HUB"}</div>
+            <h1>{showcaseMode ? "Документы сотрудников" : "Документы инженеров"}</h1>
           </div>
           <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={onHome}><House size={17} /></button>
         </div>
         {data && <div className="engineer-toolbar">
           <div className="engineer-source">
+            {showcaseMode && <ShowcaseSheetLink sheet="Документы сотрудников" />}
             {!showcaseMode && data.source_url && <a className="workspace-sheet-link" href={data.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Открыть таблицу в Google</a>}
             <div className="engineer-updated"><Clock3 size={15} /><span>Обновлено <time dateTime={data.synced_at}>{syncFormat.format(new Date(data.synced_at))}</time></span></div>
           </div>
@@ -191,7 +193,7 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
             const reviewCount = person.documents.filter(needsReview).length;
             const isSelected = selected?.column === person.column;
             return <div key={person.column} className="engineer-person-item" data-expanded={isSelected}>
-            <button type="button" className="engineer-person" data-missing={missing.length > 0}
+            <button type="button" className="engineer-person" data-missing={missing.length > 0} data-expired={showcaseMode && person.documents.some(doc => hasPastDate(doc, today))}
               aria-expanded={isSelected} aria-controls={isSelected ? `engineer-details engineer-mobile-${person.column}` : undefined}
               onClick={() => setSelectedColumn(selectedColumn === person.column ? null : person.column)}>
               <UserRound size={19} aria-hidden="true" />

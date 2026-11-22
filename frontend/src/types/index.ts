@@ -252,6 +252,7 @@ export interface Project {
 
 // --- Alerts ---
 export interface Alert {
+  project_id?: string | null;
   id: string;
   alert_type?: string;
   severity: 'CRITICAL' | 'WARNING' | 'INFO';
@@ -369,6 +370,7 @@ export interface ProcurementItemData {
 export type DispatchStatus = 'on_site' | 'repair' | 'downtime';
 
 export interface DispatchRecordData {
+  work_type?: string | null;
   id: string;
   shift_date: string;
   target_object: string;

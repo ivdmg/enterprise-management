@@ -103,7 +103,7 @@ export function SettingsTab() {
       </div>
 
       {/* Company & Profile Info */}
-      <Card className="p-6">
+      {!showcaseMode && <Card className="p-6">
         <div className="flex items-center gap-3 mb-5 pb-4 border-b border-[var(--card-border)]">
           <div className="p-2.5 rounded-xl bg-[var(--card-subtle)] text-[var(--text-main)]">
             <Building2 className="h-5 w-5" />
@@ -155,7 +155,7 @@ export function SettingsTab() {
             </div>
           </div>
         </div>
-      </Card>
+      </Card>}
 
       <fieldset disabled={showcaseMode} className="space-y-6">
       {/* Telegram Integration */}
