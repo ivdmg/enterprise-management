@@ -62,3 +62,18 @@
 .flow-project[aria-expanded] { position: relative; padding-inline-end: 34px; }
 .flow-project[aria-expanded="true"] .flow-project-chevron { transform: translateY(-50%) rotate(180deg); }
 .flow-project-item > .flow-detail { margin-top: 5px; padding: 12px; overflow-wrap: anywhere; }
+
+.flow-project[data-risk="true"] {
+  background: #fbe6e5;
+  border-color: #dca39e;
+}
+[data-theme="dark"] .flow-project[data-risk="true"] {
+  background: #49272a;
+  border-color: #975258;
+}
+.flow-project[data-risk="true"]:is(:hover, [aria-pressed="true"], [aria-expanded="true"]) {
+  border-color: var(--flow-risk);
+}
+.flow-project[data-risk="true"]:is([aria-pressed="true"], [aria-expanded="true"]) {
+  box-shadow: inset 0 0 0 1px var(--flow-risk);
+}
