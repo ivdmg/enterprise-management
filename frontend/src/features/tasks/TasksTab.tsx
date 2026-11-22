@@ -202,13 +202,30 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
     }
   };
 
-  // Options for custom Role Select (FE-5.1)
   const roleSelectOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const task of tasks) counts.set(task.responsible_role, (counts.get(task.responsible_role) ?? 0) + 1);
     return [
-      { value: 'all', label: 'Все роли предприятия' },
-      ...ENTERPRISE_ROLES.map((r) => ({ value: r.id, label: showcaseMode && r.id === "engineer" ? "Специалист по операциям" : r.name })),
+      { value: 'all', label: showcaseMode ? `Все роли предприятия (${tasks.length})` : 'Все роли предприятия' },
+      ...ENTERPRISE_ROLES.map(role => {
+        const label = showcaseMode && role.id === 'engineer' ? 'Специалист по операциям' : role.name;
+        return { value: role.id, label: showcaseMode ? `${label} (${counts.get(role.id) ?? 0})` : label };
+      }),
     ];
-  }, []);
+  }, [tasks]);
+
+  const roleSelect = (
+    <Select ariaLabel="Роль исполнителя" options={roleSelectOptions} value={roleFilter}
+      onChange={role => {
+        setRoleFilter(role);
+        if (showcaseMode) {
+          setQuickFilter('all');
+          setSearchQuery('');
+          setExpandedTaskIds(new Set());
+        }
+      }}
+      size="md" className="w-full" id="tasks-role-filter-select" />
+  );
 
   // Filtered task items
   const filteredTasks = useMemo(() => {
@@ -381,13 +398,17 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
       {/* Control Bar: Quick Filter Pills & Custom Role Selector (FE-5.1) */}
       <Card padding="sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {showcaseMode && <div className="min-w-0 w-full lg:w-72">
+            <span className="block mb-1 text-xs font-semibold text-[var(--text-sub)]">Задачи по роли</span>
+            {roleSelect}
+          </div>}
           {/* Quick Filter Tabs (White & Gray Bento) */}
           <div className="md:hidden min-w-0">
             <Select ariaLabel="Быстрый фильтр задач" value={quickFilter}
               onChange={value => setQuickFilter(value as QuickFilter)}
               options={[
                 { value: 'all', label: `Все задачи (${totalCount})` },
-                { value: 'my', label: `Мои задачи · ${currentRoleDef.shortName} (${myCount})` },
+                ...(!showcaseMode ? [{ value: 'my', label: `Мои задачи · ${currentRoleDef.shortName} (${myCount})` }] : []),
                 { value: 'urgent', label: `Горящие (${urgentCount})` },
                 { value: 'accounting', label: `Бухгалтерия (${accountingCount})` },
               ]} />
@@ -409,7 +430,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
               </span>
             </button>
 
-            <button
+            {!showcaseMode && <button
               type="button"
               onClick={() => setQuickFilter('my')}
               className={`min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
@@ -424,7 +445,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/20">
                 {myCount}
               </span>
-            </button>
+            </button>}
 
             <button
               type="button"
@@ -475,17 +496,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
               />
             </label></FieldBeam></div>
 
-            {/* Custom Styled Role Select Component (FE-5.1) */}
-            <div className="w-full sm:w-56">
-              <Select
-                options={roleSelectOptions}
-                value={roleFilter}
-                onChange={setRoleFilter}
-                size="md"
-                className="w-full"
-                id="tasks-role-filter-select"
-              />
-            </div>
+            {!showcaseMode && <div className="w-full sm:w-56">{roleSelect}</div>}
           </div>
         </div>
       </Card>
