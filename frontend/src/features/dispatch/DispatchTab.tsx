@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
-import { demoMode } from '@/api/mode';
+import { demoMode, showcaseMode } from '@/api/mode';
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
@@ -172,7 +172,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
           </a>}
 
           <div className="flex items-center justify-end gap-2">
-            <Button
+            {!showcaseMode && <Button
               variant="secondary"
               onClick={() => {
                 onClose();
@@ -180,7 +180,7 @@ function IncidentSummaryModal({ record, onClose, onEdit }: IncidentSummaryModalP
               }}
             >
               {record.status === 'on_site' ? 'Зафиксировать поломку' : 'Редактировать'}
-            </Button>
+            </Button>}
             <Button variant="primary" onClick={onClose}>
               Понятно
             </Button>
@@ -326,7 +326,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
         <button type="button" className="workspace-catalog-button" onClick={loadRecords} id="dispatch-refresh-btn"><RefreshCw size={16} />Обновить статус</button>
       </>)}
       {loadError && <p role="alert">Не удалось загрузить суточный статус.</p>}
-      <MonthlyDispatch />
+      {!showcaseMode && <MonthlyDispatch />}
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -585,7 +585,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                                   key={st}
                                   type="button"
                                   onClick={() => handleQuickStatusChange(rec.id, st)}
-                                  disabled={updatingId === rec.id}
+                                  disabled={showcaseMode || updatingId === rec.id}
                                   className={`min-w-[85px] py-1 px-2 text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none font-medium text-center ${
                                     isActive
                                       ? cfg.activeBtnClass
@@ -651,13 +651,13 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                           >
                             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </a>}
-                          <button
+                          {!showcaseMode && <button
                             type="button"
                             onClick={() => openIncidentModal(rec)}
                             className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors shadow-2xs cursor-pointer whitespace-nowrap"
                           >
                             {rec.status === 'on_site' ? 'Поломка' : 'Изменить'}
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -717,7 +717,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                   </div>
 
                   {/* 1-Click Status Switcher (Mobile Large Targets >= 44px) */}
-                  <div className="space-y-1">
+                  {!showcaseMode && <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)] block">
                       Сменить статус в 1 клик:
                     </span>
@@ -731,7 +731,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                             key={st}
                             type="button"
                             onClick={() => handleQuickStatusChange(rec.id, st)}
-                            disabled={updatingId === rec.id}
+                            disabled={showcaseMode || updatingId === rec.id}
                             className={`min-h-[44px] px-2 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all select-none border cursor-pointer ${
                               isActive
                                 ? `${cfg.activeBtnClass} border-transparent`
@@ -744,7 +744,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                         );
                       })}
                     </div>
-                  </div>
+                  </div>}
 
                   {/* Incident Alert Details (if repair or downtime) */}
                   {rec.status !== 'on_site' && (
@@ -785,14 +785,14 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
                     </a>}
 
-                    <button
+                    {!showcaseMode && <button
                       type="button"
                       onClick={() => openIncidentModal(rec)}
                       className="min-h-[42px] px-3 py-2 text-xs font-semibold rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)] hover:bg-[var(--card-bg)] transition-colors shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Wrench className="h-4 w-4 text-[var(--text-muted)]" />
                       <span>{rec.status === 'on_site' ? 'Поломка' : 'Изменить'}</span>
-                    </button>
+                    </button>}
                   </div>
                 </div>
               );

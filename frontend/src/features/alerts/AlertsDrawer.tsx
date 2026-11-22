@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import { DataLoading } from '@/components/DataLoading';
 import { BeamTextarea } from '@/components/FieldBeam';
 import { useEffect, useState } from 'react';
@@ -189,7 +190,7 @@ export function AlertsDrawer({ isOpen, onClose, penaltiesOnly = false }: AlertsD
                             </Button>
                           </div>
                         </div>
-                      ) : (
+                      ) : !showcaseMode && (
                         <Button
                           size="sm"
                           variant="ghost"

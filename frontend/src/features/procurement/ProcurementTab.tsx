@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
 import { FloatingMenu } from '@/components/FloatingMenu';
@@ -505,14 +506,14 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
                               e.stopPropagation();
                               setActiveDropdownId(isMenuOpen ? null : item.id);
                             }}
-                            disabled={updatingId === item.id}
+                            disabled={showcaseMode || updatingId === item.id}
                             className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs transition-all overflow-hidden ${statusCfg.badgeClass}`}
                           >
                             <span className="flex items-center gap-1.5 min-w-0 truncate">
                               <span className={`w-2 h-2 rounded-full shrink-0 ${statusCfg.dotColor}`} />
                               <span className="truncate whitespace-nowrap">{statusCfg.label}</span>
                             </span>
-                            <ChevronDown className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />
+                            {!showcaseMode && <ChevronDown className="h-3 w-3 opacity-60 ml-0.5 shrink-0" />}
                           </button>
 
                           {isMenuOpen && (
@@ -641,7 +642,7 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
                       </div>
 
                       {/* Actions row: Change Status + Next step button */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
+                      {!showcaseMode && <div className="flex items-center justify-between gap-2 pt-1">
                         {/* Change status menu button */}
                         <div className="relative procurement-status-dropdown-container">
                           <button
@@ -690,14 +691,14 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
                           <button
                             type="button"
                             onClick={() => requestStatusChange(item, statusCfg.nextStatus!)}
-                            disabled={updatingId === item.id}
+                            disabled={showcaseMode || updatingId === item.id}
                             className="min-h-[44px] px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                           >
                             <span>{statusCfg.nextLabel}</span>
                             <ArrowRight className="h-3.5 w-3.5" />
                           </button>
                         )}
-                      </div>
+                      </div>}
                     </div>
                   )}
                 </div>

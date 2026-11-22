@@ -6,6 +6,12 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
+  define: mode === 'showcase' ? {
+    'import.meta.env.VITE_API_ORIGIN': JSON.stringify(''),
+    'import.meta.env.VITE_PLATFORM_API_ORIGIN': JSON.stringify(''),
+    'import.meta.env.VITE_PLATFORM_CLIENT': JSON.stringify('false'),
+    'import.meta.env.VITE_ALLOW_REGISTRATION': JSON.stringify('false'),
+  } : undefined,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

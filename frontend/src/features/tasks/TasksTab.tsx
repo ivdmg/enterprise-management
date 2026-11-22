@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
 import { FloatingMenu } from '@/components/FloatingMenu';
@@ -360,7 +361,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                     </a>
                   )}
 
-                  <button
+                  {!showcaseMode && <button
                     type="button"
                     onClick={() => handleMarkDeliveredToCustomer(t.id)}
                     className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
@@ -368,7 +369,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     <span>Отметить: Передано заказчику</span>
-                  </button>
+                  </button>}
                 </div>
               </div>
             ))}
@@ -618,14 +619,14 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                                 e.stopPropagation();
                                 setActiveDropdownId(isDropdownOpen ? null : task.id);
                               }}
-                              disabled={updatingId === task.id}
+                              disabled={showcaseMode || updatingId === task.id}
                               className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs transition-all overflow-hidden ${statusInfo.badgeClass}`}
                             >
                               <span className="flex items-center gap-1.5 min-w-0 truncate">
                                 <span className={`h-2 w-2 rounded-full shrink-0 ${statusInfo.dotClass}`} />
                                 <span className="truncate whitespace-nowrap">{statusInfo.label}</span>
                               </span>
-                              <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                              {!showcaseMode && <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />}
                             </button>
 
                             {/* Dropdown Menu */}
@@ -792,7 +793,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                         )}
 
                         {/* Mobile Status Buttons with ConfirmModal Protection (FE-5.2) */}
-                        <div className="pt-2 border-t border-[var(--card-border)] space-y-1.5">
+                        {!showcaseMode && <div className="pt-2 border-t border-[var(--card-border)] space-y-1.5">
                           <span className="text-[10px] text-[var(--text-muted)] uppercase font-semibold tracking-wider">
                             Сменить статус (защита подтверждением):
                           </span>
@@ -819,7 +820,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                               );
                             })}
                           </div>
-                        </div>
+                        </div>}
                       </div>
                     )}
                   </div>

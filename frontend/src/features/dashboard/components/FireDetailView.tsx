@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import { BeamInput } from '@/components/FieldBeam';
 import { useState, useMemo } from 'react';
 import {
@@ -487,7 +488,7 @@ export function FireDetailView({
 
                   {/* Quick Action Buttons: Open Google Drive File & Navigate to Project */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a
+                    {!showcaseMode && <a
                       href="https://drive.google.com/drive/folders/enterprise-hub"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -497,7 +498,7 @@ export function FireDetailView({
                       <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>Файл в Google Диск</span>
                       <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
-                    </a>
+                    </a>}
 
                     <button
                       type="button"

@@ -50,3 +50,6 @@ dist-demo/
 *.xlsm
 demo-data/
 outputs/
+
+# Public showcase frontend build
+dist-showcase/

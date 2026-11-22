@@ -29,10 +29,10 @@ import type {
 } from '@/types';
 import { companyClientEnabled, companyRequest } from './companySession';
 import { mockData } from '@/mocks';
-import { demoMode as USE_MOCKS, sessionKey } from './mode';
+import { browserMockMode as USE_MOCKS, sessionKey, showcaseMode } from './mode';
 import { demoDate, demoTenders } from '@/mocks/tenders';
 
-const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
+const API_ORIGIN = showcaseMode ? '' : (import.meta.env.VITE_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
 const BASE_URL = `${API_ORIGIN}/api/v1`;
 const sectionData = new Map<string, { promise: Promise<unknown>; expiresAt: number }>();
 const sectionEndpoints = new Set([
@@ -58,7 +58,7 @@ function getToken(): string | null {
 
 function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   if (companyClientEnabled) return companyRequest<T>(endpoint, options);
-  const token = getToken();
+  const token = showcaseMode ? null : getToken();
   if (sectionToken !== token) {
     clearSectionData();
     sectionToken = token;
@@ -98,7 +98,7 @@ async function fetchData<T>(
   options: RequestInit,
   token: string | null,
 ): Promise<T> {
-  if (USE_MOCKS) throw new Error('Операция недоступна в демонстрационном режиме.');
+  if (USE_MOCKS || (showcaseMode && (options.method ?? 'GET') !== 'GET')) throw new Error('Операция недоступна в демонстрационном режиме.');
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };

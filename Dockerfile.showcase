@@ -1,0 +1,15 @@
+FROM node:24-alpine AS frontend
+WORKDIR /build
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build:showcase
+
+FROM python:3.12-slim
+WORKDIR /app/backend
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+COPY backend/showcase/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY backend/showcase ./showcase
+COPY --from=frontend /build/dist-showcase /app/frontend/dist-showcase
+CMD ["sh", "-c", "exec uvicorn showcase.main:app --host 0.0.0.0 --port ${PORT:-8011}"]

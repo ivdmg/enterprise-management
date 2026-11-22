@@ -11,7 +11,7 @@ import { AccountantUploadModal } from '@/features/files/AccountantUploadModal';
 import { MappingDrawer } from '@/features/files/MappingDrawer';
 import { AlertsDrawer, isContractPenalty } from '@/features/alerts/AlertsDrawer';
 import { apiClient, clearSectionData } from '@/api/client';
-import { demoMode } from '@/api/mode';
+import { demoMode, showcaseMode } from '@/api/mode';
 import { Modal } from '@/components/Modal';
 import { CompanySources } from '@/features/company/CompanySources';
 import type { CompanyModule } from '@/features/company/ClientRoot';
@@ -44,6 +44,7 @@ const moduleIds: Record<Section, string> = {
   projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
   tasks: 'tasks', sources: 'sources', files: 'files', settings: 'settings',
 };
+const showcaseSections: readonly Section[] = ['summary', 'registry', 'projects', 'finance', 'procurement', 'dispatch', 'tasks'];
 const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
 const loadSection = {
@@ -103,7 +104,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const { isDark, toggle } = useTheme();
   const [legacyView, setView] = useState(readSection);
   const allowedSections = allowedModules && new Map(allowedModules.map(module => [module.id, module]));
-  const isAllowed = (id: Section) => !allowedSections || allowedSections.has(moduleIds[id]);
+  const isAllowed = (id: Section) => showcaseMode ? showcaseSections.includes(id) : !allowedSections || allowedSections.has(moduleIds[id]);
   const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label ?? fallback;
   const menuSections = sections.flatMap(group => [...group.items]).filter(item => isAllowed(item.id));
   if (allowedSections) {
@@ -354,7 +355,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
             {isAllowed("settings") && <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>}
             {companyProfile?.permissions.includes("company.team.read") && <a href={`${companyBase}/team`}>Команда</a>}
 {companyProfile?.permissions.includes("company.audit.read") && <a href={`${companyBase}/audit`}>Журнал действий</a>}
-            <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); if (!companyBase) navigate('summary'); void Promise.resolve(logout()).catch(() => setSyncMessage('Не удалось завершить сессию. Попробуйте ещё раз.')); }}><LogOut size={16} />Выйти</button>
+            {!showcaseMode && <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); if (!companyBase) navigate('summary'); void Promise.resolve(logout()).catch(() => setSyncMessage('Не удалось завершить сессию. Попробуйте ещё раз.')); }}><LogOut size={16} />Выйти</button>}
           </div>
         </div>
         </div>
@@ -406,7 +407,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           <CircleUserRound size={19} aria-hidden="true" />
         </button>
         <nav aria-label="Разделы">
-          {(allowedSections ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
+          {(allowedSections || showcaseMode ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
             {group.items.map(({ id, label, icon: Icon }) => {
               const count = attention[id] ?? 0;
@@ -439,7 +440,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
         <div className="workspace-search-dialog">
           <FieldBeam className="workspace-search-beam"><label className="workspace-search"><Search size={18} /><input autoFocus aria-label="Поиск по разделам" placeholder="Например, финансы" value={query} onChange={event => setQuery(event.target.value)} /></label></FieldBeam>
           <div className="workspace-search-results">
-            {sections.flatMap(group => [...group.items]).filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).map(({ id, label, icon: Icon }) =>
+            {menuSections.filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru').includes(query.trim().toLocaleLowerCase('ru'))).map(({ id, label, icon: Icon }) =>
               <button key={id} onClick={() => { navigate(id); setSearchOpen(false); setQuery(''); }}><Icon size={17} />{label}<ChevronRight size={15} /></button>,
             )}
           </div>

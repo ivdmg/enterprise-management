@@ -1,8 +1,9 @@
+import { showcaseMode } from './mode';
 import type { ApiResponse, UserProfile } from '@/types';
 
 const apiOrigin = (import.meta.env.VITE_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
-export const companyClientEnabled = import.meta.env.VITE_PLATFORM_CLIENT === 'true'
-  || /^\/c\//.test(window.location.pathname);
+export const companyClientEnabled = !showcaseMode && (import.meta.env.VITE_PLATFORM_CLIENT === 'true'
+  || /^\/c\//.test(window.location.pathname));
 
 export interface CompanyProfile extends UserProfile {
   company: { id: string; code: string; name: string };

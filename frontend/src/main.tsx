@@ -6,16 +6,17 @@ import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
 import { ClientRoot } from '@/features/company/ClientRoot'
+import { showcaseMode } from '@/api/mode';
 import './index.css'
 
-const PlatformRoot = lazy(() => import('@/features/platform/PlatformRoot').then(module => ({ default: module.PlatformRoot })));
-const platformPath = /^\/platform(?:\/|$)/.test(window.location.pathname);
+const PlatformRoot = import.meta.env.MODE === 'showcase' ? null : lazy(() => import('@/features/platform/PlatformRoot').then(module => ({ default: module.PlatformRoot })));
+const platformPath = !showcaseMode && /^\/platform(?:\/|$)/.test(window.location.pathname);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        {platformPath ? (
+        {platformPath && PlatformRoot ? (
           <Suspense fallback={<p role="status">Загружаем панель…</p>}><PlatformRoot /></Suspense>
         ) : <AuthProvider><ClientRoot /></AuthProvider>}
       </ThemeProvider>

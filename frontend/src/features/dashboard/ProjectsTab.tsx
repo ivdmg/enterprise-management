@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
@@ -510,8 +511,8 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                                 key={stage.id}
                                 type="button"
                                 onClick={() => handleStageClick(project, stage)}
-                                title={`Этап ${stage.stepNumber}: ${stage.label}. Нажмите для изменения`}
-                                disabled={updatingId === project.id}
+                                title={`Этап ${stage.stepNumber}: ${stage.label}${showcaseMode ? '' : '. Нажмите для изменения'}`}
+                                disabled={showcaseMode || updatingId === project.id}
                                 className={`flex flex-col items-center justify-center py-1 px-1 rounded-lg text-center transition-all cursor-pointer ${
                                   isCurrent
                                     ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 font-bold shadow-2xs ring-1 ring-slate-900 dark:ring-slate-100'
@@ -631,7 +632,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                   {/* Stepper in Mobile Card: 5 Equal Columns, No Overflow */}
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
-                      Стадия закупки (нажмите для смены):
+                      {showcaseMode ? 'Стадия закупки' : 'Стадия закупки (нажмите для смены):'}
                     </span>
                     <div className="workspace-project-stages grid gap-1 w-full pt-1">
                       {STAGES.map((stage, idx) => {
@@ -643,7 +644,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
                             key={stage.id}
                             type="button"
                             onClick={() => handleStageClick(project, stage)}
-                            disabled={updatingId === project.id}
+                            disabled={showcaseMode || updatingId === project.id}
                             className={`flex flex-col items-center justify-center p-1.5 rounded-xl text-center transition-all cursor-pointer ${
                               isCurrent
                                 ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-2xs font-bold ring-1 ring-slate-900 dark:ring-slate-100'

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { UserProfile, AuthTokens } from '@/types';
 import { apiClient, clearSectionData } from '@/api/client';
 import { CompanyRequestError, companyAuth, companyClientEnabled, resetCompanySession, type CompanyProfile } from '@/api/companySession';
-import { sessionKey } from '@/api/mode';
+import { sessionKey, showcaseMode } from '@/api/mode';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -149,6 +149,17 @@ function CompanyAuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  if (showcaseMode) return (
+    <AuthContext.Provider value={{
+      user: { id: 'demo-visitor', email: '', full_name: 'Гость демо', role: 'viewer', telegram_connected: false },
+      tokens: null,
+      isAuthenticated: true,
+      isLoading: false,
+      login: async () => {},
+      register: async () => {},
+      logout: () => {},
+    }}>{children}</AuthContext.Provider>
+  );
   return companyClientEnabled
     ? <CompanyAuthProvider>{children}</CompanyAuthProvider>
     : <LegacyAuthProvider>{children}</LegacyAuthProvider>;
