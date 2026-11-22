@@ -953,7 +953,7 @@
 .workspace-sidebar a svg { justify-self: center; }
 .workspace-sidebar a { position: relative; }
 .workspace-sidebar .workspace-attention-count {
-  position: absolute; inset: 2px auto auto calc(var(--sidebar-rail) / 2 + 2px);
+  position: absolute; inset: 1px 1px auto auto; z-index: 1; pointer-events: none;
   display: grid; place-items: center; min-width: 17px; height: 17px; padding-inline: 3px;
   border-radius: 999px; border: 1px solid var(--card-bg);
   background: #facc15; color: #382400;
@@ -962,7 +962,7 @@
 .workspace-sidebar .workspace-attention-count[data-severity="high"] {
   background: #a62b39; color: #fff;
 }
-.workspace[data-sidebar="open"] .workspace-attention-count { inset: 50% 8px auto auto; transform: translateY(-50%); }
+.workspace[data-sidebar="open"] .workspace-sidebar .workspace-attention-count { inset: 50% 8px auto auto; transform: translateY(-50%); }
 .workspace[data-sidebar="open"] .workspace-sidebar a:has(.workspace-attention-count) { padding-inline-end: 32px; }
 .workspace-sidebar :focus-visible { outline-offset: -2px; }
 .workspace-sidebar .workspace-sidebar-profile { display: none; }
