@@ -73,7 +73,7 @@ function signals(row: CustomerTender, today: number): Signal[] {
     if (remaining <= 3) result.push({ kind: 'critical', label: remaining < 0 ? 'Срок истёк' : remaining === 0 ? 'Срок сегодня' : `До срока: ${remaining} дн.`, date });
     else if (remaining <= 7) result.push({ kind: 'soon', label: `До срока: ${remaining} дн.`, date });
   }
-  if (needsReview) result.push({ kind: 'review', label: 'Нет отметки о документах' });
+  if (needsReview) result.push({ kind: 'review', label: showcaseMode ? 'Нет подтверждения работ в реестре' : 'Нет отметки о документах' });
   return result;
 }
 
@@ -292,6 +292,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             const deadline = dateValue(field(row.registry, 18));
             const workNotes = [4, 11, 18].map(index => field(row.monitoring, index)).filter(Boolean);
             const title = work || customer || 'Запись без названия';
+            const completionMarks = [5, 12, 19].map(index => field(row.monitoring, index)).filter(Boolean);
             const metadata = <div className="workspace-record-meta flex flex-wrap items-center gap-2">
               <span>№ {row.number}{city && ` · ${city}`}</span>
               {showcaseMode && row.link && <a href={row.link} target="_blank" rel="noreferrer"
@@ -304,7 +305,11 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
                 <div><dt>Срок исполнения</dt><dd>{deadline === null ? 'Не указан' : dateFormat.format(deadline)}</dd></div>
                 <div><dt>Сумма контракта</dt><dd>{row.amount === null ? 'Не указана' : money.format(row.amount)}</dd></div>
                 {row.curator && <div><dt>Куратор</dt><dd>{row.curator}</dd></div>}
-                {row.monitoring && <div><dt>Отметки о работах</dt><dd>{workNotes.length ? workNotes.join(', ') : 'Не указаны'}</dd></div>}
+                {showcaseMode ? <>
+                  <div><dt>Начало работ по мониторингу</dt><dd>{workNotes.join(', ') || 'Не указано'}</dd></div>
+                  <div><dt>Отметка о завершении</dt><dd>{completionMarks.join(', ') || 'Не указана'}</dd></div>
+                  <div><dt>Подтверждающие файлы</dt><dd>В демо-реестре ссылки на отдельные файлы не указаны.</dd></div>
+                </> : row.monitoring && <div><dt>Отметки о работах</dt><dd>{workNotes.length ? workNotes.join(', ') : 'Не указаны'}</dd></div>}
               </dl>;
             return <article className="workspace-panel workspace-record" key={row.id}>
               {metadata}
@@ -312,7 +317,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
               {work && customer && <p>{customer}</p>}
               {flags.map(flag => <span key={flag.kind} className={`workspace-badge ${flag.kind}`}>{flag.label}</span>)}
               {showcaseMode ? <>
-                <button type="button" className="workspace-link" aria-haspopup="dialog"
+                <button type="button" className="workspace-link workspace-contract-open" aria-haspopup="dialog"
                   aria-label={`Открыть карточку: ${title}`} onClick={event => setDetail({ id: row.id, trigger: event.currentTarget })}>
                   Открыть карточку <ArrowRight size={16} />
                 </button>
@@ -320,6 +325,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
                   {metadata}
                   {work && customer && <p>{customer}</p>}
                   {facts}
+                  <ShowcaseSheetLink sheet="Ежедневный мониторинг" />
                 </Modal>
               </> : <>
                 {facts}

@@ -518,15 +518,15 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                 <th className="text-center px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[13%]">
                   Инцидент / Заметки
                 </th>
-                <th className="text-right px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[9%]">
+                {!showcaseMode && <th className="text-right px-3.5 py-3 text-xs font-semibold text-[var(--text-sub)] uppercase tracking-wider w-[9%]">
                   Действие
-                </th>
+                </th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--card-border)]">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-[var(--text-muted)] text-sm">
+                  <td colSpan={showcaseMode ? 5 : 6} className="px-4 py-12 text-center text-[var(--text-muted)] text-sm">
                     Единиц техники или бригад по выбранным фильтрам не найдено
                   </td>
                 </tr>
@@ -576,7 +576,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       {/* 1-Click Status Switcher Pills */}
                       <td className="px-3.5 py-3.5 align-middle">
                         <div className="flex items-center justify-center">
-                          {showcaseMode ? <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${STATUS_CONFIGS[rec.status].badgeClass}`}>
+                          {showcaseMode ? <span className={`showcase-dispatch-status ${STATUS_CONFIGS[rec.status].badgeClass}`}>
                             {STATUS_CONFIGS[rec.status].label}
                           </span> : <div className="inline-flex items-center bg-[var(--card-subtle)] p-1 rounded-xl border border-[var(--card-border)]">
                             {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
@@ -642,7 +642,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       </td>
 
                       {/* Action: Google Drive + Log / Edit incident */}
-                      <td className="px-3.5 py-3.5 align-middle text-right">
+                      {!showcaseMode && <td className="px-3.5 py-3.5 align-middle text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {!demoMode && <a
                             href="https://drive.google.com/drive/folders/enterprise-hub"
@@ -654,8 +654,6 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                           >
                             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </a>}
-                          {showcaseMode && <button className="workspace-catalog-button" type="button"
-                            onClick={() => setSelectedIncidentSummary(rec)}>Подробнее</button>}
                           {!showcaseMode && <button
                             type="button"
                             onClick={() => openIncidentModal(rec)}
@@ -664,7 +662,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                             {rec.status === 'on_site' ? 'Поломка' : 'Изменить'}
                           </button>}
                         </div>
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })
@@ -688,11 +686,11 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                 <div key={rec.id} className="p-4 space-y-3 bg-[var(--card-bg)]">
                   {/* Card Header */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
+                    <div className="flex min-w-0 items-start gap-2.5">
                       <div className="p-2 rounded-xl bg-[var(--card-subtle)] border border-[var(--card-border)]/60 text-[var(--text-main)] shrink-0 mt-0.5">
                         {isMachinery ? <Truck className="h-4 w-4" /> : <Users className="h-4 w-4" />}
                       </div>
-                      <div>
+                      <div className="min-w-0 break-words">
                         <h4 className="font-semibold text-[var(--text-main)] text-sm">
                           {rec.unit_name}
                         </h4>
@@ -703,6 +701,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       </div>
                     </div>
 
+                    {showcaseMode ? <span className={`showcase-dispatch-status ${statusCfg.badgeClass}`}>{statusCfg.label}</span> :
                     <button
                       type="button"
                       onClick={() => setSelectedIncidentSummary(rec)}
@@ -712,7 +711,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotColor}`} />
                       <span>{statusCfg.label}</span>
                       <HelpCircle className="h-3 w-3 opacity-60" />
-                    </button>
+                    </button>}
                   </div>
 
                   {/* Responsible Person */}
@@ -778,7 +777,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                   )}
 
                   {/* Mobile Actions: Google Drive + Зафиксировать поломку / простой */}
-                  <div className="grid grid-cols-2 gap-2 pt-1">
+                  {!showcaseMode && <div className="grid grid-cols-2 gap-2 pt-1">
                     {!demoMode && <a
                       href="https://drive.google.com/drive/folders/enterprise-hub"
                       target="_blank"
@@ -790,8 +789,6 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       <ExternalLink className="h-3 w-3 text-[var(--text-muted)]" />
                     </a>}
 
-                    {showcaseMode && <button className="workspace-catalog-button" type="button"
-                      onClick={() => setSelectedIncidentSummary(rec)}>Подробнее</button>}
                     {!showcaseMode && <button
                       type="button"
                       onClick={() => openIncidentModal(rec)}
@@ -800,7 +797,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                       <Wrench className="h-4 w-4 text-[var(--text-muted)]" />
                       <span>{rec.status === 'on_site' ? 'Поломка' : 'Изменить'}</span>
                     </button>}
-                  </div>
+                  </div>}
                 </div>
               );
             })

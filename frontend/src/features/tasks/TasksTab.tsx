@@ -527,8 +527,8 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                     <th className="text-left px-3 py-3 w-[18%]">Объект / Договор</th>
                     <th className="text-left px-3 py-3 w-[14%]">Ответственный</th>
                     <th className="text-right px-3 py-3 w-[14%]">Срок и штраф</th>
-                    <th className="text-center px-3 py-3 w-[16%] min-w-[170px]">Статус</th>
-                    <th className="text-right px-3 py-3 w-[8%]">Файл</th>
+                    <th className={showcaseMode ? "text-center px-3 py-3 w-[24%] min-w-[170px]" : "text-center px-3 py-3 w-[16%] min-w-[170px]"}>Статус</th>
+                    {!showcaseMode && <th className="text-right px-3 py-3 w-[8%]">Файл</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--card-border)]">
@@ -613,7 +613,9 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
 
                         {/* Status Dropdown with ConfirmModal Protection (16%) (FE-1.5) */}
                         <td className="px-3 py-3.5 align-middle text-center">
-                          <div className="relative inline-block w-full max-w-[170px] text-left tasks-status-dropdown-container">
+                          {showcaseMode ? <span className={`showcase-task-status ${statusInfo.badgeClass}`} data-status={task.status}>
+                            {statusInfo.label}
+                          </span> : <div className="relative inline-block w-full max-w-[170px] text-left tasks-status-dropdown-container">
                             <button
                               type="button"
                               onClick={(e) => {
@@ -663,11 +665,11 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                                 })}
                               </FloatingMenu>
                             )}
-                          </div>
+                          </div>}
                         </td>
 
                         {/* Document Link (8%) */}
-                        <td className="px-3 py-3.5 align-middle text-right text-xs">
+                        {!showcaseMode && <td className="px-3 py-3.5 align-middle text-right text-xs">
                           {task.document_name ? (
                             <a
                               href={task.google_drive_link || '#'}
@@ -681,7 +683,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                           ) : (
                             <span className="text-[var(--text-muted)]">—</span>
                           )}
-                        </td>
+                        </td>}
                       </tr>
                     );
                   })}
@@ -726,8 +728,8 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                       </span>
 
                       <span className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1 ${statusInfo.badgeClass}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotClass}`} />
+                        <span data-status={task.status} className={`${showcaseMode ? "showcase-task-status" : "px-2 py-0.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1"} ${statusInfo.badgeClass}`}>
+                          {!showcaseMode && <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotClass}`} />}
                           <span>{statusInfo.label}</span>
                         </span>
                         {isUrgent && (
@@ -778,7 +780,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                         </div>
 
                         {/* Document link on mobile */}
-                        {task.document_name && (
+                        {(!showcaseMode || task.google_drive_link) && task.document_name && (
                           <a
                             href={task.google_drive_link || '#'}
                             target="_blank"

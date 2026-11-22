@@ -65,11 +65,11 @@
 
 .flow-project[data-risk="true"] {
   background: #fbe6e5;
-  border-color: #dca39e;
+  border-color: transparent;
 }
 [data-theme="dark"] .flow-project[data-risk="true"] {
   background: #49272a;
-  border-color: #975258;
+  border-color: transparent;
 }
 .flow-project[data-risk="true"]:is(:hover, [aria-pressed="true"], [aria-expanded="true"]) {
   border-color: var(--flow-risk);

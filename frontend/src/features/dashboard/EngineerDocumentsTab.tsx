@@ -190,6 +190,11 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
         <div className="engineer-people">
           {people.map(person => {
             const missing = person.documents.filter(isMissing);
+            const issueCounts = [
+              [missing.length, 'Отсутствуют'],
+              [person.documents.filter(doc => documentStatus(doc, today) === 'past').length, 'Просрочены'],
+              [person.documents.filter(doc => documentStatus(doc, today) === 'expiring').length, 'Истекают'],
+            ] as const;
             const reviewCount = person.documents.filter(needsReview).length;
             const isSelected = selected?.column === person.column;
             return <div key={person.column} className="engineer-person-item" data-expanded={isSelected}>
@@ -198,8 +203,10 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
               onClick={() => setSelectedColumn(selectedColumn === person.column ? null : person.column)}>
               <UserRound size={19} aria-hidden="true" />
               <strong>{person.name}</strong>
-              {missing.length > 0 && <small>{missing.map(doc => doc.title).join(', ')}</small>}
-              {missing.length === 0 && reviewCount > 0 && <small>На проверку · {reviewCount}</small>}
+              {showcaseMode ? <small>{issueCounts.filter(([count]) => count).map(([count, label]) => `${label}: ${count}`).join(' · ') || 'Все документы действуют'}</small> : <>
+                {missing.length > 0 && <small>{missing.map(doc => doc.title).join(', ')}</small>}
+                {missing.length === 0 && reviewCount > 0 && <small>На проверку · {reviewCount}</small>}
+              </>}
             </button>
             {isSelected && <section id={`engineer-mobile-${person.column}`} className="engineer-mobile-details"
               aria-label={'Документы · ' + person.name}>

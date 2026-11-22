@@ -1200,3 +1200,42 @@ html:has(.workspace[data-showcase]) {
   overflow-x: clip;
   overscroll-behavior: none;
 }
+
+[data-showcase] .workspace-record {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+[data-showcase] .workspace-contract-open { margin-top: auto; }
+[data-showcase] .engineer-person { min-height: 124px; }
+@media (min-width: 768px) {
+  [data-showcase] .engineer-people { grid-auto-rows: 1fr; }
+}
+.showcase-stage-status,
+.showcase-dispatch-status,
+.showcase-task-status {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: 42px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+.showcase-stage-status, .showcase-dispatch-status { width: 116px; }
+.showcase-task-status { width: 152px; }
+.showcase-task-status[data-status="approved_closed"] { background: #ccebd9; color: #145239; }
+[data-theme="dark"] .showcase-task-status[data-status="approved_closed"] { background: #194b37; color: #c9f2da; }
+@media (max-width: 767px) {
+  .showcase-task-status { width: 108px; }
+  .showcase-dispatch-status { width: 96px; }
+}
