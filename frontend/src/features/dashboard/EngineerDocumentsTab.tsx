@@ -1,6 +1,7 @@
 import { DataLoading } from '@/components/DataLoading';
 import { useEffect, useState } from 'react';
 import { Clock3, ExternalLink, FileStack, FileText, House, Search, UserRound } from 'lucide-react';
+import { showcaseMode } from '@/api/mode';
 import { apiClient } from '@/api/client';
 import { FieldBeam } from '@/components/FieldBeam';
 
@@ -18,7 +19,7 @@ interface DocumentRecord {
 }
 
 export interface EngineerRegister {
-  source_url: string;
+  source_url?: string;
   synced_at: string;
   people: { name: string; column: number; documents: DocumentRecord[] }[];
 }
@@ -41,7 +42,20 @@ const hasNoFile = (doc: DocumentRecord) => doc.attachments.length === 0;
 const hasNoData = (doc: DocumentRecord) =>
   isMissing(doc) || doc.entries.every(entry => ['', '-', '—'].includes(mark(entry)));
 
-type Preset = 'all' | 'past' | 'missing' | 'noFile';
+type Preset = 'all' | 'past' | 'missing' | 'noFile' | 'expiring' | 'valid';
+
+const statusLabels = { past: 'Просрочен', missing: 'Отсутствует', expiring: 'Истекает', valid: 'Действует' };
+const statusFilters = {
+  valid: 'Действующие', expiring: 'Истекают в течение 30 дней', past: 'Просроченные', missing: 'Отсутствующие',
+} as const;
+function documentStatus(doc: DocumentRecord, today: string): keyof typeof statusLabels {
+  if (isMissing(doc)) return 'missing';
+  if (hasPastDate(doc, today)) return 'past';
+  const cutoff = new Date(today);
+  cutoff.setUTCDate(cutoff.getUTCDate() + 30);
+  return doc.entries.some(entry => entry.is_date && entry.value <= cutoff.toISOString().slice(0, 10))
+    ? 'expiring' : 'valid';
+}
 
 function DocumentCard({ doc, today }: { doc: DocumentRecord; today: string }) {
   const dates = doc.entries.filter(entry => entry.is_date);
@@ -61,11 +75,12 @@ function DocumentCard({ doc, today }: { doc: DocumentRecord; today: string }) {
       <div className="engineer-document-group" title={groups || undefined}>{groups}</div>
       <div className="engineer-document-note" title={note || undefined}>{note}</div>
       <div className="engineer-document-badges">
-        {hasNoData(doc) && <span className="engineer-issue">Нет данных</span>}
-        {hasNoFile(doc) && <span className="engineer-issue">Нет файла</span>}
+        {showcaseMode && <span className="engineer-issue">{statusLabels[documentStatus(doc, today)]}</span>}
+        {!showcaseMode && hasNoData(doc) && <span className="engineer-issue">Нет данных</span>}
+        {!showcaseMode && hasNoFile(doc) && <span className="engineer-issue">Нет файла</span>}
       </div>
       <div className="engineer-files">
-        {doc.attachments.map((file, index) => (
+        {!showcaseMode && doc.attachments.map((file, index) => (
           <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" title={file.name} aria-label={'Открыть ' + file.name}>
             <FileText size={15} aria-hidden="true" />
             {doc.attachments.length === 1 ? 'Открыть документ' : 'Документ ' + (index + 1)}
@@ -100,12 +115,17 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
   const register = data?.people ?? [];
   const documents = register.flatMap(person => person.documents);
   const checks = {
+    valid: (doc: DocumentRecord) => documentStatus(doc, today) === 'valid',
+    expiring: (doc: DocumentRecord) => documentStatus(doc, today) === 'expiring',
     past: (doc: DocumentRecord) => hasPastDate(doc, today),
     missing: isMissing,
     noFile: hasNoFile,
   };
-  const needsReview = (doc: DocumentRecord) => hasNoData(doc) || hasNoFile(doc) || checks.past(doc);
-  const metrics = [
+  const needsReview = (doc: DocumentRecord) => showcaseMode ? documentStatus(doc, today) !== 'valid' : hasNoData(doc) || hasNoFile(doc) || checks.past(doc);
+  const metrics = showcaseMode ? (['valid', 'expiring', 'past', 'missing'] as const).map(id => ({
+    id, label: statusFilters[id],
+    count: documents.filter(checks[id]).length,
+  })) : [
     { id: 'all', count: register.length, label: 'Всего сотрудников' },
     { id: 'past', count: documents.filter(checks.past).length, label: 'Позиций с прошедшей датой' },
     { id: 'missing', count: documents.filter(checks.missing).length, label: 'Позиций с отметкой «нет»' },
@@ -130,13 +150,13 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
         <div className="engineer-title">
           <div>
             <div className="workspace-eyebrow"><FileStack size={15} /> ENTERPRISE HUB</div>
-            <h1>Документы инженеров</h1>
+            <h1>{showcaseMode ? 'Документы сотрудников' : 'Документы инженеров'}</h1>
           </div>
           <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={onHome}><House size={17} /></button>
         </div>
         {data && <div className="engineer-toolbar">
           <div className="engineer-source">
-            <a className="workspace-sheet-link" href={data.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Открыть таблицу в Google</a>
+            {!showcaseMode && data.source_url && <a className="workspace-sheet-link" href={data.source_url} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Открыть таблицу в Google</a>}
             <div className="engineer-updated"><Clock3 size={15} /><span>Обновлено <time dateTime={data.synced_at}>{syncFormat.format(new Date(data.synced_at))}</time></span></div>
           </div>
           <FieldBeam className="engineer-search-beam">

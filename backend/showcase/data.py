@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
-def snapshot():
-    today = datetime.now(ZoneInfo("Europe/Samara")).date()
+def snapshot(today=None):
+    today = today or datetime.now(ZoneInfo("Europe/Samara")).date()
 
     def day(offset):
         return (today + timedelta(days=offset)).isoformat()
@@ -89,27 +89,3 @@ def snapshot():
         "status": "on_site",
     }]
     return today, projects, registry, tasks, alerts, procurement, dispatch
-
-
-def finance(today, period):
-    if period == "year":
-        start = today.replace(month=1, day=1)
-    elif period == "quarter":
-        start = today - timedelta(days=89)
-    else:
-        start = today.replace(day=1)
-
-    dynamics = [
-        {
-            "date": (today - timedelta(days=offset)).isoformat(),
-            "incoming": 22_000 + (offset * 8111) % 95_000,
-            "outgoing": 13_000 + (offset * 6127) % 80_000,
-        }
-        for offset in range(min((today - start).days, 160), -1, -1)
-    ]
-    incoming = sum(point["incoming"] for point in dynamics)
-    outgoing = sum(point["outgoing"] for point in dynamics)
-    return {
-        "dynamics": dynamics, "total_incoming": incoming, "total_outgoing": outgoing,
-        "net_cash_flow": incoming - outgoing, "top_debtors": [], "top_creditors": [],
-    }

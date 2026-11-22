@@ -8,7 +8,7 @@ import type { FileListItem } from '@/types';
 export interface DriveNode {
   id: string;
   name: string;
-  url: string;
+  url?: string;
   active_source: boolean;
   source_kind?: 'tenders' | 'engineers' | 'dispatch' | null;
   size_bytes: number | null;
@@ -26,17 +26,17 @@ export function flattenDrive(nodes: DriveNode[]): DriveNode[] {
   ];
 }
 
-export function useDriveCatalog(enabled: boolean) {
+export function useDriveCatalog(enabled: boolean, refreshAt?: string | null) {
   const [nodes, setNodes] = useState<DriveNode[]>();
   const [error, setError] = useState('');
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
     apiClient.getDriveCatalog(controller.signal)
-      .then(setNodes)
+      .then(result => { if (!controller.signal.aborted) { setError(''); setNodes(result); } })
       .catch((failure: Error) => { if (!controller.signal.aborted) setError(failure.message); });
     return () => controller.abort();
-  }, [enabled]);
+  }, [enabled, refreshAt]);
   return { nodes, error };
 }
 
@@ -57,11 +57,11 @@ export function FileRow({ node, file, onFileSelect }: {
 
   return <div className="workspace-catalog-file">
     <div className="workspace-catalog-name"><File size={17} aria-hidden="true" /><strong>{name}</strong></div>
-    <div className="workspace-catalog-meta">
+    {(link || file || node?.owner || date || size != null) && <div className="workspace-catalog-meta">
       <span>{file?.uploaded_by ? 'Загрузил · ' + file.uploaded_by : node?.owner ? 'Владелец · ' + node.owner : 'Загрузивший не указан'}</span>
       <span>{date ? (node?.modified_at ? 'Изменён на Диске · ' : '') + formatDate(date) : 'Дата недоступна'}</span>
       {size != null && <span>{formatFileSize(size)}</span>}
-    </div>
+    </div>}
     <div className="workspace-catalog-actions">
       {node && (node.active_source ? <Badge variant="success">{node.source_kind === 'dispatch' ? 'Подключён к диспетчерской' : 'Подключён к импорту'}</Badge> :
         <Badge variant="warning">Парсер не подключён</Badge>)}
@@ -82,7 +82,7 @@ export function DriveTree({ nodes, files, onFileSelect }: {
     {nodes.map(node => <li key={node.id}>
       {node.children ? <details>
         <summary><Folder size={16} /> {node.name}</summary>
-        <a className="workspace-link" href={node.url} target="_blank" rel="noreferrer">Открыть папку <ExternalLink size={14} /></a>
+        {node.url && <a className="workspace-link" href={node.url} target="_blank" rel="noreferrer">Открыть папку <ExternalLink size={14} /></a>}
         <DriveTree nodes={node.children} files={files} onFileSelect={onFileSelect} />
       </details> : <FileRow node={node} file={files.get(node.id)} onFileSelect={onFileSelect} />}
     </li>)}

@@ -134,6 +134,13 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
+  getShowcaseSource(signal?: AbortSignal) {
+    return request<{
+      source: 'drive' | 'snapshot' | 'synthetic';
+      refreshed_at: string | null;
+      issue: 'schema' | 'unavailable' | null;
+    }>('/showcase/source', { signal, cache: 'no-store' });
+  },
   getDriveCatalog(signal?: AbortSignal) {
     return request<import('@/features/files/DriveCatalog').DriveNode[]>('/drive-catalog', { signal, cache: 'no-store' });
   },
