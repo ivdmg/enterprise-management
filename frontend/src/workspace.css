@@ -1161,8 +1161,16 @@
   line-height: 1.15;
 }
 .workspace-alert-trigger { position: relative; }
-.workspace-alert-trigger .workspace-attention-count { position: absolute; inset: -4px -5px auto auto; margin: 0; }
-.workspace-alert-item summary { cursor: pointer; }
+.workspace .workspace-alert-trigger .workspace-attention-count {
+  position: absolute; inset: -4px -5px auto auto; transform: none; margin: 0;
+  display: grid; place-items: center; min-width: 17px; height: 17px; padding-inline: 3px;
+  border: 1px solid var(--card-bg); border-radius: 999px; background: #a62b39; color: #fff;
+  font-size: 10px; font-weight: 750; line-height: 1;
+}
+.workspace-alert-card-link {
+  text-align: left; font-size: .875rem; font-weight: 700; color: var(--text-main); cursor: pointer;
+}
+.workspace-alert-card-link:hover { text-decoration: underline; }
 [data-showcase] :is(.engineer-person, .engineer-document)[data-expired="true"] {
   border-color: #d28b8b;
   background: color-mix(in srgb, #b91c1c 12%, var(--card-bg));

@@ -111,7 +111,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const [showcaseSource, setShowcaseSource] = useState<Awaited<ReturnType<typeof apiClient.getShowcaseSource>>>();
 
   useEffect(() => {
-    if (!showcaseMode || !showcaseSource?.refreshed_at) return;
+    if (!showcaseMode) return;
     const controller = new AbortController();
     apiClient.getShowcaseSourceLinks(controller.signal).then(links => {
       if (!controller.signal.aborted) setSheetLinks(links);
@@ -495,7 +495,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           </div>
         </div>
       </Modal>}
-      <AlertsDrawer isOpen={showAlerts !== null} penaltiesOnly={showAlerts === 'penalties'} onClose={() => setShowAlerts(null)} onProject={showcaseMode ? id => {
+      <AlertsDrawer sourceLink={sheetLinks["Сигналы"]} isOpen={showAlerts !== null} penaltiesOnly={showAlerts === 'penalties'} onClose={() => setShowAlerts(null)} onProject={showcaseMode ? id => {
         setAlertProject(id);
         setShowAlerts(null);
         navigate('projects');

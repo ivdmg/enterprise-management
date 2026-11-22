@@ -23,10 +23,47 @@ LOG = logging.getLogger(__name__)
 SOURCE_KINDS = {"team": "engineers", "operations": "tenders", "finance": "finance", "stock": "procurement"}
 
 
-def node(name, key, children=None, active=False, metadata=None, source_kind=None):
+# Native books containing only the synthetic examples created for this showcase.
+DEMO_BOOKS = {
+    "team": "1WHoJlmqvHwQcDZee2Zh8JMcrzqU2KfWzept61nSl_MM",
+    "finance": "1g_viD8QSubypRDYo2_awbjmTuiHEDShOQ0bDPXvJTXc",
+    "operations": "1VFEmY4ien_lCPmu69Gk90c6_wOTlxaFkpoqNj6ktDeU",
+    "stock": "1vwB55WTuEhneA1MSqPWH6oY01sfL6iESl6anuMVvB64",
+}
+DEMO_TEMPLATES = {
+    "team": (
+        ("Реестр сотрудников", "1_ZAcCPZB9gK_KpEm449uE7IeMg18iJ9lxUvNs9PHIE0"),
+        ("График команды", "1w0uwd1Bm0_AWWdnduARFOzLVxf5T3YKVqaC3ILAaUwU"),
+    ),
+    "finance": (("Платёжный календарь", "10jVz6uefVc_gJKv_vJ827mc3ITQ6EWQLizaJ0TC6Xms"),),
+    "operations": (("Реестр заявок", "1HTMIIdE2O3YpqbiYpa0wg1TmlslB-XZOe-G6AB7XK6k"),),
+    "stock": (
+        ("Справочник номенклатуры", "1B7ZXmFsPDFdRpHGMSlasGnWFZcSfOlNJbI9gjCjOLGo"),
+        ("Движение запасов", "1LbiqhSpYP8XUVcbwNUiu3rorTFLIVorTVv3x-GZxE2U"),
+    ),
+}
+DEMO_TEMPLATE_IDS = {identifier for templates in DEMO_TEMPLATES.values() for _, identifier in templates}
+DEMO_OPERATIONS_GIDS = {
+    "Реестр контрактов": 0, "Ежедневный мониторинг": 1180388921,
+    "Задачи": 1867629535, "Сигналы": 1062699588, "Смены": 214455523,
+}
+
+
+def sheet_url(identifier, gid=None):
+    base = f"https://docs.google.com/spreadsheets/d/{identifier}/edit"
+    return base if gid is None else f"{base}#gid={gid}"
+
+
+DEMO_SOURCE_LINKS = {
+    title: sheet_url(DEMO_BOOKS[key], DEMO_OPERATIONS_GIDS[title] if key == "operations" else 0)
+    for key, titles in SHEETS.items() for title in titles
+}
+
+
+def node(name, key, children=None, active=False, metadata=None, source_kind=None, url=None):
     metadata = metadata or {}
     size = metadata.get("size")
-    return {"id": key, "name": name, "children": children, "active_source": active,
+    return {**({"url": url} if url else {}), "id": key, "name": name, "children": children, "active_source": active,
             "source_kind": source_kind, "size_bytes": int(size) if size is not None else None,
             "created_at": metadata.get("createdTime"), "modified_at": metadata.get("modifiedTime"), "owner": None}
 
@@ -34,11 +71,12 @@ def node(name, key, children=None, active=False, metadata=None, source_kind=None
 def local_catalog(tables=None, updated_at=None):
     return [
         node(FOLDERS[key], key, [node(
-            TITLES[key], f"{key}-sheet", active=True, source_kind=SOURCE_KINDS[key],
+            TITLES[key], f"{key}-sheet", active=True, source_kind=SOURCE_KINDS[key], url=sheet_url(DEMO_BOOKS[key]),
             metadata={"createdTime": updated_at, "size": len(json.dumps(
                 {name: tables[name] for name in sheets}, ensure_ascii=False,
             ).encode())} if tables is not None else None,
-        )])
+        ), *(node(title, f"{key}-template-{index}", url=sheet_url(identifier))
+             for index, (title, identifier) in enumerate(DEMO_TEMPLATES[key]))])
         for key, sheets in SHEETS.items()
     ]
 
@@ -50,7 +88,7 @@ class GoogleSource:
 
         self.files = {key: os.environ[f"SHOWCASE_{key.upper()}_SHEET_ID"] for key in SHEETS}
         extra = os.getenv("SHOWCASE_CATALOG_FILE_IDS", "").split(",")
-        self.allowed = set(self.files.values()) | {value.strip() for value in extra if value.strip()}
+        self.allowed = set(self.files.values()) | DEMO_TEMPLATE_IDS | {value.strip() for value in extra if value.strip()}
         if not all(ID.fullmatch(value) for value in self.allowed) or len(set(self.files.values())) != len(SHEETS):
             raise ValueError("invalid Drive allowlist")
         payload = os.getenv("SHOWCASE_GOOGLE_CREDENTIALS_JSON")
@@ -104,7 +142,9 @@ class GoogleSource:
                             if mime != SHEET:
                                 raise ValueError("expected a Google spreadsheet")
                             found.add(identifier)
-                        nodes.append(node(item["name"], key, active=active, metadata=item, source_kind=SOURCE_KINDS.get(group)))
+                        url = sheet_url(identifier) if mime == SHEET and (active or identifier in DEMO_TEMPLATE_IDS) else None
+                        nodes.append(node(item["name"], key, active=active, metadata=item,
+                                          source_kind=SOURCE_KINDS.get(group), url=url))
                 page = response.get("nextPageToken")
                 if not page:
                     return nodes
@@ -192,5 +232,10 @@ class Snapshots:
                 return Current(data, catalog, "snapshot" if issue else "drive", at, issue)
         tables = seed_tables(today)
         data = parse_tables(tables, today)
+        data["source_links"] = DEMO_SOURCE_LINKS
+        for item in data["customer-tenders"]:
+            item["link"] = DEMO_SOURCE_LINKS["Реестр контрактов"]
+        for item in data["dashboard/projects"]:
+            item["google_drive_link"] = DEMO_SOURCE_LINKS["Реестр контрактов"]
         catalog = local_catalog(tables, data["engineer-documents"]["synced_at"])
         return Current(data, catalog, "synthetic", None, issue)

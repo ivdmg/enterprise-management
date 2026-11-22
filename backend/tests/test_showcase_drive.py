@@ -46,7 +46,9 @@ class CatalogTests(TestCase):
         self.assertEqual(set(tables), {name for names in SHEETS.values() for name in names})
         children = catalog[0]["children"]
         self.assertEqual({entry["name"] for entry in children}, {*TITLES.values(), "Разрешённый файл"})
-        self.assertTrue(all("url" not in entry and entry["id"] not in source.allowed for entry in children))
+        self.assertTrue(all(entry["id"] not in source.allowed for entry in children))
+        self.assertTrue(all(entry.get("url", "").startswith("https://docs.google.com/spreadsheets/d/")
+                            for entry in children if entry["active_source"]))
         file = next(entry for entry in children if entry["name"] == "Разрешённый файл")
         self.assertEqual(file["size_bytes"], 312)
         self.assertEqual(file["modified_at"], "2026-11-22T12:00:00Z")

@@ -295,7 +295,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             const metadata = <div className="workspace-record-meta flex flex-wrap items-center gap-2">
               <span>№ {row.number}{city && ` · ${city}`}</span>
               {showcaseMode && row.link && <a href={row.link} target="_blank" rel="noreferrer"
-                aria-label={`Открыть строку ${row.number} в Google Таблице`} title="Строка в Google Таблице">
+                aria-label={`Открыть ${row.link.includes("&range=") ? "строку" : "таблицу для"} ${row.number} в Google Таблице`} title="Источник в Google Таблице">
                 <ArrowUpRight size={16} />
               </a>}
             </div>;
