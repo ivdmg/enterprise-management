@@ -1,7 +1,7 @@
 import { ShowcaseSheets, ShowcaseSheetLink } from '@/components/ShowcaseSheetLink';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
-import { Bell, Building2, CircleUserRound, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UsersRound } from 'lucide-react';
+import { Bell, Building2, CircleUserRound, Database, FileStack, LayoutDashboard, ListChecks, LoaderCircle, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, ScanLine, Truck, Wallet, Workflow, Package, Search, FlaskConical, House, ChevronRight, ChevronDown, ExternalLink, Upload, UsersRound } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -26,6 +26,7 @@ const sections = [
     { id: 'engineers', label: 'Документы инженеров', icon: UsersRound, description: 'Удостоверения, отметки в реестре и даты, требующие проверки.' },
   ] },
   { title: 'Операции', items: [
+    { id: 'flow', label: 'Рентген рабочего потока', icon: ScanLine, description: 'На каких этапах находятся объекты и где есть просрочки.' },
     { id: 'projects', label: 'Тендеры и объекты', icon: Building2, description: 'Этапы контрактов и сроки банковских гарантий.' },
     { id: 'finance', label: 'Финансы', icon: Wallet, description: 'Движение денег, поступления и расходы.' },
     { id: 'procurement', label: 'Снабжение и закупки', icon: Package, description: 'Счета, материалы и движение поставок.' },
@@ -42,7 +43,7 @@ const sections = [
 type Section = typeof sections[number]['items'][number]['id'];
 const moduleIds: Record<Section, string> = {
   summary: 'overview', registry: 'contracts', engineers: 'engineer_documents',
-  projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
+  flow: 'workflow', projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
   tasks: 'tasks', sources: 'sources', files: 'files', settings: 'settings',
 };
 const showcaseTitle = 'Система мониторинга предприятия';
@@ -61,6 +62,7 @@ const loadSection = {
   files: () => import('@/features/files/FilesTab').then(module => ({ default: module.FilesTab })),
   settings: () => import('@/features/settings/SettingsTab').then(module => ({ default: module.SettingsTab })),
 };
+const WorkflowTab = lazy(() => import('@/features/flow/WorkflowTab'));
 const ShowcaseDriveTab = lazy(() => import('@/features/files/ShowcaseDriveTab'));
 const EngineerDocumentsTab = lazy(loadSection.engineers);
 const ProjectsTab = lazy(loadSection.projects);
@@ -133,7 +135,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const { isDark, toggle } = useTheme();
   const [legacyView, setView] = useState(readSection);
   const allowedSections = allowedModules && new Map(allowedModules.map(module => [module.id, module]));
-  const isAllowed = (id: Section) => !allowedSections || allowedSections.has(moduleIds[id]);
+  const isAllowed = (id: Section) => id === 'flow' ? showcaseMode : !allowedSections || allowedSections.has(moduleIds[id]);
   const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label
     ?? (showcaseMode && id === 'engineers' ? 'Документы сотрудников'
       : showcaseMode && id === 'projects' ? 'Проекты и объекты' : fallback);
@@ -350,6 +352,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
         const refreshAt = showcaseMode ? showcaseSource?.refreshed_at ?? undefined : sync?.last_synced_at;
         return <EngineerDocumentsTab refreshAt={refreshAt} onHome={() => navigate('summary')} />;
       }
+      case 'flow': return <WorkflowTab header={renderPageHeader()} onProject={id => {
+        setAlertProject(id);
+        navigate('projects');
+      }} />;
       case 'projects': return <ProjectsTab renderHeader={renderPageHeader} highlightProjectId={alertProject} onClearHighlight={() => setAlertProject(undefined)} />;
       case 'finance': return <FinanceTab />;
       case 'procurement': return <ProcurementTab key={String(procurementDue)} dueOnly={procurementDue} renderHeader={renderPageHeader} />;
@@ -411,7 +417,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
             { label: 'Обзор', ids: ['summary'] },
             { label: 'Контракты', ids: ['registry', 'projects'] },
             { label: 'Финансы', ids: ['finance'] },
-            { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks', ...(showcaseMode || (!demoMode && canEdit) ? ['engineers'] : [])] },
+            { label: 'Операции', ids: ['flow', 'procurement', 'dispatch', 'tasks', ...(showcaseMode || (!demoMode && canEdit) ? ['engineers'] : [])] },
             { label: 'Данные', ids: ['sources', 'files', 'settings'] },
           ].map(({ label, ids }, index) => {
             const items = menuSections.filter(item => ids.includes(item.id));
@@ -456,7 +462,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
         <nav aria-label="Разделы">
           {(allowedSections ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
-            {group.items.map(({ id, label, icon: Icon }) => {
+            {group.items.filter(({ id }) => isAllowed(id)).map(({ id, label, icon: Icon }) => {
               const count = attention[id] ?? 0;
               const name = labelFor(id, label);
               const description = count ? `Требуют внимания: ${count}` : undefined;
