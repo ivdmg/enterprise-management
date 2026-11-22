@@ -4,6 +4,7 @@ import { apiClient } from '@/api/client';
 import { DataLoading } from '@/components/DataLoading';
 import { formatDate } from '@/utils/format';
 import type { Project, TaskItem } from '@/types';
+import { overdueWorkflowTasks, workflowRiskTest } from './workflowRisk';
 import './workflow.css';
 
 const stages = {
@@ -55,10 +56,8 @@ export default function WorkflowTab({ header, onProject }: {
   </div></>;
   if (!data) return <>{header}<DataLoading /></>;
 
-  const overdueTasks = data.tasks.filter(task => task.project_id && task.status !== 'approved_closed' &&
-    (task.status === 'overdue' || (task.days_remaining ?? 0) < 0));
-  const atRisk = (project: Project) => project.days_overdue > 0 || project.risk_level !== 'normal' ||
-    overdueTasks.some(task => task.project_id === project.id);
+  const overdueTasks = overdueWorkflowTasks(data.tasks);
+  const atRisk = workflowRiskTest(overdueTasks);
   const projects = [...data.projects].sort((a, b) => Number(atRisk(b)) - Number(atRisk(a)));
   const visible = onlyRisks ? projects.filter(atRisk) : projects;
   const selected = visible.find(project => project.id === selectedId) ?? visible[0];

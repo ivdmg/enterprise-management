@@ -954,13 +954,13 @@
 .workspace-sidebar a { position: relative; }
 .workspace-sidebar .workspace-attention-count {
   position: absolute; inset: 2px auto auto calc(var(--sidebar-rail) / 2 + 2px);
-  display: grid; place-items: center; min-width: 15px; height: 15px; padding-inline: 3px;
+  display: grid; place-items: center; min-width: 17px; height: 17px; padding-inline: 3px;
   border-radius: 999px; border: 1px solid var(--card-bg);
-  background: var(--semantic-warning-bg, #f5e8cf); color: var(--semantic-warning-text, #704b1c);
-  font-size: 9px; font-weight: 750; line-height: 1;
+  background: #facc15; color: #382400;
+  font-size: 10px; font-weight: 750; line-height: 1;
 }
 .workspace-sidebar .workspace-attention-count[data-severity="high"] {
-  background: var(--semantic-danger-bg, #f8d8d6); color: var(--semantic-danger-text, #8b2924);
+  background: #a62b39; color: #fff;
 }
 .workspace[data-sidebar="open"] .workspace-attention-count { inset: 50% 8px auto auto; transform: translateY(-50%); }
 .workspace[data-sidebar="open"] .workspace-sidebar a:has(.workspace-attention-count) { padding-inline-end: 32px; }

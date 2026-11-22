@@ -1,3 +1,4 @@
+import { overdueWorkflowTasks, workflowRiskTest } from '@/features/flow/workflowRisk';
 import { ShowcaseSheets, ShowcaseSheetLink } from '@/components/ShowcaseSheetLink';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
@@ -206,9 +207,13 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
       }).catch(() => {});
       if (watchDispatch) void apiClient.getDispatchRecords()
         .then(rows => update('dispatch', rows.filter(row => row.status === 'repair' || row.status === 'downtime').length)).catch(() => {});
-      if (watchTasks) void apiClient.getTasks()
+      const tasks = watchTasks || showcaseMode ? apiClient.getTasks() : null;
+      if (watchTasks && tasks) void tasks
         .then(rows => update('tasks', rows.filter(row => row.status === 'overdue' ||
           (row.status !== 'approved_closed' && row.days_remaining != null && row.days_remaining < 0)).length)).catch(() => {});
+      if (showcaseMode && tasks) void Promise.all([apiClient.getProjects(), tasks])
+        .then(([projects, rows]) => update('flow', projects.filter(workflowRiskTest(overdueWorkflowTasks(rows))).length))
+        .catch(() => {});
     };
     refresh();
     const timer = window.setInterval(refresh, 60_000);
@@ -470,7 +475,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
                 title={description ? `${name} · ${description}` : name} aria-current={view === id ? 'page' : undefined}
                 onClick={event => { if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return; event.preventDefault(); navigate(id); }}>
                 <Icon size={18} /><span>{name}</span>
-                {count > 0 && <small className="workspace-attention-count" data-severity={id === 'engineers' || id === 'tasks' ? 'high' : 'normal'} aria-hidden="true">{count > 99 ? '99+' : count}</small>}
+                {count > 0 && <small className="workspace-attention-count" data-severity={id === 'engineers' || id === 'tasks' || id === 'flow' ? 'high' : 'normal'} aria-hidden="true">{count > 99 ? '99+' : count}</small>}
               </a>;
             })}
           </div>)}
