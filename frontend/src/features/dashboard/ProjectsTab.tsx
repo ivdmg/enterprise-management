@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/Table';
 import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
@@ -411,7 +412,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
         {/* DESKTOP TABLE VIEW (>= 768px): All 5 Stage Names Visible, No Vertical Lines */}
         {/* Proportions: Объект 21%, Степпер 35%, БГ 17%, Сумма 12%, Срок 8%, Риск 7% */}
         {/* ============================================================ */}
-        <div className="hidden md:block overflow-x-auto rounded-[inherit]">
+        <TableScroll className="hidden md:block overflow-x-auto rounded-[inherit]" label={showcaseMode ? "Таблица тендеров и объектов" : undefined}>
           <table className="w-full text-sm table-fixed" id="projects-table">
             <thead>
               <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
@@ -575,7 +576,7 @@ export function ProjectsTab({ highlightProjectId, onClearHighlight, renderHeader
               )}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
 
         {/* ============================================================ */}
         {/* MOBILE CARDS VIEW (< 768px): Responsive Compact Bento Cards   */}

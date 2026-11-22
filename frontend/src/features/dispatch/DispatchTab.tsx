@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/Table';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
 import { FieldBeam } from '@/components/FieldBeam';
@@ -498,7 +499,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
       {/* Main Checklist / Table */}
       <div className="border border-[var(--card-border)] rounded-2xl overflow-hidden bg-[var(--card-bg)] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
         {/* Desktop Table View (>= 768px) */}
-        <div className="hidden md:block overflow-x-hidden">
+        <TableScroll className="hidden md:block overflow-x-hidden" label={showcaseMode ? "Таблица диспетчерской" : undefined}>
           <table className="w-full text-sm table-fixed" id="dispatch-table">
             <thead>
               <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)]">
@@ -666,7 +667,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
               )}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
 
         {/* Mobile Checklist Cards View (< 768px) */}
         <div className="md:hidden divide-y divide-[var(--card-border)]" id="dispatch-mobile-cards">

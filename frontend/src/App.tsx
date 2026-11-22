@@ -322,7 +322,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   }
 
   return (
-    <div className="workspace" data-sidebar={sidebar ? 'open' : 'closed'}>
+    <div className="workspace" data-showcase={showcaseMode || undefined} data-sidebar={sidebar ? 'open' : 'closed'}>
       <header className="workspace-topbar">
         <div className="workspace-topbar-strip"><div className="workspace-topbar-start">
           <a href={companyBase ?? "#summary"} className="workspace-brand" aria-label="Enterprise Hub — обзор" onClick={event => { if (companyBase) return; event.preventDefault(); navigate('summary'); }}>
@@ -349,14 +349,16 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
             title="Уведомления" aria-label="Уведомления" aria-controls="workspace-alerts"
             aria-expanded={showAlerts !== null}><Bell size={18} /></button>}
           <button className="workspace-icon-button" onClick={toggle} title={isDark ? 'Светлая тема' : 'Тёмная тема'} aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}>{isDark ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
-          <div id="workspace-profile" popover="auto" className="workspace-profile">
-            <div className="workspace-profile-account"><strong>{user?.full_name || 'Руководитель'}</strong><small>{user?.email}</small></div>
-            {isAllowed("settings") && <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>}
-            {companyProfile?.permissions.includes("company.team.read") && <a href={`${companyBase}/team`}>Команда</a>}
-{companyProfile?.permissions.includes("company.audit.read") && <a href={`${companyBase}/audit`}>Журнал действий</a>}
-            {!showcaseMode && <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); if (!companyBase) navigate('summary'); void Promise.resolve(logout()).catch(() => setSyncMessage('Не удалось завершить сессию. Попробуйте ещё раз.')); }}><LogOut size={16} />Выйти</button>}
-          </div>
+          {!showcaseMode && <>
+            <button className="workspace-profile-trigger" type="button" popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">{user?.full_name?.trim().charAt(0) || 'Р'}</button>
+            <div id="workspace-profile" popover="auto" className="workspace-profile">
+              <div className="workspace-profile-account"><strong>{user?.full_name || 'Руководитель'}</strong><small>{user?.email}</small></div>
+              {isAllowed("settings") && <button type="button" popoverTarget="workspace-profile" popoverTargetAction="hide" onClick={() => navigate('settings')}><Settings size={16} />Настройки профиля</button>}
+              {companyProfile?.permissions.includes("company.team.read") && <a href={`${companyBase}/team`}>Команда</a>}
+              {companyProfile?.permissions.includes("company.audit.read") && <a href={`${companyBase}/audit`}>Журнал действий</a>}
+              <button type="button" onClick={() => { setSync(null); setPenalties(null); setShowAlerts(null); setUpload(null); setMapping(null); if (!companyBase) navigate('summary'); void Promise.resolve(logout()).catch(() => setSyncMessage('Не удалось завершить сессию. Попробуйте ещё раз.')); }}><LogOut size={16} />Выйти</button>
+            </div>
+          </>}
         </div>
         </div>
         <nav className="workspace-tabs" aria-label="Быстрый доступ к разделам"><div className="workspace-tabs-title"><strong>Панель руководителя</strong></div>
@@ -402,10 +404,10 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
             {sidebar ? <PanelLeftClose size={19} aria-hidden="true" /> : <PanelLeftOpen size={19} aria-hidden="true" />}
           </button>
         </div>
-        <button className="workspace-icon-button workspace-sidebar-profile" type="button"
+        {!showcaseMode && <button className="workspace-icon-button workspace-sidebar-profile" type="button"
           popoverTarget="workspace-profile" aria-label="Меню профиля" title="Меню профиля">
           <CircleUserRound size={19} aria-hidden="true" />
-        </button>
+        </button>}
         <nav aria-label="Разделы">
           {(allowedSections || showcaseMode ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>

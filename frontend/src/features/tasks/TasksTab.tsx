@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/Table';
 import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
@@ -518,7 +519,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
             {/* DESKTOP TABLE VIEW (>= 768px): Zebra striping & contrast (FE-1.5) */}
             {/* Proportions: Задача 30%, Объект 18%, Ответственный 14%, Срок/Штраф 14%, Статус 16%, Документ 8% */}
             {/* ============================================================ */}
-            <div className="hidden md:block overflow-x-hidden">
+            <TableScroll className="hidden md:block overflow-x-hidden" label={showcaseMode ? "Таблица задач" : undefined}>
               <table className="w-full text-sm table-fixed" id="tasks-desktop-table">
                 <thead>
                   <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
@@ -686,7 +687,7 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableScroll>
 
             {/* ============================================================ */}
             {/* MOBILE CARDS VIEW (< 768px): Accordion Cards (FE-5.2)        */}
@@ -702,29 +703,29 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                 return (
                   <div key={task.id} className="p-3.5 transition-colors">
                     {/* Collapsed Header: Tap to expand */}
-                    <div
+                    <button
+                      type="button"
                       onClick={() => toggleTaskExpand(task.id)}
-                      className="flex items-start justify-between gap-2.5 cursor-pointer select-none"
-                      role="button"
-                      tabIndex={0}
+                      className="flex w-full items-start justify-between gap-2.5 text-left cursor-pointer select-none"
+                      aria-expanded={isExpanded}
                     >
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold text-[var(--text-main)] text-sm leading-snug line-clamp-1">
+                      <span className="grid flex-1 min-w-0 gap-1">
+                        <span className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-[var(--text-main)] text-sm leading-snug [overflow-wrap:anywhere]">
                             {task.task_title}
-                          </h4>
-                        </div>
-                        <p className="text-xs text-[var(--text-sub)] truncate">
+                          </span>
+                        </span>
+                        <span className="text-xs text-[var(--text-sub)] truncate">
                           {task.related_contract || 'Без привязки к договору'}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                        </span>
+                        <span className="flex flex-wrap items-center gap-x-2 text-xs text-[var(--text-muted)]">
                           <span>{task.responsible_person}</span>
                           <span>·</span>
                           <span>до {formatDate(task.due_date)}</span>
-                        </div>
-                      </div>
+                        </span>
+                      </span>
 
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className="flex flex-col items-end gap-1.5 shrink-0">
                         <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1 ${statusInfo.badgeClass}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotClass}`} />
                           <span>{statusInfo.label}</span>
@@ -734,11 +735,11 @@ export function TasksTab({ renderHeader }: { renderHeader?: (actions?: ReactNode
                             &le; {task.days_remaining} дн.
                           </span>
                         )}
-                        <div className="p-0.5 text-[var(--text-muted)]">
+                        <span className="p-0.5 text-[var(--text-muted)]">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </div>
-                      </div>
-                    </div>
+                        </span>
+                      </span>
+                    </button>
 
                     {/* Expanded Accordion Body (FE-5.2) */}
                     {isExpanded && (

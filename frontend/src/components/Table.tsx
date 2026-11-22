@@ -4,6 +4,26 @@ interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   children: React.ReactNode;
 }
 
+export function TableScroll({ children, className, label }: {
+  children: React.ReactNode;
+  className: string;
+  label?: string;
+}) {
+  function scrollWithKeyboard(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    const container = event.currentTarget;
+    if (container.scrollWidth <= container.clientWidth) return;
+    event.preventDefault();
+    container.scrollLeft += event.key === 'ArrowLeft' ? -48 : 48;
+  }
+
+  return <div className={label ? `${className} workspace-scroll-table` : className} role={label ? 'region' : undefined} aria-label={label}
+    tabIndex={label ? 0 : undefined} onKeyDown={label ? scrollWithKeyboard : undefined}>
+    {children}
+  </div>;
+}
+
 export function Table({ children, className = '', ...props }: TableProps) {
   return (
     <div className="w-full overflow-x-auto">

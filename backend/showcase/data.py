@@ -79,7 +79,7 @@ def snapshot():
         "id": "demo-supply-1", "project_name": project["project_name"],
         "item_name": "Комплект креплений", "quantity": 12, "unit": "шт.",
         "supplier": "Учебный поставщик", "invoice_amount": 24_000,
-        "status": "paid", "delivery_deadline": day(2), "invoice_number": "DEMO-11",
+        "status": "invoice_pending", "delivery_deadline": day(2), "invoice_number": "DEMO-11",
         "created_at": f"{day(-5)}T10:00:00+04:00",
     }]
     dispatch = [{

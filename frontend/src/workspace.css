@@ -1088,3 +1088,59 @@
 @media (prefers-reduced-motion: reduce) {
   .engineer-mobile-details { animation: none; }
 }
+
+.workspace[data-showcase] .workspace-brand strong { display: inline; }
+.workspace[data-showcase] .workspace-record .workspace-link { display: flex; width: fit-content; }
+.workspace-confirm-dialog[data-record-dialog] > div {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.workspace-confirm-dialog[data-record-dialog] .workspace-modal-content {
+  width: 100%;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.workspace-confirm-dialog[data-record-dialog] h2 {
+  margin: 0 38px 16px 0;
+  overflow-wrap: anywhere;
+}
+.workspace-confirm-dialog[data-record-dialog] :focus-visible { outline-offset: -3px; }
+.workspace-confirm-dialog[data-record-dialog] .workspace-modal-close {
+  position: absolute;
+  inset: 8px 8px auto auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--card-bg);
+}
+
+@media (max-width: 800px) {
+  .workspace[data-showcase][data-sidebar="open"] .workspace-sidebar { background: var(--card-bg); }
+  .workspace[data-showcase] .workspace-sidebar :is(a, .workspace-icon-button) { min-height: 44px; }
+}
+
+.workspace[data-showcase] :is(#projects-table, #procurement-table, #tasks-desktop-table) td:first-child p[title] {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.workspace[data-showcase] .workspace-record-meta { overflow-wrap: anywhere; }
+
+@media (pointer: coarse) {
+  .workspace[data-showcase] .workspace-topbar-actions .workspace-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .workspace[data-showcase] .workspace-search input { font-size: 16px; }
+}
+
+.workspace .workspace-scroll-table {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.workspace .workspace-scroll-table:focus-visible { outline-offset: -3px; }
+.workspace-scroll-table > table { min-width: 940px; }

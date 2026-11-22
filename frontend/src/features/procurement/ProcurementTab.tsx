@@ -1,3 +1,4 @@
+import { TableScroll } from '@/components/Table';
 import { showcaseMode } from '@/api/mode';
 import type { ReactNode } from 'react';
 import { DataLoading } from '@/components/DataLoading';
@@ -90,6 +91,7 @@ export function hasDeliveryRisk(item: ProcurementItemData, deadline: string) {
 export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: boolean; renderHeader?: (actions?: ReactNode) => ReactNode } = {}) {
   const [items, setItems] = useState<ProcurementItemData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deliveryRisk, setDeliveryRisk] = useState(dueOnly);
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -108,9 +110,11 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
 
   const loadItems = () => {
     setLoading(true);
+    setLoadError(false);
     apiClient
       .getProcurementItems()
       .then(setItems)
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
   };
 
@@ -224,6 +228,14 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
       </>
     );
   }
+
+  if (loadError) return <>
+    {renderHeader?.()}
+    <div className="workspace-panel" role="alert">
+      <p>Не удалось загрузить данные о поставках.</p>
+      <button type="button" className="workspace-link" onClick={loadItems}>Повторить</button>
+    </div>
+  </>;
 
   const pendingItemStatusLabel = pendingStatusChange
     ? STATUS_CONFIGS[pendingStatusChange.item.status]?.label
@@ -397,7 +409,7 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
         {/* ============================================================ */}
         {/* DESKTOP TABLE VIEW (>= 768px): Zebra Striping & High Contrast (FE-1.3) */}
         {/* ============================================================ */}
-        <div className="hidden md:block overflow-x-hidden">
+        <TableScroll className="hidden md:block overflow-x-hidden" label={showcaseMode ? "Таблица поставок" : undefined}>
           <table className="w-full text-sm table-fixed" id="procurement-table">
             <thead>
               <tr className="bg-[var(--card-subtle)] border-b border-[var(--card-border)] text-xs text-[var(--text-sub)] uppercase font-semibold">
@@ -556,7 +568,7 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
               )}
             </tbody>
           </table>
-        </div>
+        </TableScroll>
 
         {/* ============================================================ */}
         {/* MOBILE CARDS VIEW (< 768px): Expandable Accordion Cards (FE-4.2) */}
@@ -575,28 +587,28 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
               return (
                 <div key={item.id} className="p-3.5 transition-colors">
                   {/* Collapsed Header: Tap to expand */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => toggleCardExpand(item.id)}
-                    className="flex items-start justify-between gap-2.5 cursor-pointer select-none"
-                    role="button"
-                    tabIndex={0}
+                    className="flex w-full items-start justify-between gap-2.5 text-left cursor-pointer select-none"
+                    aria-expanded={isExpanded}
                   >
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-sm text-[var(--text-main)] leading-snug line-clamp-1">
+                    <span className="grid flex-1 min-w-0 gap-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-[var(--text-main)] leading-snug [overflow-wrap:anywhere]">
                           {item.item_name}
                         </span>
-                      </div>
-                      <p className="text-xs text-[var(--text-sub)] flex items-center gap-1 truncate">
+                      </span>
+                      <span className="text-xs text-[var(--text-sub)] flex items-center gap-1">
                         <Building2 className="h-3 w-3 text-[var(--text-muted)] shrink-0" />
-                        <span className="truncate">{item.project_name}</span>
-                      </p>
-                      <p className="text-xs font-mono font-bold text-[var(--text-main)]">
+                        <span className="[overflow-wrap:anywhere]">{item.project_name}</span>
+                      </span>
+                      <span className="text-xs font-mono font-bold text-[var(--text-main)]">
                         {formatCurrency(item.invoice_amount)}
-                      </p>
-                    </div>
+                      </span>
+                    </span>
 
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span className="flex flex-col items-end gap-1.5 shrink-0">
                       {/* Compact badge */}
                       <span className={`px-2 py-0.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1 ${statusCfg.badgeClass}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dotColor}`} />
@@ -604,15 +616,15 @@ export function ProcurementTab({ dueOnly = false, renderHeader }: { dueOnly?: bo
                       </span>
 
                       {/* Expand indicator chevron */}
-                      <div className="p-1 text-[var(--text-muted)]">
+                      <span className="p-1 text-[var(--text-muted)]">
                         {isExpanded ? (
                           <ChevronUp className="h-4 w-4" />
                         ) : (
                           <ChevronDown className="h-4 w-4" />
                         )}
-                      </div>
-                    </div>
-                  </div>
+                      </span>
+                    </span>
+                  </button>
 
                   {/* Expanded Accordion Body (FE-4.2) */}
                   {isExpanded && (

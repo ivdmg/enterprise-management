@@ -1,3 +1,4 @@
+import { Modal } from '@/components/Modal';
 import { Pagination } from '@/components/Pagination';
 import { motion, useReducedMotion } from 'motion/react';
 import { DataLoading } from '@/components/DataLoading';
@@ -7,7 +8,7 @@ import { FieldBeam } from '@/components/FieldBeam';
 import { Activity, ArrowRight, ArrowUpRight, CalendarClock, CircleAlert, Database, FileText, Scale, Search, Workflow } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import { demoMode } from '@/api/mode';
+import { demoMode, showcaseMode } from '@/api/mode';
 import { Select } from '@/components/Select';
 import type { DriveSyncStatus } from '@/types';
 
@@ -108,6 +109,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<{ id: string; trigger: HTMLButtonElement } | null>(null);
   const [page, setPage] = useState(0);
   const [engineers, setEngineers] = useState<import('./EngineerDocumentsTab').EngineerRegister | null>(null);
   const [sync, setSync] = useState<DriveSyncStatus | null>(null);
@@ -123,6 +125,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
     if (view !== 'registry') {
       setFilter('all');
       setFocusedId(null);
+      setDetail(null);
     }
     setSearch('');
     setPage(0);
@@ -193,7 +196,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
 
     {error ? <div className="workspace-panel" role="alert">{error} <button className="workspace-link" onClick={() => { setError(''); setRequest(value => value + 1); }}>Повторить</button></div>
       : rows === null ? <DataLoading className="workspace-panel" />
-      : !rows.length ? <div className="workspace-panel">Импортированных записей пока нет.</div>
+      : !rows.length ? <div className="workspace-panel">{showcaseMode ? 'В реестре пока нет записей.' : 'Импортированных записей пока нет.'}</div>
       : view === 'summary' ? <>
         <motion.div className="workspace-metrics" initial="hidden" animate="visible" variants={{ visible: { transition: { staggerChildren: reducedMotion ? 0 : 0.13 } } }}>
           {[
@@ -234,7 +237,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         <div className="workspace-overview">
           <section className="workspace-panel"><FileText size={20} /><h2>Проверить документы</h2><p>{count('review')} записей с отметкой о работах и пустыми полями документов</p><button className="workspace-link" onClick={() => openContracts('review')}>К записям <ArrowRight size={16} /></button></section>
           <section className="workspace-panel"><Workflow size={20} /><h2>Контракты</h2><p>{registryCount} записей в реестре · {monitoringCount} в мониторинге</p><button className="workspace-link" onClick={() => onViewChange('registry')}>К карточкам контрактов <ArrowRight size={16} /></button></section>
-          <section className="workspace-panel"><Database size={20} /><h2>Качество данных</h2><p>{warningCount ? `Строк с ошибкой формулы в номере: ${warningCount}` : 'Ошибок формул в импортируемых номерах нет'}</p><button className="workspace-link" onClick={() => onViewChange('sources')}>Об источнике <ArrowRight size={16} /></button></section>
+          <section className="workspace-panel"><Database size={20} /><h2>Качество данных</h2><p>{warningCount ? `Строк с ошибкой формулы в номере: ${warningCount}` : 'Ошибок формул в импортируемых номерах нет'}</p>{showcaseMode ? <p>Источник — синтетические данные демо-сервера.</p> : <button className="workspace-link" onClick={() => onViewChange('sources')}>Об источнике <ArrowRight size={16} /></button>}</section>
         </div>
         <div className="workspace-section-heading workspace-section-spaced"><h2>Операции</h2></div>
         <section className="workspace-panel mt-4"><h2>Снабжение и закупки</h2><p>Счета на оплате с просроченной или близкой датой поставки.</p><button className="workspace-link" onClick={onOpenProcurement}>К счетам с риском по сроку <ArrowRight size={16} /></button></section>
@@ -282,20 +285,34 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             const city = field(row.registry, 3) || field(row.monitoring, 3);
             const deadline = dateValue(field(row.registry, 18));
             const workNotes = [4, 11, 18].map(index => field(row.monitoring, index)).filter(Boolean);
-            return <article className="workspace-panel workspace-record" key={row.id}>
-              <div className="workspace-record-meta">№ {row.number}{city && ` · ${city}`}</div>
-              <h2>{work || customer || 'Запись без названия'}</h2>
-              {work && customer && <p>{customer}</p>}
-              {flags.map(flag => <span key={flag.kind} className={`workspace-badge ${flag.kind}`}>{flag.label}</span>)}
-              <dl className="workspace-facts">
+            const title = work || customer || 'Запись без названия';
+            const metadata = <div className="workspace-record-meta">№ {row.number}{city && ` · ${city}`}</div>;
+            const facts = <dl className="workspace-facts">
                 <div><dt>Статус</dt><dd>{field(row.registry, 16) || 'Не указан'}</dd></div>
                 <div><dt>Срок исполнения</dt><dd>{deadline === null ? 'Не указан' : dateFormat.format(deadline)}</dd></div>
                 <div><dt>Сумма контракта</dt><dd>{row.amount === null ? 'Не указана' : money.format(row.amount)}</dd></div>
                 {row.curator && <div><dt>Куратор</dt><dd>{row.curator}</dd></div>}
                 {row.monitoring && <div><dt>Отметки о работах</dt><dd>{workNotes.length ? workNotes.join(', ') : 'Не указаны'}</dd></div>}
-              </dl>
-
-              <SourceLink href={row.link} />
+              </dl>;
+            return <article className="workspace-panel workspace-record" key={row.id}>
+              {metadata}
+              <h2>{title}</h2>
+              {work && customer && <p>{customer}</p>}
+              {flags.map(flag => <span key={flag.kind} className={`workspace-badge ${flag.kind}`}>{flag.label}</span>)}
+              {showcaseMode ? <>
+                <button type="button" className="workspace-link" aria-haspopup="dialog"
+                  aria-label={`Открыть карточку: ${title}`} onClick={event => setDetail({ id: row.id, trigger: event.currentTarget })}>
+                  Открыть карточку <ArrowRight size={16} />
+                </button>
+                <Modal isOpen={detail?.id === row.id} onClose={() => setDetail(null)} title={title} returnFocusTo={detail?.trigger}>
+                  {metadata}
+                  {work && customer && <p>{customer}</p>}
+                  {facts}
+                </Modal>
+              </> : <>
+                {facts}
+                <SourceLink href={row.link} />
+              </>}
             </article>;
           })}
         </div>
