@@ -1,3 +1,4 @@
+import { showcaseMode } from '@/api/mode';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 interface ThemeContextType {
@@ -12,7 +13,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return false;
     const saved = localStorage.getItem('seh-theme');
     if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return !showcaseMode && window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
   useEffect(() => {
