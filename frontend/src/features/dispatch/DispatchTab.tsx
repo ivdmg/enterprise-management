@@ -36,6 +36,12 @@ interface StatusConfig {
   dotColor: string;
 }
 
+const resourceTypes = [
+  { id: 'all', label: 'Все ресурсы' },
+  { id: 'machinery', label: 'Спецтехника', icon: Truck },
+  { id: 'crew', label: 'Бригады', icon: Users },
+];
+
 const STATUS_CONFIGS: Record<DispatchStatus, StatusConfig> = {
   on_site: {
     id: 'on_site',
@@ -301,6 +307,10 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
 
   // KPI Calculations
   const totalCount = records.length;
+  const statusOptions = Object.values(STATUS_CONFIGS).map(config => ({
+    ...config,
+    count: records.filter(record => record.status === config.id).length,
+  }));
   const onSiteCount = records.filter((r) => r.status === 'on_site').length;
   const repairCount = records.filter((r) => r.status === 'repair').length;
   const downtimeCount = records.filter((r) => r.status === 'downtime').length;
@@ -429,18 +439,30 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--card-border)] md:hidden">
+            <div className="min-w-0">
+              <span className="mb-1 block text-xs font-semibold text-[var(--text-sub)]">Тип</span>
+              <Select ariaLabel="Тип ресурса" value={typeFilter} onChange={setTypeFilter}
+                options={resourceTypes.map(({ id, label, icon }) => ({ value: id, label, icon }))} />
+            </div>
+            <div className="min-w-0">
+              <span className="mb-1 block text-xs font-semibold text-[var(--text-sub)]">Статус</span>
+              <Select ariaLabel="Статус ресурса" value={statusFilter} onChange={setStatusFilter}
+                options={[
+                  { value: 'all', label: `Все статусы (${records.length})` },
+                  ...statusOptions.map(({ id, label, count }) => ({ value: id, label: `${label} (${count})` })),
+                ]} />
+            </div>
+          </div>
+
           {/* Type and Status Filter Pills */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[var(--card-border)]">
+          <div className="hidden md:flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[var(--card-border)]">
             {/* Resource Type */}
             <div className="flex items-center gap-1.5 overflow-x-auto">
               <span className="text-[11px] uppercase font-semibold text-[var(--text-muted)] whitespace-nowrap mr-1">
                 Тип:
               </span>
-              {[
-                { id: 'all', label: 'Все ресурсы' },
-                { id: 'machinery', label: 'Спецтехника', icon: Truck },
-                { id: 'crew', label: 'Бригады', icon: Users },
-              ].map((tf) => (
+              {resourceTypes.map((tf) => (
                 <button
                   key={tf.id}
                   onClick={() => setTypeFilter(tf.id)}
@@ -471,9 +493,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
               >
                 Все ({records.length})
               </button>
-              {(Object.keys(STATUS_CONFIGS) as DispatchStatus[]).map((st) => {
-                const cfg = STATUS_CONFIGS[st];
-                const count = records.filter((r) => r.status === st).length;
+              {statusOptions.map(({ id: st, label, count, dotColor }) => {
                 return (
                   <button
                     key={st}
@@ -484,8 +504,8 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
                         : 'bg-[var(--card-subtle)] text-[var(--text-sub)] hover:text-[var(--text-main)]'
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full ${cfg.dotColor}`} />
-                    <span>{cfg.label}</span>
+                    <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                    <span>{label}</span>
                     <span className="text-[10px] opacity-75">({count})</span>
                   </button>
                 );
