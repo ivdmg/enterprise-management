@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import { demoMode } from '@/api/mode';
+import { browserMockMode } from '@/api/mode';
 import { Card } from '@/components/Card';
 import { Select } from '@/components/Select';
 
@@ -26,7 +26,7 @@ export function MonthlyDispatch() {
   const [month, setMonth] = useState('');
   const [mobileLimit, setMobileLimit] = useState(12);
   useEffect(() => {
-    if (demoMode) return;
+    if (browserMockMode) return;
     const controller = new AbortController();
     apiClient.getMonthlyDispatch(controller.signal).then(setSchedule).catch(() => {
       if (!controller.signal.aborted) setError(true);

@@ -15,6 +15,7 @@ import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { useAuth } from '@/context/AuthContext';
+import { showcaseMode } from '@/api/mode';
 import { apiClient } from '@/api/client';
 import type { TelegramSettings } from '@/types';
 
@@ -34,8 +35,7 @@ export function SettingsTab() {
 
   useEffect(() => {
     let mounted = true;
-    apiClient
-      .getTelegramSettings()
+    (showcaseMode ? apiClient.getShowcaseSettings() : apiClient.getTelegramSettings())
       .then((data) => {
         if (mounted) {
           setSettings(data);
@@ -60,7 +60,7 @@ export function SettingsTab() {
   };
 
   const handleSave = async () => {
-    if (!settings) return;
+    if (showcaseMode || !settings) return;
     setSaving(true);
     try {
       await apiClient.updateTelegramSettings(settings);
@@ -124,7 +124,7 @@ export function SettingsTab() {
               Организация
             </label>
             <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] font-medium text-[var(--text-main)]">
-              ООО «ГлавСтройИнжиниринг»
+              {showcaseMode ? 'ООО «Волжский производственный контур»' : 'ООО «ГлавСтройИнжиниринг»'}
             </div>
           </div>
 
@@ -133,7 +133,7 @@ export function SettingsTab() {
               ИНН организации
             </label>
             <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] font-mono text-[var(--text-main)]">
-              7701987654
+              {showcaseMode ? '—' : '7701987654'}
             </div>
           </div>
 
@@ -151,12 +151,13 @@ export function SettingsTab() {
               Электронная почта
             </label>
             <div className="px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-subtle)] text-[var(--text-main)]">
-              {user?.email || 'director@glavstroy.ru'}
+              {user?.email || (showcaseMode ? '—' : 'director@glavstroy.ru')}
             </div>
           </div>
         </div>
       </Card>
 
+      <fieldset disabled={showcaseMode} className="space-y-6">
       {/* Telegram Integration */}
       <Card className="p-4 sm:p-6">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-5 pb-4 border-b border-[var(--card-border)]">
@@ -319,7 +320,7 @@ export function SettingsTab() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-[var(--card-border)]">
+        {!showcaseMode && <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-[var(--card-border)]">
           <Button
             variant="primary"
             onClick={handleSave}
@@ -329,8 +330,9 @@ export function SettingsTab() {
           >
             Сохранить настройки
           </Button>
-        </div>
+        </div>}
       </Card>
+      </fieldset>
 
     </div>
   );

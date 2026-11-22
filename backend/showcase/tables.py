@@ -10,15 +10,69 @@ SHEETS = {
     "operations": ("Реест Ольга", "Ежедневный мониторинг", "Задачи", "Сигналы", "Смены"),
     "stock": ("Поставки",),
 }
-TITLES = {"team": "Документы сотрудников", "finance": "Платежи демо",
-          "operations": "Операционный реестр демо", "stock": "Поставки демо"}
+TITLES = {"team": "Документы сотрудников", "finance": "Реестр платежей",
+          "operations": "Тендеры и исполнение контрактов", "stock": "Реестр закупок и поставок"}
 FOLDERS = {"team": "Команда", "finance": "Финансы", "operations": "Операции", "stock": "Запасы"}
 DOC_HEADER = ["Сотрудник", "Документ", "Действует до"]
+DOC_FIELDS = ["Табельный №", "Подразделение", "Должность", "Номер документа", "Выдан",
+              "Организация", "Ответственный", "Следующее действие"]
+PERSONNEL = (
+    ("Алина Ветрова", "Служба эксплуатации", "Инженер по эксплуатации"),
+    ("Мирон Соснов", "Служба эксплуатации", "Инженер-энергетик"),
+    ("Кира Ясенева", "Производственный участок", "Мастер участка"),
+    ("Роман Камышев", "Электромонтаж", "Старший электромонтёр"),
+    ("Дина Рябинова", "Производственный участок", "Инженер по ОТ"),
+    ("Лев Вишневский", "Электромонтаж", "Наладчик автоматики"),
+    ("Зоя Ольхина", "Метрология", "Инженер-метролог"),
+    ("Никита Лиственный", "Метрология", "Техник КИП"),
+    ("Мария Туманова", "Служба эксплуатации", "Инженер-механик"),
+    ("Илья Берестов", "Логистика", "Координатор смены"),
+)
 MONITOR_HEADER = ["вн.№", "Заказчик", "Начало", "Завершение"]
+
+
+COLUMN_NAMES = {
+    "id": "Код записи", "project_code": "Код контракта", "project_name": "Объект",
+    "customer_name": "Заказчик", "curator_name": "Куратор", "contract_sum": "Сумма договора",
+    "completed_sum": "Выполнено, ₽", "completion_percent": "Готовность, %", "start_date": "Начало работ",
+    "deadline_date": "Срок по договору", "status": "Статус", "penalty_amount_calculated": "Расчёт пени",
+    "tender_stage": "Стадия тендера", "task_title": "Поручение", "project_id": "Код объекта",
+    "related_contract": "Номер договора", "responsible_role": "Роль", "responsible_person": "Ответственный",
+    "due_date": "Исполнить до", "days_remaining": "Осталось, дн.", "is_urgent": "Срочно",
+    "source": "Происхождение", "priority": "Приоритет", "resource_type": "Тип ресурса",
+    "alert_type": "Тип риска", "severity": "Критичность", "title": "Событие", "description": "Описание",
+    "calculated_financial_impact": "Оценка потерь, ₽", "is_resolved": "Закрыт", "created_at": "Дата регистрации",
+    "shift_date": "Дата смены", "target_object": "Объект", "unit_name": "Подразделение",
+    "item_name": "Номенклатура", "quantity": "Количество", "unit": "Ед. изм.", "supplier": "Поставщик",
+    "invoice_amount": "Сумма счёта, ₽", "delivery_deadline": "Поставка до", "invoice_number": "Номер счёта",
+    "date": "Дата операции", "incoming": "Поступление, ₽", "outgoing": "Расход, ₽",
+}
 
 
 def encode(rows):
     return [list(rows[0]), *(list(row.values()) for row in rows)]
+
+
+def employee_rows(today):
+    yield [*DOC_HEADER, *DOC_FIELDS]
+    kinds = ("Удостоверение по охране труда", "Допуск к работам",
+             "Проверка знаний электробезопасности", "Обучение первой помощи")
+    for index, (name, department, role) in enumerate(PERSONNEL, 1):
+        for item, kind in enumerate(kinds):
+            days = (180 - index * 6, 18 - index, index * 18 - 50, 90 + index * 2)[item]
+            missing = (index + item) % 7 == 0 or (index == 2 and item == 1)
+            if missing:
+                expiry = number = issued = organisation = ""
+                action = "Запросить копию и сверить допуск"
+            else:
+                expiry = (today + timedelta(days=days)).isoformat()
+                issued = (today + timedelta(days=days - 365)).isoformat()
+                number = f"УД-{index:02d}-{item + 1:02d}"
+                organisation = ("Учебный центр «Вектор»", "Комиссия по допускам",
+                                "Учебный центр «Полюс»", "Учебный центр «Вектор»")[item]
+                action = "Повторное обучение" if days < 0 else "Включить в график аттестации" if days <= 30 else ""
+            yield [name, kind, expiry, f"Т-{index:03d}", department, role, number, issued,
+                   organisation, "Дина Рябинова", action]
 
 
 def seed_tables(today=None):
@@ -35,22 +89,23 @@ def seed_tables(today=None):
         {"date": offset(-2 * index - part), "incoming": project["paid_sum"] // 3
          + (project["paid_sum"] % 3 if part == 0 else 0),
          "outgoing": 12_000 + 2_500 * index + 1_000 * part,
-         "project_code": project["project_code"]}
+         "project_code": project["project_code"], "Статья": ("Оплата по договору", "Закупка материалов", "Монтажные работы")[part],
+         "Основание": f"ПП-{2000 + index * 3 + part}", "ЦФО": project["curator_name"],
+         "Канал расчёта": "Банковский перевод", "Валюта": "RUB"}
         for index, project in enumerate(projects)
         for part in range(3)
     ]
     return {
-        "Документы сотрудников": [DOC_HEADER,
-            ["Алина Ветрова", "Удостоверение по охране труда", offset(180)],
-            ["Алина Ветрова", "Допуск к работам", offset(10)],
-            ["Мирон Соснов", "Удостоверение по охране труда", offset(-7)],
-            ["Мирон Соснов", "Допуск к работам", ""],
-        ],
+        "Документы сотрудников": list(employee_rows(today)),
         "Реест Ольга": encode(project_rows),
-        "Ежедневный мониторинг": [MONITOR_HEADER, *(
+        "Ежедневный мониторинг": [[*MONITOR_HEADER, "Куратор", "Ближайший этап", "Ответ заказчика",
+                                  "Готовность, %", "Решение по исполнению"], *(
             [row["number"], row["monitoring"]["values"][1],
-             row["monitoring"]["values"][4], row["monitoring"]["values"][5] or ""]
-            for row in registry
+             row["monitoring"]["values"][4], row["monitoring"]["values"][5] or "",
+             project["curator_name"], "Закрытие договора" if project["status"] == "completed" else "Сверка плана работ",
+             "Акт подписан" if project["status"] == "completed" else "Получить подтверждение",
+             project["completion_percent"], "Архивировать" if project["status"] == "completed" else "Уточнить на планёрке"]
+            for row, project in zip(registry, projects)
         )],
         "Задачи": encode(tasks),
         "Сигналы": encode(alerts),
@@ -60,29 +115,51 @@ def seed_tables(today=None):
     }
 
 
-DATE_FIELDS = {"Действует до", "Начало", "Завершение", "start_date", "deadline_date",
+DATE_FIELDS = {"Действует до", "Выдан", "Начало", "Завершение", "start_date", "deadline_date",
                "due_date", "shift_date", "delivery_deadline", "date"}
 
 
-def read_rows(raw, template, optional=frozenset()):
-    if not raw or raw[0] != list(template) or len(raw) >= 1000:
-        raise ValueError("sheet header or size")
+def read_rows(raw, template, optional=frozenset(), additional=frozenset(), mapping=None):
+    if not raw or len(raw) >= 1000:
+        raise ValueError("sheet size")
+    accepted = {
+        key: {str(label).strip().casefold() for label in ((mapping or {}).get(key, key), COLUMN_NAMES.get(key, key))}
+        for key in template
+    }
+    required = template.keys() - additional
+    for index, raw_header in enumerate(raw[:8]):
+        header = [str(value).strip().casefold() for value in raw_header]
+        if all(accepted[key].intersection(header) for key in required):
+            break
+    else:
+        raise ValueError("missing sheet header")
+    columns = {}
+    for key in template:
+        matches = [column for column, label in enumerate(header) if label in accepted[key]]
+        if len(matches) > 1:
+            raise ValueError("duplicate mapped column")
+        if matches:
+            columns[key] = matches[0]
+    if len(set(columns.values())) != len(columns):
+        raise ValueError("ambiguous column mapping")
     rows = []
-    for values in raw[1:]:
-        if len(values) > len(template):
-            raise ValueError("too many columns")
-        values = [*values, *[""] * (len(template) - len(values))]
+    for values in raw[index + 1:]:
+        if not any(value != "" for value in values):
+            continue
         row = {}
-        for (key, sample), value in zip(template.items(), values):
-            if key in DATE_FIELDS and type(value) is int and 1 <= value <= 100_000:
-                value = (date(1899, 12, 30) + timedelta(days=value)).isoformat()
+        for key, sample in template.items():
+            column = columns.get(key)
+            value = values[column] if column is not None and column < len(values) else ""
+            if (key in DATE_FIELDS and type(value) in (int, float)
+                    and 1 <= value <= 100_000 and value == int(value)):
+                value = (date(1899, 12, 30) + timedelta(days=int(value))).isoformat()
             if key in DATE_FIELDS and value != "":
                 if not isinstance(value, str):
                     raise ValueError("invalid date type")
                 iso_day(value)
             if type(sample) is bool and value in ("TRUE", "FALSE"):
                 value = value == "TRUE"
-            if value == "" and key in optional:
+            if value == "" and (key in optional or key in additional):
                 row[key] = None
             elif type(value) is not type(sample) or value == "":
                 raise ValueError("invalid cell type")
@@ -98,17 +175,20 @@ def iso_day(value):
     return value
 
 
-def documents(raw, synced_at):
-    rows = read_rows(raw, dict.fromkeys(DOC_HEADER, ""), {"Действует до"})
+def documents(raw, synced_at, mapping=None):
+    rows = read_rows(raw, dict.fromkeys([*DOC_HEADER, *DOC_FIELDS], ""), {"Действует до"}, set(DOC_FIELDS), mapping)
     people = {}
-    for name, kind, expiry in (row.values() for row in rows):
+    for row in rows:
+        name, kind, expiry = (row[key] for key in DOC_HEADER)
         records = people.setdefault(name, {})
         if kind in records:
             raise ValueError("duplicate document")
         records[kind] = {
             "title": kind,
             "entries": [{"label": "Действует до", "value": iso_day(expiry) if expiry else "нет",
-                         "is_date": expiry is not None}],
+                         "is_date": expiry is not None},
+                        *({"label": key, "value": row[key], "is_date": False}
+                          for key in ("Должность", "Номер документа", "Следующее действие") if row[key])],
             "attachments": [],
         }
     return {"synced_at": synced_at, "people": [
@@ -121,13 +201,18 @@ def timestamp():
     return datetime.now(timezone.utc).isoformat()
 
 
-def parse_tables(tables, today):
+def parse_tables(tables, today, mapping=None):
     seed = seed_tables(today)
+    mapping = mapping or {}
 
     def read(name, optional=frozenset()):
         header, example, *_ = seed[name]
+        if name == "Платежи":
+            header = header[:4]
+        elif name == "Ежедневный мониторинг":
+            header = MONITOR_HEADER
         template = {key: "" if key in DATE_FIELDS else value for key, value in zip(header, example)}
-        return read_rows(tables[name], template, optional)
+        return read_rows(tables[name], template, optional, mapping=mapping.get(name))
 
     projects = read("Реест Ольга")
     monitoring = read("Ежедневный мониторинг", {"Завершение"})
@@ -163,6 +248,10 @@ def parse_tables(tables, today):
     for task in tasks:
         if codes_by_id.get(task["project_id"]) != task["related_contract"]:
             raise ValueError("unknown task contract")
+        if task["status"] == "completed":
+            task["status"] = "approved_closed"
+        if task["status"] not in {"pending", "in_progress", "overdue", "transferred_to_manager", "approved_closed"}:
+            raise ValueError("unknown task status")
         task["days_remaining"] = (date.fromisoformat(iso_day(task["due_date"])) - today).days
         if task["status"] in {"pending", "in_progress", "overdue"}:
             if task["days_remaining"] < 0:
@@ -191,5 +280,5 @@ def parse_tables(tables, today):
         "customer-tenders": registry, "dashboard/projects": projects, "tasks": tasks,
         "alerts": read("Сигналы"), "procurement/items": supplies,
         "dispatch/records": shifts, "payments": payments,
-        "engineer-documents": documents(tables["Документы сотрудников"], timestamp()),
+        "engineer-documents": documents(tables["Документы сотрудников"], timestamp(), mapping.get("Документы сотрудников")),
     }

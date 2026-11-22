@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, File, Folder } from 'lucide-react';
+import { showcaseMode } from '@/api/mode';
 import { apiClient } from '@/api/client';
 import { Badge } from '@/components/Badge';
 import { formatDate, formatFileSize } from '@/utils/format';
@@ -10,7 +11,7 @@ export interface DriveNode {
   name: string;
   url?: string;
   active_source: boolean;
-  source_kind?: 'tenders' | 'engineers' | 'dispatch' | null;
+  source_kind?: 'tenders' | 'engineers' | 'dispatch' | 'finance' | 'procurement' | null;
   size_bytes: number | null;
   created_at: string | null;
   modified_at?: string | null;
@@ -26,7 +27,7 @@ export function flattenDrive(nodes: DriveNode[]): DriveNode[] {
   ];
 }
 
-export function useDriveCatalog(enabled: boolean, refreshAt?: string | null) {
+export function useDriveCatalog(enabled: boolean, refreshAt?: string | null, attempt = 0) {
   const [nodes, setNodes] = useState<DriveNode[]>();
   const [error, setError] = useState('');
   useEffect(() => {
@@ -36,7 +37,7 @@ export function useDriveCatalog(enabled: boolean, refreshAt?: string | null) {
       .then(result => { if (!controller.signal.aborted) { setError(''); setNodes(result); } })
       .catch((failure: Error) => { if (!controller.signal.aborted) setError(failure.message); });
     return () => controller.abort();
-  }, [enabled, refreshAt]);
+  }, [enabled, refreshAt, attempt]);
   return { nodes, error };
 }
 
@@ -58,7 +59,7 @@ export function FileRow({ node, file, onFileSelect }: {
   return <div className="workspace-catalog-file">
     <div className="workspace-catalog-name"><File size={17} aria-hidden="true" /><strong>{name}</strong></div>
     {(link || file || node?.owner || date || size != null) && <div className="workspace-catalog-meta">
-      <span>{file?.uploaded_by ? 'Загрузил · ' + file.uploaded_by : node?.owner ? 'Владелец · ' + node.owner : 'Загрузивший не указан'}</span>
+      {(!showcaseMode || node?.owner) && <span>{file?.uploaded_by ? 'Загрузил · ' + file.uploaded_by : node?.owner ? 'Владелец · ' + node.owner : 'Загрузивший не указан'}</span>}
       <span>{date ? (node?.modified_at ? 'Изменён на Диске · ' : '') + formatDate(date) : 'Дата недоступна'}</span>
       {size != null && <span>{formatFileSize(size)}</span>}
     </div>}

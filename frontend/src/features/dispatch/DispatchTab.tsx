@@ -327,7 +327,7 @@ export function DispatchTab({ renderHeader, driveLink }: { renderHeader?: (actio
         <button type="button" className="workspace-catalog-button" onClick={loadRecords} id="dispatch-refresh-btn"><RefreshCw size={16} />Обновить статус</button>
       </>)}
       {loadError && <p role="alert">Не удалось загрузить суточный статус.</p>}
-      {!showcaseMode && <MonthlyDispatch />}
+      <MonthlyDispatch />
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

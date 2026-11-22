@@ -20,13 +20,27 @@ ID = re.compile(r"[A-Za-z0-9_-]{10,150}")
 LOG = logging.getLogger(__name__)
 
 
-def node(name, key, children=None, active=False):
+SOURCE_KINDS = {"team": "engineers", "operations": "tenders", "finance": "finance", "stock": "procurement"}
+
+
+def node(name, key, children=None, active=False, metadata=None, source_kind=None):
+    metadata = metadata or {}
+    size = metadata.get("size")
     return {"id": key, "name": name, "children": children, "active_source": active,
-            "size_bytes": None, "created_at": None, "owner": None}
+            "source_kind": source_kind, "size_bytes": int(size) if size is not None else None,
+            "created_at": metadata.get("createdTime"), "modified_at": metadata.get("modifiedTime"), "owner": None}
 
 
-def local_catalog():
-    return [node(FOLDERS[key], key, [node(TITLES[key], f"{key}-sheet", active=True)]) for key in SHEETS]
+def local_catalog(tables=None, updated_at=None):
+    return [
+        node(FOLDERS[key], key, [node(
+            TITLES[key], f"{key}-sheet", active=True, source_kind=SOURCE_KINDS[key],
+            metadata={"createdTime": updated_at, "size": len(json.dumps(
+                {name: tables[name] for name in sheets}, ensure_ascii=False,
+            ).encode())} if tables is not None else None,
+        )])
+        for key, sheets in SHEETS.items()
+    ]
 
 
 class GoogleSource:
@@ -59,6 +73,7 @@ class GoogleSource:
         self.session.close()
 
     def load(self):
+        groups_by_file = {file_id: group for group, file_id in self.files.items()}
         found = set()
         remaining = 40
 
@@ -73,7 +88,7 @@ class GoogleSource:
                 response = self.get(
                     "https://www.googleapis.com/drive/v3/files",
                     q=f"'{parent}' in parents and trashed = false",
-                    fields="nextPageToken,files(id,name,mimeType)", pageSize=100, pageToken=page,
+                    fields="nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime)", pageSize=100, pageToken=page,
                 )
                 for item in response.get("files", []):
                     identifier, mime = item["id"], item["mimeType"]
@@ -83,12 +98,13 @@ class GoogleSource:
                     if mime == FOLDER:
                         nodes.append(node(item["name"], key, walk(identifier, key, depth + 1)))
                     elif identifier in self.allowed and mime != "application/vnd.google-apps.shortcut":
-                        active = identifier in self.files.values()
+                        group = groups_by_file.get(identifier)
+                        active = group is not None
                         if active:
                             if mime != SHEET:
                                 raise ValueError("expected a Google spreadsheet")
                             found.add(identifier)
-                        nodes.append(node(item["name"], key, active=active))
+                        nodes.append(node(item["name"], key, active=active, metadata=item, source_kind=SOURCE_KINDS.get(group)))
                 page = response.get("nextPageToken")
                 if not page:
                     return nodes
@@ -134,7 +150,10 @@ class Snapshots:
                 tables, catalog = reader.load()
             finally:
                 reader.close()
-            loaded = (parse_tables(tables, today), catalog, timestamp())
+            mapping = json.loads(os.getenv("SHOWCASE_COLUMN_MAPPING_JSON", "{}"))
+            if not isinstance(mapping, dict) or any(not isinstance(value, dict) for value in mapping.values()):
+                raise ValueError("invalid column mappings")
+            loaded = (parse_tables(tables, today, mapping), catalog, timestamp())
         except Exception as exc:
             issue = "schema" if isinstance(exc, ValueError) else "unavailable"
             LOG.warning("Showcase refresh failed (%s)", issue)
@@ -157,4 +176,7 @@ class Snapshots:
             if self.last:
                 data, catalog, at = self.last
                 return Current(data, catalog, "snapshot" if issue else "drive", at, issue)
-        return Current(parse_tables(seed_tables(today), today), local_catalog(), "synthetic", None, issue)
+        tables = seed_tables(today)
+        data = parse_tables(tables, today)
+        catalog = local_catalog(tables, data["engineer-documents"]["synced_at"])
+        return Current(data, catalog, "synthetic", None, issue)

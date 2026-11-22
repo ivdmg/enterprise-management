@@ -44,7 +44,6 @@ const moduleIds: Record<Section, string> = {
   projects: 'projects', finance: 'finance', procurement: 'procurement', dispatch: 'dispatch',
   tasks: 'tasks', sources: 'sources', files: 'files', settings: 'settings',
 };
-const showcaseSections: readonly Section[] = ['summary', 'registry', 'projects', 'finance', 'procurement', 'dispatch', 'tasks', 'engineers', 'files'];
 const customerViews: readonly Section[] = ['summary', 'registry', 'sources'];
 const QuickActions = lazy(() => import('@/components/QuickActions'));
 const loadSection = {
@@ -116,10 +115,8 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const { isDark, toggle } = useTheme();
   const [legacyView, setView] = useState(readSection);
   const allowedSections = allowedModules && new Map(allowedModules.map(module => [module.id, module]));
-  const isAllowed = (id: Section) => showcaseMode ? showcaseSections.includes(id) : !allowedSections || allowedSections.has(moduleIds[id]);
-  const labelFor = (id: Section, fallback: string) => showcaseMode && id === 'engineers' ? 'Документы сотрудников'
-    : showcaseMode && id === 'files' ? 'Файлы / Дерево Google Drive'
-    : allowedSections?.get(moduleIds[id])?.label ?? fallback;
+  const isAllowed = (id: Section) => !allowedSections || allowedSections.has(moduleIds[id]);
+  const labelFor = (id: Section, fallback: string) => allowedSections?.get(moduleIds[id])?.label ?? fallback;
   const menuSections = sections.flatMap(group => [...group.items]).filter(item => isAllowed(item.id));
   if (allowedSections) {
     menuSections.sort((a, b) => (allowedSections.get(moduleIds[a.id])?.order ?? 0)
@@ -308,11 +305,12 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
   const isSyncing = manualSync || sync?.status === 'syncing';
   const lastSync = Date.parse(sync?.last_synced_at ?? '');
   const syncLabel = sync?.status === 'syncing' ? 'Идёт импорт' : sync?.status === 'error' ? 'Ошибка импорта' : Number.isFinite(lastSync) ? formatSync.format(lastSync) : 'Google Drive';
+  const hasDriveSnapshot = showcaseSource?.source === 'drive' || showcaseSource?.source === 'snapshot';
   const customerView = hasView && customerViews.includes(activeView) && !(companyBase && activeView === "sources");
 
   function renderPageHeader(actions?: ReactNode) {
     return <header className="workspace-heading workspace-pagebar">
-      <div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{labelFor(section.id, section.label)}</h1>{!(showcaseMode && section.id === 'files') && <p>{section.description}</p>}</div>
+      <div><div className="workspace-eyebrow"><section.icon size={15} /> ENTERPRISE HUB</div><h1>{labelFor(section.id, section.label)}</h1>{<p>{section.description}</p>}</div>
       <div className="workspace-pagebar-actions">
         {actions}
         <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={() => navigate('summary')}><House size={17} /></button>
@@ -356,9 +354,8 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           {demoMode && <span className="workspace-demo" title={showcaseSource?.issue === 'schema'
             ? 'Ошибка схемы Google Таблиц' : showcaseSource?.issue === 'unavailable'
               ? 'Google Drive недоступен' : 'Учебные данные'} role={showcaseMode ? 'status' : undefined}>
-            <FlaskConical size={14} />{showcaseSource?.source === 'drive' ? 'Google Drive'
-              : showcaseSource?.source === 'snapshot' ? 'Снимок'
-              : showcaseSource?.source === 'synthetic' ? 'Локальные данные' : 'Демо'}</span>}
+            <FlaskConical size={14} />Демо{showcaseSource && <span> · {showcaseSource.source === 'drive' ? 'Google Drive'
+              : showcaseSource.source === 'snapshot' ? 'Снимок' : 'Резервный набор'}</span>}</span>}
           {!demoMode && !companyBase && (
             <button className="workspace-sync" onClick={syncNow} disabled={isSyncing}
               title={isSyncing ? 'Синхронизация…' : syncMessage || syncLabel}
@@ -391,7 +388,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
             { label: 'Контракты', ids: ['registry', 'projects'] },
             { label: 'Финансы', ids: ['finance'] },
             { label: 'Операции', ids: ['procurement', 'dispatch', 'tasks', ...(showcaseMode || (!demoMode && canEdit) ? ['engineers'] : [])] },
-            { label: showcaseMode ? 'Файлы' : 'Данные', ids: ['sources', 'files', 'settings'] },
+            { label: 'Данные', ids: ['sources', 'files', 'settings'] },
           ].map(({ label, ids }, index) => {
             const items = menuSections.filter(item => ids.includes(item.id));
             if (!items.length) return null;
@@ -433,7 +430,7 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
           <CircleUserRound size={19} aria-hidden="true" />
         </button>}
         <nav aria-label="Разделы">
-          {(allowedSections || showcaseMode ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
+          {(allowedSections ? [{ title: 'Разделы', items: menuSections }] : sections).map(group => <div className="workspace-nav-group" key={group.title}>
             <p>{group.title}</p>
             {group.items.map(({ id, label, icon: Icon }) => {
               const count = attention[id] ?? 0;
@@ -450,13 +447,13 @@ export default function App({ allowedModules, companyBase, requestedModule }: Ap
         </nav>
       </aside>
       <main className="workspace-main" data-view={view}>
-        {!hasView ? <p>Раздел недоступен. Выберите доступный раздел в меню.</p> : customerView ? <CustomerTendersTab key={version} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
+        {!hasView ? <p>Раздел недоступен. Выберите доступный раздел в меню.</p> : customerView ? <CustomerTendersTab key={`${version}-${hasDriveSnapshot}`} view={view as TenderView} onViewChange={navigate} penalties={penalties} onOpenAlerts={() => setShowAlerts('penalties')} onOpenProcurement={() => navigate('procurement', true)} onOpenFinance={() => navigate('finance')} />
           : <>
               {view === 'files' ? renderPageHeader(showcaseMode ? undefined : <>
                 {!demoMode && canEdit && sync?.root_folder_link && <a className="workspace-catalog-button" href={sync.root_folder_link} target="_blank" rel="noreferrer"><ExternalLink size={16} />Папка Google Диска</a>}
                 {canEdit && <button type="button" className="workspace-catalog-button" onClick={() => setUpload('file')}><Upload size={16} />Загрузить файл</button>}
               </>) : (view === 'settings' || (view === 'engineers' && !showcaseMode && (demoMode || !canEdit))) && renderPageHeader()}
-              <div key={`${view}-${version}`} className="workspace-module workspace-reveal"><Suspense fallback={<DataLoading />}>{renderSection()}</Suspense></div>
+              <div key={`${view}-${version}-${hasDriveSnapshot}`} className="workspace-module workspace-reveal"><Suspense fallback={<DataLoading />}>{renderSection()}</Suspense></div>
             </>}
       </main>
       <FileUploadModal isOpen={canEdit && upload === 'file'} onClose={() => setUpload(null)} onUploadComplete={data => { setUpload(null); if (data.status === 'awaiting_confirmation') setMapping({ id: data.file_id, name: data.original_name }); setVersion(value => value + 1); }} />

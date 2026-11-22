@@ -98,7 +98,7 @@ async function fetchData<T>(
   options: RequestInit,
   token: string | null,
 ): Promise<T> {
-  if (USE_MOCKS || (showcaseMode && (options.method ?? 'GET') !== 'GET')) throw new Error('Операция недоступна в демонстрационном режиме.');
+  if (USE_MOCKS || (showcaseMode && (options.method ?? 'GET') !== 'GET')) throw new Error('Операция недоступна в режиме просмотра.');
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
@@ -118,7 +118,10 @@ async function fetchData<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData?.error?.message || `HTTP Error ${response.status}`);
+    throw new Error(errorData?.error?.message || (showcaseMode
+      ? response.status === 404 ? 'Раздел недоступен на текущем сервере. Обновите страницу и повторите попытку.'
+        : 'Не удалось получить данные. Повторите попытку.'
+      : `HTTP Error ${response.status}`));
   }
 
   const json: ApiResponse<T> = await response.json();
@@ -134,6 +137,9 @@ function delay(ms = 400): Promise<void> {
 }
 
 export const apiClient = {
+  getShowcaseSettings() {
+    return request<TelegramSettings>('/showcase/settings');
+  },
   getShowcaseSource(signal?: AbortSignal) {
     return request<{
       source: 'drive' | 'snapshot' | 'synthetic';

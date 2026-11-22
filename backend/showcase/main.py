@@ -70,15 +70,36 @@ def read_demo(endpoint: str, request: Request, response: Response):
         data = {"dynamics": [totals[day] for day in sorted(totals)], "total_incoming": incoming,
                 "total_outgoing": outgoing, "net_cash_flow": incoming - outgoing,
                 "top_debtors": [], "top_creditors": []}
+    elif endpoint == "dispatch/monthly":
+        projects = {row["project_name"]: row for row in state.data["dashboard/projects"]}
+        records = []
+        for index, shift in enumerate(state.data["dispatch/records"], 1):
+            project = projects[shift["target_object"]]
+            records.append({
+                "row": index, "code": project["project_code"], "customer": project["customer_name"],
+                "work": shift["target_object"], "city": None, "frequency": None, "work_type": None,
+                "status": None, "assignee": shift["responsible_person"],
+                "entries": {shift["shift_date"]: shift["unit_name"]},
+            })
+        data = {"link": None, "records": records}
     elif endpoint == "engineer-documents":
         data = {"register": state.data[endpoint]}
     elif endpoint == "drive-catalog":
         data = state.catalog
+    elif endpoint == "showcase/settings":
+        data = {
+            "telegram_bot_enabled": False, "bot_username": "", "group_channel_connected": False,
+            "daily_digest_enabled": False, "daily_digest_time": "08:00",
+            "alert_rules": {"deadline_warning_days": 5, "cash_gap_forecast_days": 30,
+                            "notify_on_critical_instant": False},
+        }
     elif endpoint == "showcase/source":
         data = source_status(state)
     elif endpoint == "sync/status":
-        data = {"status": "idle", "drive_mode": "mock", "synced_files_count": 0,
-                "target_folders_count": 0, "last_synced_at": None}
+        data = {"status": "error" if state.issue else "idle",
+                "drive_mode": "mock" if state.source == "synthetic" else "live",
+                "synced_files_count": 0 if state.source == "synthetic" else len(state.catalog),
+                "target_folders_count": len(state.catalog), "last_synced_at": state.refreshed_at}
     else:
         raise HTTPException(status_code=404)
     return {"success": True, "data": data, "error": None}
@@ -88,7 +109,7 @@ def read_demo(endpoint: str, request: Request, response: Response):
 def homepage():
     if not (DIST / "index.html").is_file():
         raise HTTPException(status_code=503, detail="Build the showcase frontend first.")
-    return FileResponse(DIST / "index.html")
+    return FileResponse(DIST / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/enterprise-hub-orange.svg", include_in_schema=False)

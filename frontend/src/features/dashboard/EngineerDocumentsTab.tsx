@@ -72,21 +72,25 @@ function DocumentCard({ doc, today }: { doc: DocumentRecord; today: string }) {
           <time key={index} dateTime={entry.value}>{entry.display ?? dateFormat.format(new Date(entry.value))}</time>
         ))}
       </div>
-      <div className="engineer-document-group" title={groups || undefined}>{groups}</div>
-      <div className="engineer-document-note" title={note || undefined}>{note}</div>
+      {showcaseMode ? <dl className="engineer-document-facts">
+        {notes.map(entry => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}
+      </dl> : <>
+        <div className="engineer-document-group" title={groups || undefined}>{groups}</div>
+        <div className="engineer-document-note" title={note || undefined}>{note}</div>
+      </>}
       <div className="engineer-document-badges">
         {showcaseMode && <span className="engineer-issue">{statusLabels[documentStatus(doc, today)]}</span>}
         {!showcaseMode && hasNoData(doc) && <span className="engineer-issue">Нет данных</span>}
         {!showcaseMode && hasNoFile(doc) && <span className="engineer-issue">Нет файла</span>}
       </div>
-      <div className="engineer-files">
-        {!showcaseMode && doc.attachments.map((file, index) => (
+      {!showcaseMode && <div className="engineer-files">
+        {doc.attachments.map((file, index) => (
           <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" title={file.name} aria-label={'Открыть ' + file.name}>
             <FileText size={15} aria-hidden="true" />
             {doc.attachments.length === 1 ? 'Открыть документ' : 'Документ ' + (index + 1)}
           </a>
         ))}
-      </div>
+      </div>}
     </article>
   );
 }
@@ -94,6 +98,7 @@ function DocumentCard({ doc, today }: { doc: DocumentRecord; today: string }) {
 export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string; onHome: () => void }) {
   const [data, setData] = useState<EngineerRegister | null | undefined>();
   const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
   const [preset, setPreset] = useState<Preset>('all');
   const [selectedColumn, setSelectedColumn] = useState<number | null>(null);
@@ -109,7 +114,7 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
       })
       .catch((failure: Error) => { if (!controller.signal.aborted) setError(failure.message); });
     return () => controller.abort();
-  }, [refreshAt]);
+  }, [refreshAt, attempt]);
 
   const today = calendar.format(new Date());
   const register = data?.people ?? [];
@@ -150,7 +155,7 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
         <div className="engineer-title">
           <div>
             <div className="workspace-eyebrow"><FileStack size={15} /> ENTERPRISE HUB</div>
-            <h1>{showcaseMode ? 'Документы сотрудников' : 'Документы инженеров'}</h1>
+            <h1>Документы инженеров</h1>
           </div>
           <button type="button" className="workspace-icon-button workspace-home-button" aria-label="К обзору" title="К обзору" onClick={onHome}><House size={17} /></button>
         </div>
@@ -167,7 +172,7 @@ export function EngineerDocumentsTab({ refreshAt, onHome }: { refreshAt?: string
           </FieldBeam>
         </div>}
       </header>
-      {error && <p role="alert">{error}</p>}
+      {error && <div><p role="alert">{error}</p>{showcaseMode && <button className="workspace-link" onClick={() => setAttempt(value => value + 1)}>Повторить</button>}</div>}
       {!error && data === undefined && <DataLoading />}
       {!error && data === null && <p>Реестр ещё не загружен. Запустите синхронизацию Google Диска.</p>}
       {data && <>

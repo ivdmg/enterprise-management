@@ -151,7 +151,7 @@ function CompanyAuthProvider({ children }: { children: ReactNode }) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   if (showcaseMode) return (
     <AuthContext.Provider value={{
-      user: { id: 'demo-visitor', email: '', full_name: 'Гость демо', role: 'viewer', telegram_connected: false },
+      user: { id: 'visitor', email: '', full_name: 'Гость', role: 'viewer', telegram_connected: false },
       tokens: null,
       isAuthenticated: true,
       isLoading: false,

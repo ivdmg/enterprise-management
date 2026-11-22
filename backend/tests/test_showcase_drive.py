@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from showcase import drive, main
-from showcase.tables import SHEETS, TITLES, seed_tables
+from showcase.tables import SHEETS, TITLES, parse_tables, seed_tables
 
 
 class CatalogTests(TestCase):
@@ -27,7 +27,8 @@ class CatalogTests(TestCase):
                 return {"files": [
                     *({"id": key, "name": TITLES[group], "mimeType": drive.SHEET}
                       for group, key in source.files.items()),
-                    {"id": "allowed-proof", "name": "Разрешённый файл", "mimeType": "text/plain"},
+                    {"id": "allowed-proof", "name": "Разрешённый файл", "mimeType": "text/plain",
+                     "size": "312", "modifiedTime": "2026-11-22T12:00:00Z"},
                     {"id": "ignored-file", "name": "Скрытый файл", "mimeType": "text/plain"},
                     {"id": "allowed-shortcut", "name": "Ярлык", "mimeType": "application/vnd.google-apps.shortcut"},
                 ]}
@@ -43,6 +44,9 @@ class CatalogTests(TestCase):
         children = catalog[0]["children"]
         self.assertEqual({entry["name"] for entry in children}, {*TITLES.values(), "Разрешённый файл"})
         self.assertTrue(all("url" not in entry and entry["id"] not in source.allowed for entry in children))
+        file = next(entry for entry in children if entry["name"] == "Разрешённый файл")
+        self.assertEqual(file["size_bytes"], 312)
+        self.assertEqual(file["modified_at"], "2026-11-22T12:00:00Z")
         source.files["stock"] = "outside-root"
         with self.assertRaisesRegex(ValueError, "outside the demo root"):
             source.load()
@@ -79,7 +83,8 @@ class SnapshotTests(TestCase):
             self.assertEqual(self.source(), "drive")
             self.assertEqual(self.api.get("/api/v1/drive-catalog").json()["data"], catalog)
 
-            tables["Документы сотрудников"][1][-1] = 45000
+            tables["Документы сотрудников"][1][2] = 45000.0
+            tables["Документы сотрудников"][1][7] = 44635
             self.reader.refresh(self.today)
             self.assertNotEqual(self.expiry(), before)
             self.assertEqual(self.expiry(), "2023-03-15")
@@ -127,7 +132,7 @@ class SnapshotTests(TestCase):
             self.assertEqual(self.source(), "drive")
 
     def test_anonymous_read_and_no_client_routes(self):
-        for route in ("engineer-documents", "drive-catalog", "dashboard/projects", "dashboard/finance", "showcase/source"):
+        for route in ("engineer-documents", "drive-catalog", "dashboard/projects", "dashboard/finance", "dispatch/monthly", "showcase/source", "showcase/settings"):
             self.assertEqual(self.api.get(f"/api/v1/{route}").status_code, 200)
             for method in ("POST", "PUT", "PATCH", "DELETE"):
                 self.assertEqual(self.api.request(method, f"/api/v1/{route}").status_code, 405)
@@ -137,3 +142,16 @@ class SnapshotTests(TestCase):
         finance = self.api.get("/api/v1/dashboard/finance?period=quarter").json()["data"]
         projects = self.api.get("/api/v1/dashboard/projects").json()["data"]
         self.assertEqual(finance["total_incoming"], sum(project["paid_sum"] for project in projects))
+
+    def test_formatted_title_and_custom_column_mapping(self):
+        tables = seed_tables()
+        name = "Документы сотрудников"
+        columns = tables[name]
+        reordered = [[row[2], row[0], row[1], "поле внешнего учёта"] for row in columns]
+        reordered[0][0] = "Срок допуска"
+        tables[name] = [["Кадровый реестр"], ["Служебный заголовок"], *reordered]
+        data = parse_tables(tables, self.today, {name: {"Действует до": "Срок допуска"}})
+        register = data["engineer-documents"]
+        self.assertEqual(len(register["people"]), 10)
+        self.assertEqual(register["people"][0]["documents"][0]["entries"][0]["value"], columns[1][2])
+        self.assertEqual(len(data["customer-tenders"]), 12)

@@ -785,6 +785,10 @@
   gap: 4px;
   overflow-wrap: anywhere;
 }
+[data-showcase] .engineer-document { grid-template-rows: auto auto 1fr auto; align-items: start; }
+.engineer-document-facts { display: grid; gap: 5px; font-size: 12px; }
+.engineer-document-facts dt { color: var(--text-sub); }
+.engineer-document-facts dd { margin: 0; }
 .engineer-document h3 { align-self: start; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; font-size: .95rem; font-weight: 650; }
 .engineer-issue { background: var(--card-subtle); border-radius: 6px; padding: 3px 7px; font-size: 12px; }
 

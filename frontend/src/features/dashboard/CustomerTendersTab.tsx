@@ -95,7 +95,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
   onOpenFinance: () => void;
 }) {
   const { user } = useAuth();
-  const canReadCatalog = !demoMode && (user?.role === 'manager' || user?.role === 'admin');
+  const canReadCatalog = showcaseMode || (!demoMode && (user?.role === 'manager' || user?.role === 'admin'));
   const { nodes: catalog, error: catalogError } = useDriveCatalog(view === 'sources' && canReadCatalog);
   const unconnected = flattenDrive(catalog ?? []).filter(node => !node.active_source);
   const connected = flattenDrive(catalog ?? []);
@@ -137,11 +137,11 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
     apiClient.getDriveSyncStatus().then(status => { if (current) setSync(status); })
       .catch(() => { if (current) setSync(null); });
     const controller = new AbortController();
-    if (!demoMode) apiClient.getEngineerDocuments(controller.signal)
+    if (canReadCatalog) apiClient.getEngineerDocuments(controller.signal)
       .then(data => { if (current) setEngineers(data.register); })
       .catch(() => {});
     return () => { current = false; controller.abort(); };
-  }, [view]);
+  }, [view, canReadCatalog]);
 
   const today = Date.parse(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Astrakhan', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()));
   const records = (rows ?? []).map(row => ({ row, flags: signals(row, today) }));
@@ -237,22 +237,22 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
         <div className="workspace-overview">
           <section className="workspace-panel"><FileText size={20} /><h2>Проверить документы</h2><p>{count('review')} записей с отметкой о работах и пустыми полями документов</p><button className="workspace-link" onClick={() => openContracts('review')}>К записям <ArrowRight size={16} /></button></section>
           <section className="workspace-panel"><Workflow size={20} /><h2>Контракты</h2><p>{registryCount} записей в реестре · {monitoringCount} в мониторинге</p><button className="workspace-link" onClick={() => onViewChange('registry')}>К карточкам контрактов <ArrowRight size={16} /></button></section>
-          <section className="workspace-panel"><Database size={20} /><h2>Качество данных</h2><p>{warningCount ? `Строк с ошибкой формулы в номере: ${warningCount}` : 'Ошибок формул в импортируемых номерах нет'}</p>{showcaseMode ? <p>Источник — синтетические данные демо-сервера.</p> : <button className="workspace-link" onClick={() => onViewChange('sources')}>Об источнике <ArrowRight size={16} /></button>}</section>
+          <section className="workspace-panel"><Database size={20} /><h2>Качество данных</h2><p>{warningCount ? `Строк с ошибкой формулы в номере: ${warningCount}` : 'Ошибок формул в импортируемых номерах нет'}</p><button className="workspace-link" onClick={() => onViewChange('sources')}>Об источнике <ArrowRight size={16} /></button></section>
         </div>
         <div className="workspace-section-heading workspace-section-spaced"><h2>Операции</h2></div>
         <section className="workspace-panel mt-4"><h2>Снабжение и закупки</h2><p>Счета на оплате с просроченной или близкой датой поставки.</p><button className="workspace-link" onClick={onOpenProcurement}>К счетам с риском по сроку <ArrowRight size={16} /></button></section>
       </> : view === 'sources' ? <div className="workspace-sources">{(demoMode || tenderSource) && <section className="workspace-panel">
-        <Database size={24} /><h2>{demoMode ? 'Учебный реестр' : tenderSource?.name}</h2>
-        <p>{demoMode ? 'Синтетические данные в браузере. Google Drive в этом режиме отключён.' : 'Связь по внутреннему номеру. Изменения вносятся в исходный документ.'}</p>
+        <Database size={24} /><h2>{tenderSource?.name || (showcaseMode ? 'Реестр контрактов' : 'Учебный реестр')}</h2>
+        <p>{demoMode && !showcaseMode ? 'Синтетические данные в браузере. Google Drive в этом режиме отключён.' : 'Связь по внутреннему номеру. Изменения вносятся в исходный документ.'}</p>
         <p>{sync?.status === 'error' ? 'Последняя попытка синхронизации завершилась ошибкой.' : sync?.status === 'syncing' ? 'Идёт синхронизация.' : null}</p>
-        {!demoMode && <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>}
+        {(!demoMode || showcaseMode) && <p>{Number.isFinite(syncedAt) ? `Последняя синхронизация · ${syncFormat.format(syncedAt)}` : 'Время последней синхронизации недоступно.'}</p>}
         <dl className="workspace-facts workspace-source-facts"><div><dt>Реест Ольга</dt><dd>{registryCount} записей</dd></div><div><dt>Ежедневный мониторинг</dt><dd>{monitoringCount} записей</dd></div></dl>
         <SourceLink href={tenderSource?.url ?? source} />
         {warningCount > 0 && <p className="workspace-warning">Пропущено строк с ошибкой формулы во внутреннем номере: {warningCount}. После исправления в источнике они попадут в следующий импорт.</p>}
       </section>}
         {engineerSource && <section className="workspace-panel">
           <FileText size={24} /><h2>Документы инженеров</h2>
-          <p>Матрица сотрудников и файлы из папки «удостоверения».</p>
+          <p>{showcaseMode ? 'Реестр удостоверений, допусков и сроков действия.' : 'Матрица сотрудников и файлы из папки «удостоверения».'}</p>
           {engineers && <>
             <dl className="workspace-facts workspace-source-facts"><div><dt>Сотрудники в реестре</dt><dd>{engineers.people.length}</dd></div></dl>
             <p>Последняя синхронизация · {syncFormat.format(new Date(engineers.synced_at))}</p>
@@ -264,6 +264,10 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
           <p>Помесячный график читается при открытии диспетчерской.</p>
           <SourceLink href={dispatchSource.url} />
         </section>}
+        {showcaseMode && connected.filter(node => node.source_kind === 'finance' || node.source_kind === 'procurement').map(node =>
+          <section className="workspace-panel" key={node.id}><FileText size={24} /><h2>{node.name}</h2>
+            <p>{node.source_kind === 'finance' ? 'Поступления и расходы по внутреннему номеру договора.' : 'Счета, поставщики и контроль сроков поставки.'}</p>
+          </section>)}
         {canReadCatalog && <section className="workspace-panel">
           <h2>Файлы без парсера</h2>
           <p>Эти файлы доступны в каталоге. У них нет самостоятельного импорта данных.</p>
@@ -271,7 +275,7 @@ export function CustomerTendersTab({ view, onViewChange, penalties, onOpenAlerts
             unconnected.length ? <details className="workspace-unconnected">
               <summary>Показать файлы · {unconnected.length}</summary>
               <ul>{unconnected.map(node => <li key={node.id}>
-                <a href={node.url} target="_blank" rel="noreferrer">{node.name}</a>
+                {node.url ? <a href={node.url} target="_blank" rel="noreferrer">{node.name}</a> : <span>{node.name}</span>}
                 <small>Парсер не подключён</small>
               </li>)}</ul>
             </details> : <p>Все файлы подключены.</p>}
